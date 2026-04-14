@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Convention Pre-Registration</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .fade-in { animation: fadeIn 0.3s ease-in; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-indigo-50 via-white to-purple-50 min-h-screen">
+  <div class="max-w-lg mx-auto px-4 py-8">
+    <!-- Header -->
+    <div class="text-center mb-8">
+      <div class="inline-flex items-center justify-center w-16 h-16 bg-indigo-600 rounded-2xl mb-4">
+        <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+        </svg>
+      </div>
+      <h1 class="text-3xl font-bold text-gray-800">Convention Registration</h1>
+      <p class="text-gray-500 mt-2">Pre-register to get your wristband faster at the event!</p>
+    </div>
+
+    <!-- Form -->
+    <div id="form-section">
+      <form id="reg-form" class="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 space-y-5">
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">First Name <span class="text-red-500">*</span></label>
+            <input type="text" id="name" required placeholder="John"
+              class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-sm transition" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Last Name <span class="text-red-500">*</span></label>
+            <input type="text" id="last_name" required placeholder="Doe"
+              class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-sm transition" />
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Email <span class="text-red-500">*</span></label>
+          <input type="email" id="email" required placeholder="john@example.com"
+            class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-sm transition" />
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label>
+            <input type="date" id="dob"
+              class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-sm transition" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Age</label>
+            <input type="number" id="age" min="5" max="120" placeholder="25"
+              class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-sm transition" />
+          </div>
+        </div>
+
+        <!-- Error / loading -->
+        <div id="error-msg" class="hidden text-sm bg-red-50 text-red-700 px-4 py-3 rounded-lg border border-red-200"></div>
+
+        <button type="submit" id="submit-btn"
+          class="w-full bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-700 transition font-semibold text-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          Pre-Register
+        </button>
+      </form>
+    </div>
+
+    <!-- Success -->
+    <div id="success-section" class="hidden fade-in">
+      <div class="bg-white rounded-2xl shadow-lg border border-gray-100 p-8 text-center">
+        <div class="inline-flex items-center justify-center w-20 h-20 bg-green-100 rounded-full mb-4">
+          <svg class="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+          </svg>
+        </div>
+        <h2 class="text-2xl font-bold text-gray-800 mb-2">You're Pre-Registered!</h2>
+        <p class="text-gray-500 mb-4">Show up at the convention desk to get your NFC wristband linked to your account.</p>
+        <div id="success-details" class="bg-gray-50 rounded-lg p-4 text-left text-sm space-y-1 mb-6"></div>
+        <button onclick="resetForm()" class="text-indigo-600 hover:text-indigo-700 font-medium text-sm">Register another person</button>
+      </div>
+    </div>
+
+    <p class="text-center text-xs text-gray-400 mt-6">Your information will be used for event management only.</p>
+  </div>
+
+  <script>
+    // Use relative URL — works when served by backend at /register or standalone
+    const API_BASE = '/public';
+
+    const form = document.getElementById('reg-form');
+    const errorMsg = document.getElementById('error-msg');
+    const submitBtn = document.getElementById('submit-btn');
+    const formSection = document.getElementById('form-section');
+    const successSection = document.getElementById('success-section');
+    const successDetails = document.getElementById('success-details');
+
+    // Auto-calculate age from DOB
+    document.getElementById('dob').addEventListener('change', (e) => {
+      const dob = new Date(e.target.value);
+      if (isNaN(dob.getTime())) return;
+      const today = new Date();
+      let age = today.getFullYear() - dob.getFullYear();
+      const m = today.getMonth() - dob.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age--;
+      document.getElementById('age').value = age;
+    });
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      errorMsg.classList.add('hidden');
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<svg class="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Registering...';
+
+      const data = {
+        name: document.getElementById('name').value.trim(),
+        last_name: document.getElementById('last_name').value.trim(),
+        email: document.getElementById('email').value.trim(),
+        dob: document.getElementById('dob').value || null,
+        age: document.getElementById('age').value ? parseInt(document.getElementById('age').value) : null,
+      };
+
+      try {
+        const res = await fetch(`${API_BASE}/preregister`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        });
+        const json = await res.json();
+
+        if (!res.ok) {
+          throw new Error(json.error || 'Registration failed');
+        }
+
+        // Show success
+        successDetails.innerHTML = `
+          <p><span class="font-medium text-gray-700">Name:</span> ${data.name} ${data.last_name}</p>
+          <p><span class="font-medium text-gray-700">Email:</span> ${data.email}</p>
+          ${data.dob ? `<p><span class="font-medium text-gray-700">Date of Birth:</span> ${data.dob}</p>` : ''}
+          ${data.age ? `<p><span class="font-medium text-gray-700">Age:</span> ${data.age}</p>` : ''}
+          <p class="mt-2 text-indigo-600 font-medium">Registration ID: #${json.user.id}</p>
+        `;
+        formSection.classList.add('hidden');
+        successSection.classList.remove('hidden');
+      } catch (err) {
+        errorMsg.textContent = err.message;
+        errorMsg.classList.remove('hidden');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> Pre-Register';
+      }
+    });
+
+    function resetForm() {
+      form.reset();
+      formSection.classList.remove('hidden');
+      successSection.classList.add('hidden');
+    }
+  </script>
+</body>
+</html>

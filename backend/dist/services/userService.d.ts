@@ -1,0 +1,56 @@
+export interface User {
+    id: number;
+    name: string;
+    last_name: string | null;
+    nfc_uid: string | null;
+    email: string | null;
+    age: number | null;
+    dob: string | null;
+    is_admin: boolean;
+    admin_permissions: string[];
+    is_preregistered: boolean;
+    days_playing: number;
+    created_at: Date;
+    updated_at: Date;
+}
+export declare function createUser(name: string, nfcUid?: string, email?: string, isAdmin?: boolean): Promise<User>;
+export declare function getUserByNfcUid(nfcUid: string): Promise<User | null>;
+export declare function getUserById(id: number): Promise<User | null>;
+export declare function getAllUsers(): Promise<any[]>;
+export declare function getUserWithBalances(userId: number): Promise<{
+    voucher_balance: number;
+    tix_balance: number;
+    id: number;
+    name: string;
+    last_name: string | null;
+    nfc_uid: string | null;
+    email: string | null;
+    age: number | null;
+    dob: string | null;
+    is_admin: boolean;
+    admin_permissions: string[];
+    is_preregistered: boolean;
+    days_playing: number;
+    created_at: Date;
+    updated_at: Date;
+} | null>;
+export declare function getUserByNfcUidWithBalances(nfcUid: string): Promise<{
+    voucher_balance: number;
+    tix_balance: number;
+    id: number;
+    name: string;
+    last_name: string | null;
+    nfc_uid: string | null;
+    email: string | null;
+    age: number | null;
+    dob: string | null;
+    is_admin: boolean;
+    admin_permissions: string[];
+    is_preregistered: boolean;
+    days_playing: number;
+    created_at: Date;
+    updated_at: Date;
+} | null>;
+export declare function updateUser(id: number, fields: Partial<Pick<User, 'name' | 'nfc_uid' | 'email' | 'days_playing' | 'is_admin'>>): Promise<any>;
+export declare function searchUsers(query: string): Promise<any[]>;
+//# sourceMappingURL=userService.d.ts.map

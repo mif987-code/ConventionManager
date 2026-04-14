@@ -1,0 +1,150 @@
+const API_BASE = '/api';
+
+let apiKey = localStorage.getItem('cm_api_key') || '';
+
+export function setApiKey(key: string) {
+  apiKey = key;
+  localStorage.setItem('cm_api_key', key);
+}
+
+export function getApiKey(): string {
+  return apiKey;
+}
+
+async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      ...options.headers,
+    },
+  });
+
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || `Request failed: ${res.status}`);
+  return data;
+}
+
+// Users
+export const users = {
+  list: () => request<any>('/users'),
+  get: (id: number) => request<any>(`/users/${id}`),
+  search: (q: string) => request<any>(`/users/search?q=${encodeURIComponent(q)}`),
+  register: (name: string, nfc_uid: string, email?: string) =>
+    request<any>('/users/register', { method: 'POST', body: JSON.stringify({ name, nfc_uid, email }) }),
+  update: (id: number, fields: any) =>
+    request<any>(`/users/${id}`, { method: 'PUT', body: JSON.stringify(fields) }),
+};
+
+// Vouchers
+export const vouchers = {
+  balance: (userId: number) => request<any>(`/vouchers/balance/${userId}`),
+  history: (userId: number) => request<any>(`/vouchers/history/${userId}`),
+  topup: (user_id: number, amount: number) =>
+    request<any>('/vouchers/topup', { method: 'POST', body: JSON.stringify({ user_id, amount }) }),
+  adjust: (user_id: number, amount: number) =>
+    request<any>('/vouchers/adjust', { method: 'POST', body: JSON.stringify({ user_id, amount }) }),
+};
+
+// Tix
+export const tix = {
+  balance: (userId: number) => request<any>(`/tix/balance/${userId}`),
+  history: (userId: number) => request<any>(`/tix/history/${userId}`),
+  adjust: (user_id: number, amount: number) =>
+    request<any>('/tix/adjust', { method: 'POST', body: JSON.stringify({ user_id, amount }) }),
+};
+
+// Events
+export const events = {
+  list: (status?: string) => request<any>(`/events${status ? `?status=${status}` : ''}`),
+  get: (id: number) => request<any>(`/events/${id}`),
+  create: (name: string, event_type_id: number) =>
+    request<any>('/events', { method: 'POST', body: JSON.stringify({ name, event_type_id }) }),
+  register: (eventId: number, user_id: number) =>
+    request<any>(`/events/${eventId}/register`, { method: 'POST', body: JSON.stringify({ user_id }) }),
+  registerNfc: (eventId: number, nfc_uid: string) =>
+    request<any>(`/events/${eventId}/register-nfc`, { method: 'POST', body: JSON.stringify({ nfc_uid }) }),
+  start: (eventId: number) =>
+    request<any>(`/events/${eventId}/start`, { method: 'POST' }),
+  nextRound: (eventId: number) =>
+    request<any>(`/events/${eventId}/next-round`, { method: 'POST' }),
+  reportMatch: (matchId: number, player1_wins: number, player2_wins: number, draws: number = 0) =>
+    request<any>(`/events/matches/${matchId}/report`, { method: 'POST', body: JSON.stringify({ player1_wins, player2_wins, draws }) }),
+  getRoundMatches: (eventId: number, round: number) =>
+    request<any>(`/events/${eventId}/rounds/${round}`),
+  setResults: (eventId: number, results: Array<{ user_id: number; position: number }>) =>
+    request<any>(`/events/${eventId}/results`, { method: 'POST', body: JSON.stringify({ results }) }),
+  finish: (eventId: number) =>
+    request<any>(`/events/${eventId}/finish`, { method: 'POST' }),
+  cancel: (eventId: number) =>
+    request<any>(`/events/${eventId}/cancel`, { method: 'POST' }),
+};
+
+// Event Types
+export const eventTypes = {
+  list: () => request<any>('/events/types'),
+  create: (data: { name: string; category: string; format?: string | null; tournament_structure?: string; entry_cost_vouchers: number; max_players: number; prize_structure: Record<string, number>; prize_structure_ties?: Record<string, number> }) =>
+    request<any>('/events/types', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: number, fields: any) =>
+    request<any>(`/events/types/${id}`, { method: 'PUT', body: JSON.stringify(fields) }),
+  delete: (id: number) =>
+    request<any>(`/events/types/${id}`, { method: 'DELETE' }),
+  duplicate: (id: number) =>
+    request<any>(`/events/types/${id}/duplicate`, { method: 'POST' }),
+};
+
+// Prize Templates
+export const prizeTemplates = {
+  list: (rounds?: number) => request<any>(`/prize-templates${rounds ? `?rounds=${rounds}` : ''}`),
+  get: (id: number) => request<any>(`/prize-templates/${id}`),
+  create: (data: { name: string; rounds: number; prize_structure: Record<string, number>; prize_structure_ties: Record<string, number> }) =>
+    request<any>('/prize-templates', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: number, fields: any) =>
+    request<any>(`/prize-templates/${id}`, { method: 'PUT', body: JSON.stringify(fields) }),
+  delete: (id: number) =>
+    request<any>(`/prize-templates/${id}`, { method: 'DELETE' }),
+};
+
+// NFC Scan
+export const scan = {
+  lookup: (nfc_uid: string) =>
+    request<any>('/scan', { method: 'POST', body: JSON.stringify({ nfc_uid }) }),
+  balance: (nfc_uid: string) =>
+    request<any>('/scan/balance', { method: 'POST', body: JSON.stringify({ nfc_uid }) }),
+};
+
+// Store
+export const store = {
+  listItems: () => request<any>('/store/items'),
+  createItem: (data: { name: string; description?: string; price_tix: number; stock: number }) =>
+    request<any>('/store/items', { method: 'POST', body: JSON.stringify(data) }),
+  updateItem: (id: number, fields: any) =>
+    request<any>(`/store/items/${id}`, { method: 'PUT', body: JSON.stringify(fields) }),
+  deleteItem: (id: number) =>
+    request<any>(`/store/items/${id}`, { method: 'DELETE' }),
+  listOrders: (status?: string) =>
+    request<any>(`/store/orders${status ? `?status=${status}` : ''}`),
+  fulfillOrder: (id: number) =>
+    request<any>(`/store/orders/${id}/fulfill`, { method: 'POST' }),
+  cancelOrder: (id: number) =>
+    request<any>(`/store/orders/${id}/cancel`, { method: 'POST' }),
+};
+
+// Stats
+export const stats = {
+  get: () => request<any>('/stats'),
+};
+
+// Permissions
+export const permissions = {
+  categories: () => request<any>('/permissions/categories'),
+  admins: () => request<any>('/permissions/admins'),
+  get: (userId: number) => request<any>(`/permissions/${userId}`),
+  set: (userId: number, perms: string[], is_admin?: boolean) =>
+    request<any>(`/permissions/${userId}`, { method: 'PUT', body: JSON.stringify({ permissions: perms, is_admin }) }),
+  promote: (userId: number, perms: string[]) =>
+    request<any>(`/permissions/${userId}/promote`, { method: 'POST', body: JSON.stringify({ permissions: perms }) }),
+  demote: (userId: number) =>
+    request<any>(`/permissions/${userId}/demote`, { method: 'POST' }),
+};

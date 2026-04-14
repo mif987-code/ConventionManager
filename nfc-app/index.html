@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#4f46e5">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Convention Admin</title>
+  <link rel="manifest" href="manifest.json">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; padding-bottom: 80px; }
+    .pulse-ring { animation: pulseRing 1.5s infinite; }
+    @keyframes pulseRing {
+      0% { box-shadow: 0 0 0 0 rgba(79,70,229,0.4); }
+      70% { box-shadow: 0 0 0 20px rgba(79,70,229,0); }
+      100% { box-shadow: 0 0 0 0 rgba(79,70,229,0); }
+    }
+    .fade-in { animation: fadeIn 0.2s ease-in; }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+    .tab-page { display: none; }
+    .tab-page.active { display: block; }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+  <!-- ===== AUTH GATE ===== -->
+  <div id="auth-gate" class="max-w-md mx-auto px-4 py-12">
+    <div class="text-center mb-6">
+      <div class="inline-flex items-center justify-center w-14 h-14 bg-indigo-600 rounded-2xl mb-3">
+        <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.14 0"/></svg>
+      </div>
+      <h1 class="text-xl font-bold text-gray-800">Convention Admin</h1>
+      <p class="text-xs text-gray-500 mt-1">NFC linking, top-ups, events &amp; matches</p>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-200 p-5">
+      <label class="text-xs font-medium text-gray-500 block mb-1">API Key</label>
+      <div class="flex gap-2">
+        <input type="password" id="api-key" placeholder="Enter admin API key"
+          class="flex-1 px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
+        <button onclick="saveApiKey()" class="bg-indigo-600 text-white px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition">Connect</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== MAIN APP (hidden until authed) ===== -->
+  <div id="app" class="hidden">
+    <div class="max-w-md mx-auto px-4 pt-4">
+      <!-- Global status toast -->
+      <div id="g-status" class="hidden rounded-xl p-3 mb-3 text-sm font-medium"></div>
+
+      <!-- ========== TAB 1: LINK NFC ========== -->
+      <div id="page-link" class="tab-page active fade-in">
+        <h2 class="text-lg font-bold text-gray-800 mb-3">Link NFC</h2>
+        <div class="bg-white rounded-xl border border-gray-200 p-4 mb-3">
+          <label class="text-xs font-medium text-gray-500 block mb-2">Find Player</label>
+          <input type="text" id="link-search" placeholder="Search name, email, NFC..."
+            class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
+          <div id="link-results" class="mt-2 max-h-44 overflow-y-auto"></div>
+        </div>
+        <div id="link-selected" class="hidden fade-in">
+          <div class="bg-indigo-50 rounded-xl border border-indigo-200 p-4 mb-3">
+            <div class="flex items-center justify-between">
+              <div>
+                <p id="link-sel-name" class="font-semibold text-gray-800 text-sm"></p>
+                <p id="link-sel-detail" class="text-xs text-gray-500"></p>
+              </div>
+              <button onclick="linkClear()" class="text-gray-400 hover:text-gray-600">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="bg-white rounded-xl border border-gray-200 p-4 mb-3">
+            <label class="text-xs font-medium text-gray-500 block mb-2">Scan or Enter NFC UID</label>
+            <button onclick="nfcScan('link')" class="w-full bg-indigo-600 text-white py-2.5 rounded-lg font-semibold text-sm hover:bg-indigo-700 transition flex items-center justify-center gap-2 mb-3">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.14 0"/></svg>
+              Scan NFC
+            </button>
+            <div id="link-scanning" class="hidden text-center py-3">
+              <div class="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto pulse-ring">
+                <svg class="w-8 h-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.14 0"/></svg>
+              </div>
+              <p class="text-xs text-gray-500 mt-2">Hold wristband near phone...</p>
+              <button onclick="nfcStop()" class="text-xs text-red-500 mt-1">Cancel</button>
+            </div>
+            <div class="flex gap-2">
+              <input type="text" id="link-manual" placeholder="Manual NFC UID" class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-xs font-mono focus:ring-2 focus:ring-indigo-500 outline-none" />
+              <button onclick="linkManual()" class="bg-gray-100 text-gray-700 px-3 py-2 rounded-lg text-xs font-medium hover:bg-gray-200 transition">Link</button>
+            </div>
+          </div>
+        </div>
+        <div class="bg-white rounded-xl border border-gray-200 p-4">
+          <h3 class="text-xs font-medium text-gray-500 mb-2">Recent Activity</h3>
+          <div id="recent-list" class="space-y-1 text-xs text-gray-600"><p class="text-gray-400 italic">No activity yet</p></div>
+        </div>
+      </div>
+
+      <!-- ========== TAB 2: TOP UP ========== -->
+      <div id="page-topup" class="tab-page fade-in">
+        <h2 class="text-lg font-bold text-gray-800 mb-3">Top Up Credits</h2>
+        <div class="bg-white rounded-xl border border-gray-200 p-4 mb-3">
+          <label class="text-xs font-medium text-gray-500 block mb-2">Find Player</label>
+          <input type="text" id="topup-search" placeholder="Search name, email, NFC..."
+            class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
+          <div id="topup-results" class="mt-2 max-h-44 overflow-y-auto"></div>
+          <button onclick="nfcScan('topup')" class="mt-2 w-full bg-gray-100 text-gray-700 py-2 rounded-lg text-xs font-medium hover:bg-gray-200 transition flex items-center justify-center gap-1">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.14 0"/></svg>
+            Scan NFC to lookup
+          </button>
+          <div id="topup-scanning" class="hidden text-center py-3">
+            <div class="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center mx-auto pulse-ring">
+              <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01"/></svg>
+            </div>
+            <button onclick="nfcStop()" class="text-xs text-red-500 mt-1">Cancel</button>
+          </div>
+        </div>
+        <div id="topup-user" class="hidden fade-in">
+          <div class="bg-indigo-50 rounded-xl border border-indigo-200 p-4 mb-3">
+            <div class="flex items-center justify-between">
+              <div>
+                <p id="topup-name" class="font-semibold text-gray-800 text-sm"></p>
+                <p id="topup-nfc-label" class="text-xs text-gray-400 font-mono"></p>
+              </div>
+              <button onclick="topupClear()" class="text-gray-400 hover:text-gray-600">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+              </button>
+            </div>
+            <div class="grid grid-cols-2 gap-3 mt-3">
+              <div class="bg-white rounded-lg p-3 text-center">
+                <p class="text-xs text-gray-500">Vouchers</p>
+                <p id="topup-vouchers" class="text-xl font-bold text-indigo-600">0</p>
+              </div>
+              <div class="bg-white rounded-lg p-3 text-center">
+                <p class="text-xs text-gray-500">Tix</p>
+                <p id="topup-tix" class="text-xl font-bold text-green-600">0</p>
+              </div>
+            </div>
+          </div>
+          <div class="bg-white rounded-xl border border-gray-200 p-4 mb-3">
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="text-xs font-medium text-gray-500 block mb-1">Add Vouchers</label>
+                <div class="flex gap-1">
+                  <input type="number" id="topup-v-amt" min="1" placeholder="0" class="flex-1 px-2 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
+                  <button onclick="doTopup('voucher')" class="bg-indigo-600 text-white px-3 py-2 rounded-lg text-xs font-semibold hover:bg-indigo-700 transition">+</button>
+                </div>
+              </div>
+              <div>
+                <label class="text-xs font-medium text-gray-500 block mb-1">Add Tix</label>
+                <div class="flex gap-1">
+                  <input type="number" id="topup-t-amt" min="1" placeholder="0" class="flex-1 px-2 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
+                  <button onclick="doTopup('tix')" class="bg-green-600 text-white px-3 py-2 rounded-lg text-xs font-semibold hover:bg-green-700 transition">+</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========== TAB 3: EVENTS ========== -->
+      <div id="page-events" class="tab-page fade-in">
+        <h2 class="text-lg font-bold text-gray-800 mb-3">Event Registration</h2>
+        <div class="bg-white rounded-xl border border-gray-200 p-4 mb-3">
+          <label class="text-xs font-medium text-gray-500 block mb-2">Select Event</label>
+          <select id="evt-select" onchange="evtSelected()" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none bg-white">
+            <option value="">-- Select Event --</option>
+          </select>
+          <div id="evt-info" class="hidden mt-2 text-xs text-gray-500"></div>
+        </div>
+        <div id="evt-reg-section" class="hidden fade-in">
+          <div class="bg-white rounded-xl border border-gray-200 p-4 mb-3">
+            <label class="text-xs font-medium text-gray-500 block mb-2">Register Player</label>
+            <button onclick="nfcScan('event')" class="w-full bg-indigo-600 text-white py-2.5 rounded-lg font-semibold text-sm hover:bg-indigo-700 transition flex items-center justify-center gap-2 mb-2">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.14 0"/></svg>
+              Scan NFC to Register
+            </button>
+            <div id="evt-scanning" class="hidden text-center py-3">
+              <div class="w-14 h-14 bg-indigo-100 rounded-full flex items-center justify-center mx-auto pulse-ring">
+                <svg class="w-7 h-7 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01"/></svg>
+              </div>
+              <p class="text-xs text-gray-500 mt-1">Tap wristband...</p>
+              <button onclick="nfcStop()" class="text-xs text-red-500 mt-1">Cancel</button>
+            </div>
+            <p class="text-xs text-gray-400 text-center my-1">or search by name</p>
+            <input type="text" id="evt-search" placeholder="Search player..."
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
+            <div id="evt-search-results" class="mt-2 max-h-36 overflow-y-auto"></div>
+          </div>
+          <div class="bg-white rounded-xl border border-gray-200 p-4">
+            <h3 class="text-xs font-medium text-gray-500 mb-2">Registered Players</h3>
+            <div id="evt-participants" class="space-y-1 text-xs text-gray-600"><p class="text-gray-400 italic">None yet</p></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========== TAB 4: MATCHES ========== -->
+      <div id="page-matches" class="tab-page fade-in">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-lg font-bold text-gray-800">Match Reporting</h2>
+          <button onclick="matchRefresh()" class="text-xs bg-gray-100 text-gray-600 px-3 py-1.5 rounded-lg hover:bg-gray-200 transition flex items-center gap-1">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            Refresh
+          </button>
+        </div>
+        <div class="bg-white rounded-xl border border-gray-200 p-4 mb-3">
+          <label class="text-xs font-medium text-gray-500 block mb-2">Select Event</label>
+          <select id="match-evt-select" onchange="matchEvtSelected()" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none bg-white">
+            <option value="">-- Select Event --</option>
+          </select>
+        </div>
+        <div id="match-bracket" class="hidden mb-3 overflow-x-auto"></div>
+        <div id="match-rounds" class="hidden fade-in space-y-3"></div>
+      </div>
+
+      <!-- ========== TAB 5: STORE ========== -->
+      <div id="page-store" class="tab-page fade-in">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-lg font-bold text-gray-800">Store Management</h2>
+          <button onclick="storeRefresh()" class="text-xs bg-gray-100 text-gray-600 px-3 py-1.5 rounded-lg hover:bg-gray-200 transition">Refresh</button>
+        </div>
+        <div class="bg-white rounded-xl border border-gray-200 p-4 mb-3">
+          <div class="flex items-center justify-between mb-2">
+            <label class="text-xs font-medium text-gray-500">Items</label>
+            <button onclick="storeShowAdd()" class="text-xs bg-indigo-600 text-white px-3 py-1 rounded-lg hover:bg-indigo-700 transition">+ Add Item</button>
+          </div>
+          <div id="store-add-form" class="hidden mb-3 p-3 bg-gray-50 rounded-lg space-y-2">
+            <input type="text" id="store-item-name" placeholder="Item name" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
+            <input type="text" id="store-item-desc" placeholder="Description (optional)" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
+            <div class="grid grid-cols-2 gap-2">
+              <input type="number" id="store-item-price" placeholder="Price (tix)" min="0" class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
+              <input type="number" id="store-item-stock" placeholder="Stock" min="0" class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
+            </div>
+            <div class="flex gap-2">
+              <button onclick="storeSaveItem()" class="flex-1 bg-green-600 text-white py-2 rounded-lg text-xs font-semibold hover:bg-green-700 transition">Save</button>
+              <button onclick="storeCancelAdd()" class="flex-1 bg-gray-200 text-gray-600 py-2 rounded-lg text-xs font-semibold hover:bg-gray-300 transition">Cancel</button>
+            </div>
+          </div>
+          <div id="store-items-list" class="space-y-2 text-sm"><p class="text-gray-400 italic text-xs">Loading...</p></div>
+        </div>
+        <div class="bg-white rounded-xl border border-gray-200 p-4">
+          <div class="flex items-center justify-between mb-2">
+            <label class="text-xs font-medium text-gray-500">Recent Orders</label>
+            <select id="store-order-filter" onchange="storeLoadOrders()" class="text-xs border border-gray-300 rounded-lg px-2 py-1 outline-none">
+              <option value="">All</option>
+              <option value="confirmed">Purchases</option>
+              <option value="reserved">Reservations</option>
+              <option value="fulfilled">Fulfilled</option>
+            </select>
+          </div>
+          <div id="store-orders-list" class="space-y-2 text-sm"><p class="text-gray-400 italic text-xs">Loading...</p></div>
+        </div>
+      </div>
+
+      <!-- ========== TAB 6: STATS ========== -->
+      <div id="page-stats" class="tab-page fade-in">
+        <h2 class="text-lg font-bold text-gray-800 mb-3">Statistics</h2>
+        <div id="stats-content" class="space-y-3"><p class="text-gray-400 italic text-sm">Loading...</p></div>
+      </div>
+
+    </div><!-- /max-w-md -->
+
+    <!-- ===== BOTTOM NAV ===== -->
+    <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50">
+      <div class="max-w-md mx-auto flex">
+        <button onclick="switchTab('link')" id="tab-link" class="flex-1 flex flex-col items-center py-2 text-indigo-600">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.172 13.828a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.102 1.101"/></svg>
+          <span class="text-[11px] font-medium mt-0.5">NFC</span>
+        </button>
+        <button onclick="switchTab('topup')" id="tab-topup" class="flex-1 flex flex-col items-center py-2 text-gray-400">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"/></svg>
+          <span class="text-[11px] font-medium mt-0.5">Top Up</span>
+        </button>
+        <button onclick="switchTab('events')" id="tab-events" class="flex-1 flex flex-col items-center py-2 text-gray-400">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+          <span class="text-[11px] font-medium mt-0.5">Events</span>
+        </button>
+        <button onclick="switchTab('matches')" id="tab-matches" class="flex-1 flex flex-col items-center py-2 text-gray-400">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          <span class="text-[11px] font-medium mt-0.5">Matches</span>
+        </button>
+        <button onclick="switchTab('store')" id="tab-store" class="flex-1 flex flex-col items-center py-2 text-gray-400">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
+          <span class="text-[11px] font-medium mt-0.5">Store</span>
+        </button>
+        <button onclick="switchTab('stats')" id="tab-stats" class="flex-1 flex flex-col items-center py-2 text-gray-400">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+          <span class="text-[11px] font-medium mt-0.5">Stats</span>
+        </button>
+      </div>
+    </nav>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
