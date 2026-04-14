@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#10b981">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Convention Store</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .fade-in { animation: fadeIn 0.2s ease-in; }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+  <!-- ===== LOGIN ===== -->
+  <div id="login-gate" class="max-w-md mx-auto px-4 py-12">
+    <div class="text-center mb-6">
+      <div class="inline-flex items-center justify-center w-14 h-14 bg-emerald-600 rounded-2xl mb-3">
+        <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
+      </div>
+      <h1 class="text-xl font-bold text-gray-800">Convention Store</h1>
+      <p class="text-xs text-gray-500 mt-1">Browse items and spend your Tix</p>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-200 p-5">
+      <label class="text-xs font-medium text-gray-500 block mb-1">Your NFC UID or Player ID</label>
+      <div class="flex gap-2">
+        <input type="text" id="login-uid" placeholder="Scan NFC or enter ID"
+          class="flex-1 px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" />
+        <button onclick="playerLogin()" class="bg-emerald-600 text-white px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-emerald-700 transition">Go</button>
+      </div>
+      <p id="login-error" class="text-xs text-red-500 mt-2 hidden"></p>
+    </div>
+  </div>
+
+  <!-- ===== MAIN STORE ===== -->
+  <div id="store-main" class="hidden max-w-md mx-auto px-4 py-4">
+    <!-- Player header -->
+    <div class="bg-emerald-50 rounded-xl border border-emerald-200 p-4 mb-4 fade-in">
+      <div class="flex items-center justify-between">
+        <div>
+          <p id="player-name" class="font-bold text-gray-800"></p>
+          <p class="text-xs text-gray-500">Convention Store</p>
+        </div>
+        <div class="text-right">
+          <p class="text-2xl font-bold text-emerald-600"><span id="player-tix">0</span></p>
+          <p class="text-[10px] text-gray-500">Tix Balance</p>
+        </div>
+      </div>
+      <button onclick="playerLogout()" class="text-[10px] text-gray-400 hover:text-gray-600 mt-1">Switch Player</button>
+    </div>
+
+    <!-- Status -->
+    <div id="store-status" class="hidden rounded-xl p-3 mb-3 text-sm font-medium"></div>
+
+    <!-- Items -->
+    <h2 class="text-lg font-bold text-gray-800 mb-3">Available Items</h2>
+    <div id="store-items" class="space-y-3 mb-6"><p class="text-gray-400 italic text-sm">Loading...</p></div>
+
+    <!-- My Orders -->
+    <h2 class="text-lg font-bold text-gray-800 mb-3">My Orders</h2>
+    <div id="my-orders" class="space-y-2 mb-6"><p class="text-gray-400 italic text-sm">Loading...</p></div>
+  </div>
+
+  <script>
+    const API = '/api';
+    let apiKey = localStorage.getItem('nfc_api_key') || '';
+    let currentPlayer = null;
+
+    async function apiFetch(path, opts = {}) {
+      const res = await fetch(`${API}${path}`, {
+        ...opts,
+        headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, ...opts.headers },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `Error ${res.status}`);
+      return data;
+    }
+
+    function storeMsg(msg, type) {
+      const el = document.getElementById('store-status');
+      el.className = 'rounded-xl p-3 mb-3 text-sm font-medium fade-in ' +
+        (type === 'error' ? 'bg-red-50 text-red-700' : type === 'success' ? 'bg-green-50 text-green-700' : 'bg-yellow-50 text-yellow-700');
+      el.textContent = msg;
+      el.classList.remove('hidden');
+      clearTimeout(el._t);
+      el._t = setTimeout(() => el.classList.add('hidden'), 5000);
+    }
+
+    function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+    // Check if returning player
+    const savedPlayerId = localStorage.getItem('store_player_id');
+    if (savedPlayerId) { loadPlayer(savedPlayerId); }
+
+    async function playerLogin() {
+      const uid = document.getElementById('login-uid').value.trim();
+      if (!uid) return;
+      try {
+        // Try NFC lookup first
+        const res = await apiFetch('/scan', { method: 'POST', body: JSON.stringify({ nfc_uid: uid }) });
+        if (res.user) {
+          localStorage.setItem('store_player_id', res.user.id);
+          await loadPlayer(res.user.id);
+          return;
+        }
+      } catch (e) { /* try as ID */ }
+      // Try as player ID
+      try {
+        await loadPlayer(parseInt(uid));
+        localStorage.setItem('store_player_id', uid);
+      } catch (err) {
+        document.getElementById('login-error').textContent = 'Player not found. Try your NFC UID or ask an admin.';
+        document.getElementById('login-error').classList.remove('hidden');
+      }
+    }
+
+    async function loadPlayer(id) {
+      const [userRes, tixRes] = await Promise.all([
+        apiFetch(`/users/${id}`),
+        apiFetch(`/tix/balance/${id}`)
+      ]);
+      const user = userRes.user || userRes;
+      currentPlayer = { ...user, tix: tixRes.balance || 0 };
+      localStorage.setItem('store_player_id', currentPlayer.id);
+      document.getElementById('player-name').textContent = currentPlayer.name + (currentPlayer.last_name ? ' ' + currentPlayer.last_name : '');
+      document.getElementById('player-tix').textContent = currentPlayer.tix;
+      document.getElementById('login-gate').classList.add('hidden');
+      document.getElementById('store-main').classList.remove('hidden');
+      loadStoreItems();
+      loadMyOrders();
+    }
+
+    function playerLogout() {
+      localStorage.removeItem('store_player_id');
+      currentPlayer = null;
+      document.getElementById('login-gate').classList.remove('hidden');
+      document.getElementById('store-main').classList.add('hidden');
+    }
+
+    async function refreshTix() {
+      if (!currentPlayer) return;
+      try {
+        const res = await apiFetch(`/tix/balance/${currentPlayer.id}`);
+        currentPlayer.tix = res.balance || 0;
+        document.getElementById('player-tix').textContent = currentPlayer.tix;
+      } catch (e) {}
+    }
+
+    async function loadStoreItems() {
+      try {
+        const res = await apiFetch('/store/items?active=true');
+        const items = res.items || [];
+        const el = document.getElementById('store-items');
+        if (!items.length) { el.innerHTML = '<p class="text-gray-400 italic text-sm">No items available</p>'; return; }
+        el.innerHTML = items.filter(it => it.active).map(it => {
+          const canAfford = currentPlayer && currentPlayer.tix >= it.price_tix;
+          const inStock = it.stock > 0;
+          return `<div class="bg-white rounded-xl border border-gray-200 p-4 fade-in">
+            <div class="flex items-start justify-between">
+              <div class="flex-1 min-w-0">
+                <h3 class="font-semibold text-gray-800 text-sm">${esc(it.name)}</h3>
+                ${it.description ? `<p class="text-xs text-gray-500 mt-0.5">${esc(it.description)}</p>` : ''}
+                <div class="flex items-center gap-3 mt-2">
+                  <span class="text-sm font-bold text-emerald-600">${it.price_tix} Tix</span>
+                  <span class="text-[10px] ${inStock ? 'text-green-600' : 'text-red-500'}">${inStock ? `${it.stock} in stock` : 'Out of stock'}</span>
+                </div>
+              </div>
+            </div>
+            ${inStock ? `<div class="flex gap-2 mt-3">
+              <button onclick="purchaseItem(${it.id}, '${esc(it.name)}')" ${!canAfford ? 'disabled' : ''}
+                class="flex-1 py-2.5 rounded-lg text-xs font-semibold transition ${canAfford ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}">
+                Purchase (${it.price_tix} Tix)
+              </button>
+              <button onclick="reserveItem(${it.id}, '${esc(it.name)}')"
+                class="flex-1 py-2.5 rounded-lg text-xs font-semibold bg-yellow-500 text-white hover:bg-yellow-600 transition">
+                Reserve
+              </button>
+            </div>` : '<p class="text-xs text-red-400 mt-2 italic">Currently unavailable</p>'}
+          </div>`;
+        }).join('');
+      } catch (err) { storeMsg(err.message, 'error'); }
+    }
+
+    async function purchaseItem(itemId, itemName) {
+      if (!currentPlayer) return;
+      try {
+        await apiFetch('/store/purchase', {
+          method: 'POST',
+          body: JSON.stringify({ user_id: currentPlayer.id, item_id: itemId, quantity: 1 })
+        });
+        storeMsg(`Purchased ${itemName}!`, 'success');
+        await refreshTix();
+        loadStoreItems();
+        loadMyOrders();
+      } catch (err) { storeMsg(err.message, 'error'); }
+    }
+
+    async function reserveItem(itemId, itemName) {
+      if (!currentPlayer) return;
+      try {
+        await apiFetch('/store/reserve', {
+          method: 'POST',
+          body: JSON.stringify({ user_id: currentPlayer.id, item_id: itemId, quantity: 1 })
+        });
+        storeMsg(`Reserved ${itemName}!`, 'success');
+        loadStoreItems();
+        loadMyOrders();
+      } catch (err) { storeMsg(err.message, 'error'); }
+    }
+
+    async function loadMyOrders() {
+      if (!currentPlayer) return;
+      try {
+        const res = await apiFetch(`/store/orders/user/${currentPlayer.id}`);
+        const orders = res.orders || [];
+        const el = document.getElementById('my-orders');
+        if (!orders.length) { el.innerHTML = '<p class="text-gray-400 italic text-sm">No orders yet</p>'; return; }
+        el.innerHTML = orders.map(o => {
+          const statusColor = o.status === 'confirmed' ? 'bg-blue-100 text-blue-700' :
+            o.status === 'reserved' ? 'bg-yellow-100 text-yellow-700' :
+            o.status === 'fulfilled' ? 'bg-green-100 text-green-700' :
+            o.status === 'cancelled' ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-600';
+          const typeIcon = o.order_type === 'purchase' ? 'Purchased' : 'Reserved';
+          return `<div class="bg-white rounded-xl border border-gray-200 p-3">
+            <div class="flex items-center justify-between">
+              <div class="min-w-0">
+                <span class="font-medium text-gray-800 text-sm">${esc(o.item_name)}</span>
+                <span class="text-gray-400 text-[10px] ml-1">x${o.quantity}</span>
+              </div>
+              <span class="text-[10px] px-2 py-0.5 rounded-full font-medium ${statusColor} shrink-0">${o.status}</span>
+            </div>
+            <div class="text-[10px] text-gray-400 mt-1">${typeIcon} · ${o.total_tix} Tix · ${new Date(o.created_at).toLocaleString()}</div>
+          </div>`;
+        }).join('');
+      } catch (err) { storeMsg(err.message, 'error'); }
+    }
+  </script>
+</body>
+</html>
