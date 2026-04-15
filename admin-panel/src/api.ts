@@ -12,11 +12,14 @@ export function getApiKey(): string {
 }
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const conventionId = localStorage.getItem('cm_convention_id');
+  console.log('[API] Requesting', path, 'with convention_id:', conventionId);
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
       'x-api-key': apiKey,
+      ...(conventionId && { 'x-convention-id': conventionId }),
       ...options.headers,
     },
   });
@@ -117,7 +120,7 @@ export const scan = {
 // Store
 export const store = {
   listItems: () => request<any>('/store/items'),
-  createItem: (data: { name: string; description?: string; price_tix: number; stock: number }) =>
+  createItem: (data: { name: string; description?: string; price_tix: number; stock: number; set_name?: string; card_number?: string; language?: string; condition?: string; foil?: boolean; cost?: number }) =>
     request<any>('/store/items', { method: 'POST', body: JSON.stringify(data) }),
   updateItem: (id: number, fields: any) =>
     request<any>(`/store/items/${id}`, { method: 'PUT', body: JSON.stringify(fields) }),
@@ -147,4 +150,15 @@ export const permissions = {
     request<any>(`/permissions/${userId}/promote`, { method: 'POST', body: JSON.stringify({ permissions: perms }) }),
   demote: (userId: number) =>
     request<any>(`/permissions/${userId}/demote`, { method: 'POST' }),
+};
+
+// Conventions
+export const conventions = {
+  list: () => request<any>('/conventions'),
+  create: (name: string) => request<any>('/conventions', { method: 'POST', body: JSON.stringify({ name }) }),
+  get: (id: number) => request<any>(`/conventions/${id}`),
+  end: (id: number) => request<any>(`/conventions/${id}/end`, { method: 'POST' }),
+  getStats: (id: number) => request<any>(`/conventions/${id}/stats`),
+  export: (id: number) => request<any>(`/conventions/${id}/export`),
+  delete: (id: number) => request<any>(`/conventions/${id}`, { method: 'DELETE' }),
 };

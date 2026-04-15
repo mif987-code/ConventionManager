@@ -1,0 +1,4247 @@
+[
+  {
+    "code": "plst",
+    "name": "The List",
+    "set_type": "masters",
+    "card_count": 5050,
+    "aliases": []
+  },
+  {
+    "code": "who",
+    "name": "Doctor Who",
+    "set_type": "commander",
+    "card_count": 1178,
+    "aliases": []
+  },
+  {
+    "code": "pip",
+    "name": "Fallout",
+    "set_type": "commander",
+    "card_count": 1068,
+    "aliases": []
+  },
+  {
+    "code": "cmm",
+    "name": "Commander Masters",
+    "set_type": "masters",
+    "card_count": 1067,
+    "aliases": []
+  },
+  {
+    "code": "clb",
+    "name": "Commander Legends: Battle for Baldur's Gate",
+    "set_type": "draft_innovation",
+    "card_count": 936,
+    "aliases": []
+  },
+  {
+    "code": "ltr",
+    "name": "The Lord of the Rings: Tales of Middle-earth",
+    "set_type": "draft_innovation",
+    "card_count": 856,
+    "aliases": []
+  },
+  {
+    "code": "j22",
+    "name": "Jumpstart 2022",
+    "set_type": "draft_innovation",
+    "card_count": 835,
+    "aliases": []
+  },
+  {
+    "code": "j25",
+    "name": "Foundations Jumpstart",
+    "set_type": "draft_innovation",
+    "card_count": 779,
+    "aliases": []
+  },
+  {
+    "code": "fdn",
+    "name": "Foundations",
+    "set_type": "core",
+    "card_count": 771,
+    "aliases": []
+  },
+  {
+    "code": "cmr",
+    "name": "Commander Legends",
+    "set_type": "draft_innovation",
+    "card_count": 718,
+    "aliases": []
+  },
+  {
+    "code": "8ed",
+    "name": "Eighth Edition",
+    "set_type": "core",
+    "card_count": 711,
+    "aliases": []
+  },
+  {
+    "code": "9ed",
+    "name": "Ninth Edition",
+    "set_type": "core",
+    "card_count": 710,
+    "aliases": []
+  },
+  {
+    "code": "7ed",
+    "name": "Seventh Edition",
+    "set_type": "core",
+    "card_count": 708,
+    "aliases": []
+  },
+  {
+    "code": "40k",
+    "name": "Warhammer 40,000 Commander",
+    "set_type": "commander",
+    "card_count": 617,
+    "aliases": []
+  },
+  {
+    "code": "fin",
+    "name": "Final Fantasy",
+    "set_type": "expansion",
+    "card_count": 599,
+    "aliases": []
+  },
+  {
+    "code": "ltc",
+    "name": "Tales of Middle-earth Commander",
+    "set_type": "commander",
+    "card_count": 591,
+    "aliases": []
+  },
+  {
+    "code": "2x2",
+    "name": "Double Masters 2022",
+    "set_type": "masters",
+    "card_count": 579,
+    "aliases": [
+      "2x2",
+      "double masters 2022",
+      "dmr"
+    ]
+  },
+  {
+    "code": "dft",
+    "name": "Aetherdrift",
+    "set_type": "expansion",
+    "card_count": 553,
+    "aliases": []
+  },
+  {
+    "code": "dbl",
+    "name": "Innistrad: Double Feature",
+    "set_type": "draft_innovation",
+    "card_count": 535,
+    "aliases": []
+  },
+  {
+    "code": "rvr",
+    "name": "Ravnica Remastered",
+    "set_type": "masters",
+    "card_count": 531,
+    "aliases": []
+  },
+  {
+    "code": "neo",
+    "name": "Kamigawa: Neon Dynasty",
+    "set_type": "expansion",
+    "card_count": 531,
+    "aliases": [
+      "neo",
+      "kamigawa: neon dynasty"
+    ]
+  },
+  {
+    "code": "mh3",
+    "name": "Modern Horizons 3",
+    "set_type": "draft_innovation",
+    "card_count": 528,
+    "aliases": [
+      "mh3",
+      "modern horizons 3"
+    ]
+  },
+  {
+    "code": "snc",
+    "name": "Streets of New Capenna",
+    "set_type": "expansion",
+    "card_count": 513,
+    "aliases": []
+  },
+  {
+    "code": "10e",
+    "name": "Tenth Edition",
+    "set_type": "core",
+    "card_count": 510,
+    "aliases": []
+  },
+  {
+    "code": "jmp",
+    "name": "Jumpstart",
+    "set_type": "draft_innovation",
+    "card_count": 497,
+    "aliases": []
+  },
+  {
+    "code": "inr",
+    "name": "Innistrad Remastered",
+    "set_type": "masters",
+    "card_count": 495,
+    "aliases": []
+  },
+  {
+    "code": "mh2",
+    "name": "Modern Horizons 2",
+    "set_type": "draft_innovation",
+    "card_count": 494,
+    "aliases": [
+      "mh2",
+      "modern horizons 2"
+    ]
+  },
+  {
+    "code": "fic",
+    "name": "Final Fantasy Commander",
+    "set_type": "commander",
+    "card_count": 486,
+    "aliases": []
+  },
+  {
+    "code": "one",
+    "name": "Phyrexia: All Will Be One",
+    "set_type": "expansion",
+    "card_count": 479,
+    "aliases": [
+      "one",
+      "phyrexia: all will be one"
+    ]
+  },
+  {
+    "code": "5ed",
+    "name": "Fifth Edition",
+    "set_type": "core",
+    "card_count": 460,
+    "aliases": []
+  },
+  {
+    "code": "dmr",
+    "name": "Dominaria Remastered",
+    "set_type": "masters",
+    "card_count": 457,
+    "aliases": []
+  },
+  {
+    "code": "dmu",
+    "name": "Dominaria United",
+    "set_type": "expansion",
+    "card_count": 453,
+    "aliases": [
+      "dmu",
+      "dominaria united"
+    ]
+  },
+  {
+    "code": "mkm",
+    "name": "Murders at Karlov Manor",
+    "set_type": "expansion",
+    "card_count": 451,
+    "aliases": []
+  },
+  {
+    "code": "moc",
+    "name": "March of the Machine Commander",
+    "set_type": "commander",
+    "card_count": 450,
+    "aliases": []
+  },
+  {
+    "code": "ncc",
+    "name": "New Capenna Commander",
+    "set_type": "commander",
+    "card_count": 447,
+    "aliases": []
+  },
+  {
+    "code": "tdm",
+    "name": "Tarkir: Dragonstorm",
+    "set_type": "expansion",
+    "card_count": 427,
+    "aliases": []
+  },
+  {
+    "code": "soc",
+    "name": "Secrets of Strixhaven Commander",
+    "set_type": "commander",
+    "card_count": 426,
+    "aliases": []
+  },
+  {
+    "code": "khm",
+    "name": "Kaldheim",
+    "set_type": "expansion",
+    "card_count": 426,
+    "aliases": []
+  },
+  {
+    "code": "afr",
+    "name": "Adventures in the Forgotten Realms",
+    "set_type": "expansion",
+    "card_count": 424,
+    "aliases": []
+  },
+  {
+    "code": "vow",
+    "name": "Innistrad: Crimson Vow",
+    "set_type": "expansion",
+    "card_count": 423,
+    "aliases": []
+  },
+  {
+    "code": "dsk",
+    "name": "Duskmourn: House of Horror",
+    "set_type": "expansion",
+    "card_count": 419,
+    "aliases": []
+  },
+  {
+    "code": "lci",
+    "name": "The Lost Caverns of Ixalan",
+    "set_type": "expansion",
+    "card_count": 416,
+    "aliases": [
+      "lci",
+      "lost caverns of ixalan"
+    ]
+  },
+  {
+    "code": "tdc",
+    "name": "Tarkir: Dragonstorm Commander",
+    "set_type": "commander",
+    "card_count": 413,
+    "aliases": []
+  },
+  {
+    "code": "tsr",
+    "name": "Time Spiral Remastered",
+    "set_type": "masters",
+    "card_count": 411,
+    "aliases": []
+  },
+  {
+    "code": "c21",
+    "name": "Commander 2021",
+    "set_type": "commander",
+    "card_count": 409,
+    "aliases": []
+  },
+  {
+    "code": "ecl",
+    "name": "Lorwyn Eclipsed",
+    "set_type": "expansion",
+    "card_count": 408,
+    "aliases": []
+  },
+  {
+    "code": "znr",
+    "name": "Zendikar Rising",
+    "set_type": "expansion",
+    "card_count": 408,
+    "aliases": []
+  },
+  {
+    "code": "eoe",
+    "name": "Edge of Eternities",
+    "set_type": "expansion",
+    "card_count": 400,
+    "aliases": []
+  },
+  {
+    "code": "bro",
+    "name": "The Brothers' War",
+    "set_type": "expansion",
+    "card_count": 399,
+    "aliases": []
+  },
+  {
+    "code": "mid",
+    "name": "Innistrad: Midnight Hunt",
+    "set_type": "expansion",
+    "card_count": 399,
+    "aliases": []
+  },
+  {
+    "code": "blb",
+    "name": "Bloomburrow",
+    "set_type": "expansion",
+    "card_count": 398,
+    "aliases": []
+  },
+  {
+    "code": "m3c",
+    "name": "Modern Horizons 3 Commander",
+    "set_type": "commander",
+    "card_count": 398,
+    "aliases": []
+  },
+  {
+    "code": "eld",
+    "name": "Throne of Eldraine",
+    "set_type": "expansion",
+    "card_count": 398,
+    "aliases": []
+  },
+  {
+    "code": "m21",
+    "name": "Core Set 2021",
+    "set_type": "core",
+    "card_count": 397,
+    "aliases": []
+  },
+  {
+    "code": "tla",
+    "name": "Avatar: The Last Airbender",
+    "set_type": "expansion",
+    "card_count": 394,
+    "aliases": []
+  },
+  {
+    "code": "stx",
+    "name": "Strixhaven: School of Mages",
+    "set_type": "expansion",
+    "card_count": 393,
+    "aliases": []
+  },
+  {
+    "code": "iko",
+    "name": "Ikoria: Lair of Behemoths",
+    "set_type": "expansion",
+    "card_count": 390,
+    "aliases": []
+  },
+  {
+    "code": "mom",
+    "name": "March of the Machine",
+    "set_type": "expansion",
+    "card_count": 387,
+    "aliases": [
+      "mom",
+      "march of the machine"
+    ]
+  },
+  {
+    "code": "mb2",
+    "name": "Mystery Booster 2",
+    "set_type": "masters",
+    "card_count": 385,
+    "aliases": []
+  },
+  {
+    "code": "2xm",
+    "name": "Double Masters",
+    "set_type": "masters",
+    "card_count": 384,
+    "aliases": [
+      "double masters"
+    ]
+  },
+  {
+    "code": "ice",
+    "name": "Ice Age",
+    "set_type": "expansion",
+    "card_count": 383,
+    "aliases": []
+  },
+  {
+    "code": "woe",
+    "name": "Wilds of Eldraine",
+    "set_type": "expansion",
+    "card_count": 381,
+    "aliases": [
+      "woe",
+      "wilds of eldraine"
+    ]
+  },
+  {
+    "code": "4ed",
+    "name": "Fourth Edition",
+    "set_type": "core",
+    "card_count": 380,
+    "aliases": []
+  },
+  {
+    "code": "4bb",
+    "name": "Fourth Edition Foreign Black Border",
+    "set_type": "core",
+    "card_count": 378,
+    "aliases": []
+  },
+  {
+    "code": "otj",
+    "name": "Outlaws of Thunder Junction",
+    "set_type": "expansion",
+    "card_count": 374,
+    "aliases": [
+      "otj",
+      "outlaws of thunder junction"
+    ]
+  },
+  {
+    "code": "dsc",
+    "name": "Duskmourn: House of Horror Commander",
+    "set_type": "commander",
+    "card_count": 373,
+    "aliases": []
+  },
+  {
+    "code": "lcc",
+    "name": "The Lost Caverns of Ixalan Commander",
+    "set_type": "commander",
+    "card_count": 370,
+    "aliases": []
+  },
+  {
+    "code": "sos",
+    "name": "Secrets of Strixhaven",
+    "set_type": "expansion",
+    "card_count": 368,
+    "aliases": []
+  },
+  {
+    "code": "mkc",
+    "name": "Murders at Karlov Manor Commander",
+    "set_type": "commander",
+    "card_count": 358,
+    "aliases": []
+  },
+  {
+    "code": "thb",
+    "name": "Theros Beyond Death",
+    "set_type": "expansion",
+    "card_count": 358,
+    "aliases": []
+  },
+  {
+    "code": "usg",
+    "name": "Urza's Saga",
+    "set_type": "expansion",
+    "card_count": 357,
+    "aliases": []
+  },
+  {
+    "code": "blc",
+    "name": "Bloomburrow Commander",
+    "set_type": "commander",
+    "card_count": 356,
+    "aliases": [
+      "blc",
+      "bloomburrow"
+    ]
+  },
+  {
+    "code": "c13",
+    "name": "Commander 2013",
+    "set_type": "commander",
+    "card_count": 356,
+    "aliases": []
+  },
+  {
+    "code": "inv",
+    "name": "Invasion",
+    "set_type": "expansion",
+    "card_count": 354,
+    "aliases": []
+  },
+  {
+    "code": "ody",
+    "name": "Odyssey",
+    "set_type": "expansion",
+    "card_count": 353,
+    "aliases": []
+  },
+  {
+    "code": "mir",
+    "name": "Mirage",
+    "set_type": "expansion",
+    "card_count": 353,
+    "aliases": []
+  },
+  {
+    "code": "scd",
+    "name": "Starter Commander Decks",
+    "set_type": "commander",
+    "card_count": 352,
+    "aliases": []
+  },
+  {
+    "code": "c16",
+    "name": "Commander 2016",
+    "set_type": "commander",
+    "card_count": 351,
+    "aliases": []
+  },
+  {
+    "code": "ons",
+    "name": "Onslaught",
+    "set_type": "expansion",
+    "card_count": 351,
+    "aliases": []
+  },
+  {
+    "code": "6ed",
+    "name": "Classic Sixth Edition",
+    "set_type": "core",
+    "card_count": 351,
+    "aliases": []
+  },
+  {
+    "code": "mmq",
+    "name": "Mercadian Masques",
+    "set_type": "expansion",
+    "card_count": 350,
+    "aliases": []
+  },
+  {
+    "code": "tmp",
+    "name": "Tempest",
+    "set_type": "expansion",
+    "card_count": 350,
+    "aliases": []
+  },
+  {
+    "code": "m20",
+    "name": "Core Set 2020",
+    "set_type": "core",
+    "card_count": 346,
+    "aliases": []
+  },
+  {
+    "code": "otc",
+    "name": "Outlaws of Thunder Junction Commander",
+    "set_type": "commander",
+    "card_count": 342,
+    "aliases": []
+  },
+  {
+    "code": "c15",
+    "name": "Commander 2015",
+    "set_type": "commander",
+    "card_count": 342,
+    "aliases": []
+  },
+  {
+    "code": "c14",
+    "name": "Commander 2014",
+    "set_type": "commander",
+    "card_count": 337,
+    "aliases": []
+  },
+  {
+    "code": "afc",
+    "name": "Forgotten Realms Commander",
+    "set_type": "commander",
+    "card_count": 331,
+    "aliases": []
+  },
+  {
+    "code": "c20",
+    "name": "Commander 2020",
+    "set_type": "commander",
+    "card_count": 322,
+    "aliases": []
+  },
+  {
+    "code": "tmt",
+    "name": "Teenage Mutant Ninja Turtles",
+    "set_type": "expansion",
+    "card_count": 320,
+    "aliases": []
+  },
+  {
+    "code": "cma",
+    "name": "Commander Anthology",
+    "set_type": "commander",
+    "card_count": 320,
+    "aliases": []
+  },
+  {
+    "code": "cmd",
+    "name": "Commander 2011",
+    "set_type": "commander",
+    "card_count": 318,
+    "aliases": []
+  },
+  {
+    "code": "tle",
+    "name": "Avatar: The Last Airbender Eternal",
+    "set_type": "eternal",
+    "card_count": 317,
+    "aliases": []
+  },
+  {
+    "code": "m19",
+    "name": "Core Set 2019",
+    "set_type": "core",
+    "card_count": 314,
+    "aliases": []
+  },
+  {
+    "code": "war",
+    "name": "War of the Spark",
+    "set_type": "expansion",
+    "card_count": 312,
+    "aliases": []
+  },
+  {
+    "code": "cm2",
+    "name": "Commander Anthology Volume II",
+    "set_type": "commander",
+    "card_count": 312,
+    "aliases": []
+  },
+  {
+    "code": "leg",
+    "name": "Legends",
+    "set_type": "expansion",
+    "card_count": 310,
+    "aliases": []
+  },
+  {
+    "code": "acr",
+    "name": "Assassin's Creed",
+    "set_type": "draft_innovation",
+    "card_count": 309,
+    "aliases": []
+  },
+  {
+    "code": "c17",
+    "name": "Commander 2017",
+    "set_type": "commander",
+    "card_count": 309,
+    "aliases": []
+  },
+  {
+    "code": "c18",
+    "name": "Commander 2018",
+    "set_type": "commander",
+    "card_count": 307,
+    "aliases": []
+  },
+  {
+    "code": "chk",
+    "name": "Champions of Kamigawa",
+    "set_type": "expansion",
+    "card_count": 307,
+    "aliases": []
+  },
+  {
+    "code": "fbb",
+    "name": "Foreign Black Border",
+    "set_type": "core",
+    "card_count": 307,
+    "aliases": []
+  },
+  {
+    "code": "rav",
+    "name": "Ravnica: City of Guilds",
+    "set_type": "expansion",
+    "card_count": 306,
+    "aliases": []
+  },
+  {
+    "code": "mrd",
+    "name": "Mirrodin",
+    "set_type": "expansion",
+    "card_count": 306,
+    "aliases": []
+  },
+  {
+    "code": "sum",
+    "name": "Summer Magic / Edgar",
+    "set_type": "core",
+    "card_count": 306,
+    "aliases": []
+  },
+  {
+    "code": "3ed",
+    "name": "Revised Edition",
+    "set_type": "core",
+    "card_count": 306,
+    "aliases": []
+  },
+  {
+    "code": "c19",
+    "name": "Commander 2019",
+    "set_type": "commander",
+    "card_count": 302,
+    "aliases": []
+  },
+  {
+    "code": "soi",
+    "name": "Shadows over Innistrad",
+    "set_type": "expansion",
+    "card_count": 302,
+    "aliases": []
+  },
+  {
+    "code": "shm",
+    "name": "Shadowmoor",
+    "set_type": "expansion",
+    "card_count": 302,
+    "aliases": []
+  },
+  {
+    "code": "2ed",
+    "name": "Unlimited Edition",
+    "set_type": "core",
+    "card_count": 302,
+    "aliases": []
+  },
+  {
+    "code": "leb",
+    "name": "Limited Edition Beta",
+    "set_type": "core",
+    "card_count": 302,
+    "aliases": []
+  },
+  {
+    "code": "lrw",
+    "name": "Lorwyn",
+    "set_type": "expansion",
+    "card_count": 301,
+    "aliases": []
+  },
+  {
+    "code": "tsp",
+    "name": "Time Spiral",
+    "set_type": "expansion",
+    "card_count": 301,
+    "aliases": []
+  },
+  {
+    "code": "bfz",
+    "name": "Battle for Zendikar",
+    "set_type": "expansion",
+    "card_count": 299,
+    "aliases": []
+  },
+  {
+    "code": "lea",
+    "name": "Limited Edition Alpha",
+    "set_type": "core",
+    "card_count": 295,
+    "aliases": []
+  },
+  {
+    "code": "ktk",
+    "name": "Khans of Tarkir",
+    "set_type": "expansion",
+    "card_count": 293,
+    "aliases": []
+  },
+  {
+    "code": "xln",
+    "name": "Ixalan",
+    "set_type": "expansion",
+    "card_count": 289,
+    "aliases": []
+  },
+  {
+    "code": "ori",
+    "name": "Magic Origins",
+    "set_type": "core",
+    "card_count": 288,
+    "aliases": []
+  },
+  {
+    "code": "akh",
+    "name": "Amonkhet",
+    "set_type": "expansion",
+    "card_count": 287,
+    "aliases": []
+  },
+  {
+    "code": "spm",
+    "name": "Marvel's Spider-Man",
+    "set_type": "expansion",
+    "card_count": 286,
+    "aliases": []
+  },
+  {
+    "code": "clu",
+    "name": "Ravnica: Clue Edition",
+    "set_type": "draft_innovation",
+    "card_count": 284,
+    "aliases": []
+  },
+  {
+    "code": "m15",
+    "name": "Magic 2015",
+    "set_type": "core",
+    "card_count": 284,
+    "aliases": []
+  },
+  {
+    "code": "dom",
+    "name": "Dominaria",
+    "set_type": "expansion",
+    "card_count": 280,
+    "aliases": []
+  },
+  {
+    "code": "kld",
+    "name": "Kaladesh",
+    "set_type": "expansion",
+    "card_count": 278,
+    "aliases": []
+  },
+  {
+    "code": "rtr",
+    "name": "Return to Ravnica",
+    "set_type": "expansion",
+    "card_count": 274,
+    "aliases": []
+  },
+  {
+    "code": "rna",
+    "name": "Ravnica Allegiance",
+    "set_type": "expansion",
+    "card_count": 273,
+    "aliases": []
+  },
+  {
+    "code": "grn",
+    "name": "Guilds of Ravnica",
+    "set_type": "expansion",
+    "card_count": 273,
+    "aliases": []
+  },
+  {
+    "code": "zen",
+    "name": "Zendikar",
+    "set_type": "expansion",
+    "card_count": 269,
+    "aliases": []
+  },
+  {
+    "code": "dtk",
+    "name": "Dragons of Tarkir",
+    "set_type": "expansion",
+    "card_count": 264,
+    "aliases": []
+  },
+  {
+    "code": "isd",
+    "name": "Innistrad",
+    "set_type": "expansion",
+    "card_count": 264,
+    "aliases": []
+  },
+  {
+    "code": "mul",
+    "name": "Multiverse Legends",
+    "set_type": "masterpiece",
+    "card_count": 261,
+    "aliases": []
+  },
+  {
+    "code": "por",
+    "name": "Portal",
+    "set_type": "starter",
+    "card_count": 257,
+    "aliases": []
+  },
+  {
+    "code": "bbd",
+    "name": "Battlebond",
+    "set_type": "draft_innovation",
+    "card_count": 256,
+    "aliases": []
+  },
+  {
+    "code": "mh1",
+    "name": "Modern Horizons",
+    "set_type": "draft_innovation",
+    "card_count": 255,
+    "aliases": [
+      "modern horizons"
+    ]
+  },
+  {
+    "code": "uma",
+    "name": "Ultimate Masters",
+    "set_type": "masters",
+    "card_count": 254,
+    "aliases": []
+  },
+  {
+    "code": "ala",
+    "name": "Shards of Alara",
+    "set_type": "expansion",
+    "card_count": 250,
+    "aliases": []
+  },
+  {
+    "code": "a25",
+    "name": "Masters 25",
+    "set_type": "masters",
+    "card_count": 249,
+    "aliases": []
+  },
+  {
+    "code": "ima",
+    "name": "Iconic Masters",
+    "set_type": "masters",
+    "card_count": 249,
+    "aliases": []
+  },
+  {
+    "code": "mm3",
+    "name": "Modern Masters 2017",
+    "set_type": "masters",
+    "card_count": 249,
+    "aliases": []
+  },
+  {
+    "code": "ema",
+    "name": "Eternal Masters",
+    "set_type": "masters",
+    "card_count": 249,
+    "aliases": []
+  },
+  {
+    "code": "mm2",
+    "name": "Modern Masters 2015",
+    "set_type": "masters",
+    "card_count": 249,
+    "aliases": []
+  },
+  {
+    "code": "ths",
+    "name": "Theros",
+    "set_type": "expansion",
+    "card_count": 249,
+    "aliases": []
+  },
+  {
+    "code": "m14",
+    "name": "Magic 2014",
+    "set_type": "core",
+    "card_count": 249,
+    "aliases": []
+  },
+  {
+    "code": "gtc",
+    "name": "Gatecrash",
+    "set_type": "expansion",
+    "card_count": 249,
+    "aliases": []
+  },
+  {
+    "code": "m13",
+    "name": "Magic 2013",
+    "set_type": "core",
+    "card_count": 249,
+    "aliases": []
+  },
+  {
+    "code": "m12",
+    "name": "Magic 2012",
+    "set_type": "core",
+    "card_count": 249,
+    "aliases": []
+  },
+  {
+    "code": "som",
+    "name": "Scars of Mirrodin",
+    "set_type": "expansion",
+    "card_count": 249,
+    "aliases": []
+  },
+  {
+    "code": "m11",
+    "name": "Magic 2011",
+    "set_type": "core",
+    "card_count": 249,
+    "aliases": []
+  },
+  {
+    "code": "m10",
+    "name": "Magic 2010",
+    "set_type": "core",
+    "card_count": 249,
+    "aliases": []
+  },
+  {
+    "code": "roe",
+    "name": "Rise of the Eldrazi",
+    "set_type": "expansion",
+    "card_count": 248,
+    "aliases": []
+  },
+  {
+    "code": "avr",
+    "name": "Avacyn Restored",
+    "set_type": "expansion",
+    "card_count": 244,
+    "aliases": []
+  },
+  {
+    "code": "pafr",
+    "name": "Adventures in the Forgotten Realms Promos",
+    "set_type": "promo",
+    "card_count": 241,
+    "aliases": []
+  },
+  {
+    "code": "dmc",
+    "name": "Dominaria United Commander",
+    "set_type": "commander",
+    "card_count": 240,
+    "aliases": []
+  },
+  {
+    "code": "mat",
+    "name": "March of the Machine: The Aftermath",
+    "set_type": "expansion",
+    "card_count": 230,
+    "aliases": []
+  },
+  {
+    "code": "mma",
+    "name": "Modern Masters",
+    "set_type": "masters",
+    "card_count": 229,
+    "aliases": []
+  },
+  {
+    "code": "cn2",
+    "name": "Conspiracy: Take the Crown",
+    "set_type": "draft_innovation",
+    "card_count": 222,
+    "aliases": []
+  },
+  {
+    "code": "cns",
+    "name": "Conspiracy",
+    "set_type": "draft_innovation",
+    "card_count": 210,
+    "aliases": []
+  },
+  {
+    "code": "brc",
+    "name": "The Brothers' War Commander",
+    "set_type": "commander",
+    "card_count": 209,
+    "aliases": []
+  },
+  {
+    "code": "hou",
+    "name": "Hour of Devastation",
+    "set_type": "expansion",
+    "card_count": 209,
+    "aliases": []
+  },
+  {
+    "code": "emn",
+    "name": "Eldritch Moon",
+    "set_type": "expansion",
+    "card_count": 208,
+    "aliases": []
+  },
+  {
+    "code": "rix",
+    "name": "Rivals of Ixalan",
+    "set_type": "expansion",
+    "card_count": 205,
+    "aliases": []
+  },
+  {
+    "code": "all",
+    "name": "Alliances",
+    "set_type": "expansion",
+    "card_count": 199,
+    "aliases": []
+  },
+  {
+    "code": "aer",
+    "name": "Aether Revolt",
+    "set_type": "expansion",
+    "card_count": 197,
+    "aliases": []
+  },
+  {
+    "code": "soa",
+    "name": "Secrets of Strixhaven Mystical Archive",
+    "set_type": "masterpiece",
+    "card_count": 195,
+    "aliases": []
+  },
+  {
+    "code": "eoc",
+    "name": "Edge of Eternities Commander",
+    "set_type": "commander",
+    "card_count": 191,
+    "aliases": []
+  },
+  {
+    "code": "frf",
+    "name": "Fate Reforged",
+    "set_type": "expansion",
+    "card_count": 191,
+    "aliases": []
+  },
+  {
+    "code": "brr",
+    "name": "The Brothers' War Retro Artifacts",
+    "set_type": "masterpiece",
+    "card_count": 189,
+    "aliases": []
+  },
+  {
+    "code": "voc",
+    "name": "Crimson Vow Commander",
+    "set_type": "commander",
+    "card_count": 188,
+    "aliases": []
+  },
+  {
+    "code": "mic",
+    "name": "Midnight Hunt Commander",
+    "set_type": "commander",
+    "card_count": 187,
+    "aliases": []
+  },
+  {
+    "code": "ogw",
+    "name": "Oath of the Gatewatch",
+    "set_type": "expansion",
+    "card_count": 187,
+    "aliases": []
+  },
+  {
+    "code": "fem",
+    "name": "Fallen Empires",
+    "set_type": "expansion",
+    "card_count": 187,
+    "aliases": []
+  },
+  {
+    "code": "drc",
+    "name": "Aetherdrift Commander",
+    "set_type": "commander",
+    "card_count": 184,
+    "aliases": []
+  },
+  {
+    "code": "eos",
+    "name": "Edge of Eternities: Stellar Sights",
+    "set_type": "masterpiece",
+    "card_count": 180,
+    "aliases": []
+  },
+  {
+    "code": "pmkm",
+    "name": "Murders at Karlov Manor Promos",
+    "set_type": "promo",
+    "card_count": 180,
+    "aliases": []
+  },
+  {
+    "code": "eve",
+    "name": "Eventide",
+    "set_type": "expansion",
+    "card_count": 180,
+    "aliases": []
+  },
+  {
+    "code": "fut",
+    "name": "Future Sight",
+    "set_type": "expansion",
+    "card_count": 180,
+    "aliases": []
+  },
+  {
+    "code": "dis",
+    "name": "Dissension",
+    "set_type": "expansion",
+    "card_count": 180,
+    "aliases": []
+  },
+  {
+    "code": "ptk",
+    "name": "Portal Three Kingdoms",
+    "set_type": "starter",
+    "card_count": 180,
+    "aliases": []
+  },
+  {
+    "code": "nec",
+    "name": "Neon Dynasty Commander",
+    "set_type": "commander",
+    "card_count": 179,
+    "aliases": []
+  },
+  {
+    "code": "ecc",
+    "name": "Lorwyn Eclipsed Commander",
+    "set_type": "commander",
+    "card_count": 176,
+    "aliases": []
+  },
+  {
+    "code": "pwar",
+    "name": "War of the Spark Promos",
+    "set_type": "promo",
+    "card_count": 176,
+    "aliases": []
+  },
+  {
+    "code": "nph",
+    "name": "New Phyrexia",
+    "set_type": "expansion",
+    "card_count": 175,
+    "aliases": []
+  },
+  {
+    "code": "onc",
+    "name": "Phyrexia: All Will Be One Commander",
+    "set_type": "commander",
+    "card_count": 174,
+    "aliases": []
+  },
+  {
+    "code": "woc",
+    "name": "Wilds of Eldraine Commander",
+    "set_type": "commander",
+    "card_count": 173,
+    "aliases": []
+  },
+  {
+    "code": "s99",
+    "name": "Starter 1999",
+    "set_type": "starter",
+    "card_count": 173,
+    "aliases": []
+  },
+  {
+    "code": "pbro",
+    "name": "The Brothers' War Promos",
+    "set_type": "promo",
+    "card_count": 171,
+    "aliases": []
+  },
+  {
+    "code": "hop",
+    "name": "Planechase",
+    "set_type": "planechase",
+    "card_count": 169,
+    "aliases": []
+  },
+  {
+    "code": "gpt",
+    "name": "Guildpact",
+    "set_type": "expansion",
+    "card_count": 167,
+    "aliases": []
+  },
+  {
+    "code": "wth",
+    "name": "Weatherlight",
+    "set_type": "expansion",
+    "card_count": 167,
+    "aliases": []
+  },
+  {
+    "code": "vis",
+    "name": "Visions",
+    "set_type": "expansion",
+    "card_count": 167,
+    "aliases": []
+  },
+  {
+    "code": "spg",
+    "name": "Special Guests",
+    "set_type": "masterpiece",
+    "card_count": 165,
+    "aliases": []
+  },
+  {
+    "code": "jou",
+    "name": "Journey into Nyx",
+    "set_type": "expansion",
+    "card_count": 165,
+    "aliases": []
+  },
+  {
+    "code": "bng",
+    "name": "Born of the Gods",
+    "set_type": "expansion",
+    "card_count": 165,
+    "aliases": []
+  },
+  {
+    "code": "plc",
+    "name": "Planar Chaos",
+    "set_type": "expansion",
+    "card_count": 165,
+    "aliases": []
+  },
+  {
+    "code": "sok",
+    "name": "Saviors of Kamigawa",
+    "set_type": "expansion",
+    "card_count": 165,
+    "aliases": []
+  },
+  {
+    "code": "bok",
+    "name": "Betrayers of Kamigawa",
+    "set_type": "expansion",
+    "card_count": 165,
+    "aliases": []
+  },
+  {
+    "code": "5dn",
+    "name": "Fifth Dawn",
+    "set_type": "expansion",
+    "card_count": 165,
+    "aliases": []
+  },
+  {
+    "code": "dst",
+    "name": "Darksteel",
+    "set_type": "expansion",
+    "card_count": 165,
+    "aliases": []
+  },
+  {
+    "code": "p02",
+    "name": "Portal Second Age",
+    "set_type": "starter",
+    "card_count": 165,
+    "aliases": []
+  },
+  {
+    "code": "pstx",
+    "name": "Strixhaven: School of Mages Promos",
+    "set_type": "promo",
+    "card_count": 164,
+    "aliases": []
+  },
+  {
+    "code": "pdmu",
+    "name": "Dominaria United Promos",
+    "set_type": "promo",
+    "card_count": 161,
+    "aliases": []
+  },
+  {
+    "code": "psnc",
+    "name": "Streets of New Capenna Promos",
+    "set_type": "promo",
+    "card_count": 161,
+    "aliases": []
+  },
+  {
+    "code": "peoe",
+    "name": "Edge of Eternities Promos",
+    "set_type": "promo",
+    "card_count": 160,
+    "aliases": []
+  },
+  {
+    "code": "ptdm",
+    "name": "Tarkir: Dragonstorm Promos",
+    "set_type": "promo",
+    "card_count": 160,
+    "aliases": []
+  },
+  {
+    "code": "pdft",
+    "name": "Aetherdrift Promos",
+    "set_type": "promo",
+    "card_count": 160,
+    "aliases": []
+  },
+  {
+    "code": "pdsk",
+    "name": "Duskmourn: House of Horror Promos",
+    "set_type": "promo",
+    "card_count": 160,
+    "aliases": []
+  },
+  {
+    "code": "pblb",
+    "name": "Bloomburrow Promos",
+    "set_type": "promo",
+    "card_count": 160,
+    "aliases": []
+  },
+  {
+    "code": "potj",
+    "name": "Outlaws of Thunder Junction Promos",
+    "set_type": "promo",
+    "card_count": 160,
+    "aliases": []
+  },
+  {
+    "code": "pwoe",
+    "name": "Wilds of Eldraine Promos",
+    "set_type": "promo",
+    "card_count": 160,
+    "aliases": []
+  },
+  {
+    "code": "pone",
+    "name": "Phyrexia: All Will Be One Promos",
+    "set_type": "promo",
+    "card_count": 160,
+    "aliases": []
+  },
+  {
+    "code": "pkhm",
+    "name": "Kaldheim Promos",
+    "set_type": "promo",
+    "card_count": 158,
+    "aliases": []
+  },
+  {
+    "code": "dka",
+    "name": "Dark Ascension",
+    "set_type": "expansion",
+    "card_count": 158,
+    "aliases": []
+  },
+  {
+    "code": "pca",
+    "name": "Planechase Anthology",
+    "set_type": "planechase",
+    "card_count": 156,
+    "aliases": []
+  },
+  {
+    "code": "dgm",
+    "name": "Dragon's Maze",
+    "set_type": "expansion",
+    "card_count": 156,
+    "aliases": []
+  },
+  {
+    "code": "pc2",
+    "name": "Planechase 2012",
+    "set_type": "planechase",
+    "card_count": 156,
+    "aliases": []
+  },
+  {
+    "code": "pmid",
+    "name": "Innistrad: Midnight Hunt Promos",
+    "set_type": "promo",
+    "card_count": 155,
+    "aliases": []
+  },
+  {
+    "code": "mbs",
+    "name": "Mirrodin Besieged",
+    "set_type": "expansion",
+    "card_count": 155,
+    "aliases": []
+  },
+  {
+    "code": "csp",
+    "name": "Coldsnap",
+    "set_type": "expansion",
+    "card_count": 155,
+    "aliases": []
+  },
+  {
+    "code": "pznr",
+    "name": "Zendikar Rising Promos",
+    "set_type": "promo",
+    "card_count": 153,
+    "aliases": []
+  },
+  {
+    "code": "mor",
+    "name": "Morningtide",
+    "set_type": "expansion",
+    "card_count": 150,
+    "aliases": []
+  },
+  {
+    "code": "pneo",
+    "name": "Kamigawa: Neon Dynasty Promos",
+    "set_type": "promo",
+    "card_count": 148,
+    "aliases": []
+  },
+  {
+    "code": "pls",
+    "name": "Planeshift",
+    "set_type": "expansion",
+    "card_count": 146,
+    "aliases": []
+  },
+  {
+    "code": "wwk",
+    "name": "Worldwake",
+    "set_type": "expansion",
+    "card_count": 145,
+    "aliases": []
+  },
+  {
+    "code": "arb",
+    "name": "Alara Reborn",
+    "set_type": "expansion",
+    "card_count": 145,
+    "aliases": []
+  },
+  {
+    "code": "con",
+    "name": "Conflux",
+    "set_type": "expansion",
+    "card_count": 145,
+    "aliases": []
+  },
+  {
+    "code": "lgn",
+    "name": "Legions",
+    "set_type": "expansion",
+    "card_count": 145,
+    "aliases": []
+  },
+  {
+    "code": "pmom",
+    "name": "March of the Machine Promos",
+    "set_type": "promo",
+    "card_count": 144,
+    "aliases": []
+  },
+  {
+    "code": "pm20",
+    "name": "Core Set 2020 Promos",
+    "set_type": "promo",
+    "card_count": 144,
+    "aliases": []
+  },
+  {
+    "code": "pcy",
+    "name": "Prophecy",
+    "set_type": "expansion",
+    "card_count": 144,
+    "aliases": []
+  },
+  {
+    "code": "scg",
+    "name": "Scourge",
+    "set_type": "expansion",
+    "card_count": 143,
+    "aliases": []
+  },
+  {
+    "code": "jud",
+    "name": "Judgment",
+    "set_type": "expansion",
+    "card_count": 143,
+    "aliases": []
+  },
+  {
+    "code": "tor",
+    "name": "Torment",
+    "set_type": "expansion",
+    "card_count": 143,
+    "aliases": []
+  },
+  {
+    "code": "apc",
+    "name": "Apocalypse",
+    "set_type": "expansion",
+    "card_count": 143,
+    "aliases": []
+  },
+  {
+    "code": "nem",
+    "name": "Nemesis",
+    "set_type": "expansion",
+    "card_count": 143,
+    "aliases": []
+  },
+  {
+    "code": "uds",
+    "name": "Urza's Destiny",
+    "set_type": "expansion",
+    "card_count": 143,
+    "aliases": []
+  },
+  {
+    "code": "ulg",
+    "name": "Urza's Legacy",
+    "set_type": "expansion",
+    "card_count": 143,
+    "aliases": []
+  },
+  {
+    "code": "exo",
+    "name": "Exodus",
+    "set_type": "expansion",
+    "card_count": 143,
+    "aliases": []
+  },
+  {
+    "code": "sth",
+    "name": "Stronghold",
+    "set_type": "expansion",
+    "card_count": 143,
+    "aliases": []
+  },
+  {
+    "code": "znc",
+    "name": "Zendikar Rising Commander",
+    "set_type": "commander",
+    "card_count": 142,
+    "aliases": []
+  },
+  {
+    "code": "hml",
+    "name": "Homelands",
+    "set_type": "expansion",
+    "card_count": 140,
+    "aliases": []
+  },
+  {
+    "code": "peld",
+    "name": "Throne of Eldraine Promos",
+    "set_type": "promo",
+    "card_count": 138,
+    "aliases": []
+  },
+  {
+    "code": "pm21",
+    "name": "Core Set 2021 Promos",
+    "set_type": "promo",
+    "card_count": 137,
+    "aliases": []
+  },
+  {
+    "code": "piko",
+    "name": "Ikoria: Lair of Behemoths Promos",
+    "set_type": "promo",
+    "card_count": 137,
+    "aliases": []
+  },
+  {
+    "code": "pthb",
+    "name": "Theros Beyond Death Promos",
+    "set_type": "promo",
+    "card_count": 137,
+    "aliases": []
+  },
+  {
+    "code": "plci",
+    "name": "The Lost Caverns of Ixalan Promos",
+    "set_type": "promo",
+    "card_count": 136,
+    "aliases": []
+  },
+  {
+    "code": "tmc",
+    "name": "Teenage Mutant Ninja Turtles Eternal",
+    "set_type": "eternal",
+    "card_count": 132,
+    "aliases": []
+  },
+  {
+    "code": "sta",
+    "name": "Strixhaven Mystical Archive",
+    "set_type": "masterpiece",
+    "card_count": 126,
+    "aliases": []
+  },
+  {
+    "code": "bchr",
+    "name": "Chronicles Foreign Black Border",
+    "set_type": "masters",
+    "card_count": 125,
+    "aliases": []
+  },
+  {
+    "code": "chr",
+    "name": "Chronicles",
+    "set_type": "masters",
+    "card_count": 125,
+    "aliases": []
+  },
+  {
+    "code": "ren",
+    "name": "Renaissance",
+    "set_type": "masters",
+    "card_count": 122,
+    "aliases": []
+  },
+  {
+    "code": "drk",
+    "name": "The Dark",
+    "set_type": "expansion",
+    "card_count": 122,
+    "aliases": []
+  },
+  {
+    "code": "pvow",
+    "name": "Innistrad: Crimson Vow Promos",
+    "set_type": "promo",
+    "card_count": 121,
+    "aliases": []
+  },
+  {
+    "code": "tsb",
+    "name": "Time Spiral Timeshifted",
+    "set_type": "expansion",
+    "card_count": 121,
+    "aliases": []
+  },
+  {
+    "code": "pxln",
+    "name": "Ixalan Promos",
+    "set_type": "promo",
+    "card_count": 120,
+    "aliases": []
+  },
+  {
+    "code": "khc",
+    "name": "Kaldheim Commander",
+    "set_type": "commander",
+    "card_count": 119,
+    "aliases": []
+  },
+  {
+    "code": "pdom",
+    "name": "Dominaria Promos",
+    "set_type": "promo",
+    "card_count": 118,
+    "aliases": []
+  },
+  {
+    "code": "pclb",
+    "name": "Battle for Baldur's Gate Promos",
+    "set_type": "promo",
+    "card_count": 104,
+    "aliases": []
+  },
+  {
+    "code": "wot",
+    "name": "Wilds of Eldraine: Enchanting Tales",
+    "set_type": "masterpiece",
+    "card_count": 103,
+    "aliases": []
+  },
+  {
+    "code": "atq",
+    "name": "Antiquities",
+    "set_type": "expansion",
+    "card_count": 102,
+    "aliases": []
+  },
+  {
+    "code": "pfdn",
+    "name": "Foundations Promos",
+    "set_type": "promo",
+    "card_count": 101,
+    "aliases": []
+  },
+  {
+    "code": "prix",
+    "name": "Rivals of Ixalan Promos",
+    "set_type": "promo",
+    "card_count": 98,
+    "aliases": []
+  },
+  {
+    "code": "big",
+    "name": "The Big Score",
+    "set_type": "expansion",
+    "card_count": 95,
+    "aliases": []
+  },
+  {
+    "code": "pm19",
+    "name": "Core Set 2019 Promos",
+    "set_type": "promo",
+    "card_count": 95,
+    "aliases": []
+  },
+  {
+    "code": "pfin",
+    "name": "Final Fantasy Promos",
+    "set_type": "promo",
+    "card_count": 94,
+    "aliases": []
+  },
+  {
+    "code": "arn",
+    "name": "Arabian Nights",
+    "set_type": "expansion",
+    "card_count": 92,
+    "aliases": []
+  },
+  {
+    "code": "psoi",
+    "name": "Shadows over Innistrad Promos",
+    "set_type": "promo",
+    "card_count": 90,
+    "aliases": []
+  },
+  {
+    "code": "pbfz",
+    "name": "Battle for Zendikar Promos",
+    "set_type": "promo",
+    "card_count": 90,
+    "aliases": []
+  },
+  {
+    "code": "ddj",
+    "name": "Duel Decks: Izzet vs. Golgari",
+    "set_type": "duel_deck",
+    "card_count": 90,
+    "aliases": []
+  },
+  {
+    "code": "pmh3",
+    "name": "Modern Horizons 3 Promos",
+    "set_type": "promo",
+    "card_count": 89,
+    "aliases": []
+  },
+  {
+    "code": "ddm",
+    "name": "Duel Decks: Jace vs. Vraska",
+    "set_type": "duel_deck",
+    "card_count": 88,
+    "aliases": []
+  },
+  {
+    "code": "pecl",
+    "name": "Lorwyn Eclipsed Promos",
+    "set_type": "promo",
+    "card_count": 87,
+    "aliases": []
+  },
+  {
+    "code": "pmei",
+    "name": "Media and Collaboration Promos",
+    "set_type": "promo",
+    "card_count": 87,
+    "aliases": []
+  },
+  {
+    "code": "pltr",
+    "name": "Tales of Middle-earth Promos",
+    "set_type": "promo",
+    "card_count": 86,
+    "aliases": []
+  },
+  {
+    "code": "pmh2",
+    "name": "Modern Horizons 2 Promos",
+    "set_type": "promo",
+    "card_count": 86,
+    "aliases": []
+  },
+  {
+    "code": "opca",
+    "name": "Planechase Anthology Planes",
+    "set_type": "planechase",
+    "card_count": 86,
+    "aliases": []
+  },
+  {
+    "code": "pgrn",
+    "name": "Guilds of Ravnica Promos",
+    "set_type": "promo",
+    "card_count": 84,
+    "aliases": []
+  },
+  {
+    "code": "pkld",
+    "name": "Kaladesh Promos",
+    "set_type": "promo",
+    "card_count": 83,
+    "aliases": []
+  },
+  {
+    "code": "ddn",
+    "name": "Duel Decks: Speed vs. Cunning",
+    "set_type": "duel_deck",
+    "card_count": 82,
+    "aliases": []
+  },
+  {
+    "code": "prna",
+    "name": "Ravnica Allegiance Promos",
+    "set_type": "promo",
+    "card_count": 81,
+    "aliases": []
+  },
+  {
+    "code": "ddl",
+    "name": "Duel Decks: Heroes vs. Monsters",
+    "set_type": "duel_deck",
+    "card_count": 81,
+    "aliases": []
+  },
+  {
+    "code": "ddg",
+    "name": "Duel Decks: Knights vs. Dragons",
+    "set_type": "duel_deck",
+    "card_count": 81,
+    "aliases": []
+  },
+  {
+    "code": "ptla",
+    "name": "Avatar: The Last Airbender Promos",
+    "set_type": "promo",
+    "card_count": 80,
+    "aliases": []
+  },
+  {
+    "code": "otp",
+    "name": "Breaking News",
+    "set_type": "masterpiece",
+    "card_count": 80,
+    "aliases": []
+  },
+  {
+    "code": "ddq",
+    "name": "Duel Decks: Blessed vs. Cursed",
+    "set_type": "duel_deck",
+    "card_count": 80,
+    "aliases": []
+  },
+  {
+    "code": "ddp",
+    "name": "Duel Decks: Zendikar vs. Eldrazi",
+    "set_type": "duel_deck",
+    "card_count": 80,
+    "aliases": []
+  },
+  {
+    "code": "ddk",
+    "name": "Duel Decks: Sorin vs. Tibalt",
+    "set_type": "duel_deck",
+    "card_count": 80,
+    "aliases": []
+  },
+  {
+    "code": "ddh",
+    "name": "Duel Decks: Ajani vs. Nicol Bolas",
+    "set_type": "duel_deck",
+    "card_count": 80,
+    "aliases": []
+  },
+  {
+    "code": "dci",
+    "name": "DCI Promos",
+    "set_type": "promo",
+    "card_count": 80,
+    "aliases": []
+  },
+  {
+    "code": "ddf",
+    "name": "Duel Decks: Elspeth vs. Tezzeret",
+    "set_type": "duel_deck",
+    "card_count": 79,
+    "aliases": []
+  },
+  {
+    "code": "pakh",
+    "name": "Amonkhet Promos",
+    "set_type": "promo",
+    "card_count": 77,
+    "aliases": []
+  },
+  {
+    "code": "pemn",
+    "name": "Eldritch Moon Promos",
+    "set_type": "promo",
+    "card_count": 77,
+    "aliases": []
+  },
+  {
+    "code": "ddi",
+    "name": "Duel Decks: Venser vs. Koth",
+    "set_type": "duel_deck",
+    "card_count": 77,
+    "aliases": []
+  },
+  {
+    "code": "ddu",
+    "name": "Duel Decks: Elves vs. Inventors",
+    "set_type": "duel_deck",
+    "card_count": 76,
+    "aliases": []
+  },
+  {
+    "code": "ddr",
+    "name": "Duel Decks: Nissa vs. Ob Nixilis",
+    "set_type": "duel_deck",
+    "card_count": 76,
+    "aliases": []
+  },
+  {
+    "code": "pncc",
+    "name": "New Capenna Commander Promos",
+    "set_type": "promo",
+    "card_count": 75,
+    "aliases": []
+  },
+  {
+    "code": "dde",
+    "name": "Duel Decks: Phyrexia vs. the Coalition",
+    "set_type": "duel_deck",
+    "card_count": 71,
+    "aliases": []
+  },
+  {
+    "code": "rin",
+    "name": "Rinascimento",
+    "set_type": "masters",
+    "card_count": 69,
+    "aliases": []
+  },
+  {
+    "code": "pspm",
+    "name": "Marvel's Spider-Man Promos",
+    "set_type": "promo",
+    "card_count": 68,
+    "aliases": []
+  },
+  {
+    "code": "ddo",
+    "name": "Duel Decks: Elspeth vs. Kiora",
+    "set_type": "duel_deck",
+    "card_count": 67,
+    "aliases": []
+  },
+  {
+    "code": "itp",
+    "name": "Introductory Two-Player Set",
+    "set_type": "starter",
+    "card_count": 67,
+    "aliases": []
+  },
+  {
+    "code": "fca",
+    "name": "Final Fantasy: Through the Ages",
+    "set_type": "masterpiece",
+    "card_count": 66,
+    "aliases": []
+  },
+  {
+    "code": "dds",
+    "name": "Duel Decks: Mind vs. Might",
+    "set_type": "duel_deck",
+    "card_count": 65,
+    "aliases": []
+  },
+  {
+    "code": "paer",
+    "name": "Aether Revolt Promos",
+    "set_type": "promo",
+    "card_count": 65,
+    "aliases": []
+  },
+  {
+    "code": "pogw",
+    "name": "Oath of the Gatewatch Promos",
+    "set_type": "promo",
+    "card_count": 65,
+    "aliases": []
+  },
+  {
+    "code": "dd2",
+    "name": "Duel Decks: Jace vs. Chandra",
+    "set_type": "duel_deck",
+    "card_count": 64,
+    "aliases": []
+  },
+  {
+    "code": "ddt",
+    "name": "Duel Decks: Merfolk vs. Goblins",
+    "set_type": "duel_deck",
+    "card_count": 63,
+    "aliases": []
+  },
+  {
+    "code": "gvl",
+    "name": "Duel Decks Anthology: Garruk vs. Liliana",
+    "set_type": "duel_deck",
+    "card_count": 63,
+    "aliases": []
+  },
+  {
+    "code": "ddd",
+    "name": "Duel Decks: Garruk vs. Liliana",
+    "set_type": "duel_deck",
+    "card_count": 63,
+    "aliases": []
+  },
+  {
+    "code": "phou",
+    "name": "Hour of Devastation Promos",
+    "set_type": "promo",
+    "card_count": 62,
+    "aliases": []
+  },
+  {
+    "code": "jvc",
+    "name": "Duel Decks Anthology: Jace vs. Chandra",
+    "set_type": "duel_deck",
+    "card_count": 62,
+    "aliases": []
+  },
+  {
+    "code": "evg",
+    "name": "Duel Decks Anthology: Elves vs. Goblins",
+    "set_type": "duel_deck",
+    "card_count": 62,
+    "aliases": []
+  },
+  {
+    "code": "dvd",
+    "name": "Duel Decks Anthology: Divine vs. Demonic",
+    "set_type": "duel_deck",
+    "card_count": 62,
+    "aliases": []
+  },
+  {
+    "code": "ddc",
+    "name": "Duel Decks: Divine vs. Demonic",
+    "set_type": "duel_deck",
+    "card_count": 62,
+    "aliases": []
+  },
+  {
+    "code": "dd1",
+    "name": "Duel Decks: Elves vs. Goblins",
+    "set_type": "duel_deck",
+    "card_count": 62,
+    "aliases": []
+  },
+  {
+    "code": "pktk",
+    "name": "Khans of Tarkir Promos",
+    "set_type": "promo",
+    "card_count": 56,
+    "aliases": []
+  },
+  {
+    "code": "mp2",
+    "name": "Amonkhet Invocations",
+    "set_type": "masterpiece",
+    "card_count": 54,
+    "aliases": []
+  },
+  {
+    "code": "mps",
+    "name": "Kaladesh Inventions",
+    "set_type": "masterpiece",
+    "card_count": 54,
+    "aliases": []
+  },
+  {
+    "code": "pori",
+    "name": "Magic Origins Promos",
+    "set_type": "promo",
+    "card_count": 54,
+    "aliases": []
+  },
+  {
+    "code": "mar",
+    "name": "Marvel Universe",
+    "set_type": "masterpiece",
+    "card_count": 53,
+    "aliases": []
+  },
+  {
+    "code": "slp",
+    "name": "Secret Lair Promo",
+    "set_type": "promo",
+    "card_count": 51,
+    "aliases": []
+  },
+  {
+    "code": "pdtk",
+    "name": "Dragons of Tarkir Promos",
+    "set_type": "promo",
+    "card_count": 51,
+    "aliases": []
+  },
+  {
+    "code": "sch",
+    "name": "Store Championships",
+    "set_type": "promo",
+    "card_count": 50,
+    "aliases": []
+  },
+  {
+    "code": "rex",
+    "name": "Jurassic World Collection",
+    "set_type": "eternal",
+    "card_count": 45,
+    "aliases": []
+  },
+  {
+    "code": "exp",
+    "name": "Zendikar Expeditions",
+    "set_type": "masterpiece",
+    "card_count": 45,
+    "aliases": []
+  },
+  {
+    "code": "pfrf",
+    "name": "Fate Reforged Promos",
+    "set_type": "promo",
+    "card_count": 43,
+    "aliases": []
+  },
+  {
+    "code": "pwcs",
+    "name": "Planeswalker Championship Promos",
+    "set_type": "promo",
+    "card_count": 42,
+    "aliases": []
+  },
+  {
+    "code": "gs1",
+    "name": "Global Series Jiang Yanggu & Mu Yanling",
+    "set_type": "duel_deck",
+    "card_count": 41,
+    "aliases": []
+  },
+  {
+    "code": "h09",
+    "name": "Premium Deck Series: Slivers",
+    "set_type": "premium_deck",
+    "card_count": 41,
+    "aliases": []
+  },
+  {
+    "code": "h1r",
+    "name": "Modern Horizons 1 Timeshifts",
+    "set_type": "draft_innovation",
+    "card_count": 40,
+    "aliases": []
+  },
+  {
+    "code": "puma",
+    "name": "Ultimate Box Topper",
+    "set_type": "masterpiece",
+    "card_count": 40,
+    "aliases": []
+  },
+  {
+    "code": "opc2",
+    "name": "Planechase 2012 Planes",
+    "set_type": "planechase",
+    "card_count": 40,
+    "aliases": []
+  },
+  {
+    "code": "ohop",
+    "name": "Planechase Planes",
+    "set_type": "planechase",
+    "card_count": 40,
+    "aliases": []
+  },
+  {
+    "code": "pd2",
+    "name": "Premium Deck Series: Fire and Lightning",
+    "set_type": "premium_deck",
+    "card_count": 34,
+    "aliases": []
+  },
+  {
+    "code": "p30a",
+    "name": "30th Anniversary Play Promos",
+    "set_type": "promo",
+    "card_count": 30,
+    "aliases": []
+  },
+  {
+    "code": "slx",
+    "name": "Universes Within",
+    "set_type": "masters",
+    "card_count": 30,
+    "aliases": []
+  },
+  {
+    "code": "zne",
+    "name": "Zendikar Rising Expeditions",
+    "set_type": "masterpiece",
+    "card_count": 30,
+    "aliases": []
+  },
+  {
+    "code": "w17",
+    "name": "Welcome Deck 2017",
+    "set_type": "starter",
+    "card_count": 30,
+    "aliases": []
+  },
+  {
+    "code": "pd3",
+    "name": "Premium Deck Series: Graveborn",
+    "set_type": "premium_deck",
+    "card_count": 30,
+    "aliases": []
+  },
+  {
+    "code": "bot",
+    "name": "Transformers",
+    "set_type": "eternal",
+    "card_count": 29,
+    "aliases": []
+  },
+  {
+    "code": "spe",
+    "name": "Marvel's Spider-Man Eternal",
+    "set_type": "eternal",
+    "card_count": 26,
+    "aliases": []
+  },
+  {
+    "code": "ugin",
+    "name": "Ugin's Fate",
+    "set_type": "promo",
+    "card_count": 26,
+    "aliases": []
+  },
+  {
+    "code": "med",
+    "name": "Mythic Edition",
+    "set_type": "masterpiece",
+    "card_count": 24,
+    "aliases": []
+  },
+  {
+    "code": "pbbd",
+    "name": "Battlebond Promos",
+    "set_type": "promo",
+    "card_count": 22,
+    "aliases": []
+  },
+  {
+    "code": "msh",
+    "name": "Marvel Super Heroes",
+    "set_type": "expansion",
+    "card_count": 20,
+    "aliases": []
+  },
+  {
+    "code": "pza",
+    "name": "Teenage Mutant Ninja Turtles Source Material",
+    "set_type": "masterpiece",
+    "card_count": 20,
+    "aliases": []
+  },
+  {
+    "code": "v13",
+    "name": "From the Vault: Twenty",
+    "set_type": "from_the_vault",
+    "card_count": 20,
+    "aliases": []
+  },
+  {
+    "code": "pgpx",
+    "name": "Grand Prix Promos",
+    "set_type": "promo",
+    "card_count": 20,
+    "aliases": []
+  },
+  {
+    "code": "pmps",
+    "name": "Magic Premiere Shop 2005",
+    "set_type": "promo",
+    "card_count": 20,
+    "aliases": []
+  },
+  {
+    "code": "s00",
+    "name": "Starter 2000",
+    "set_type": "starter",
+    "card_count": 20,
+    "aliases": []
+  },
+  {
+    "code": "pf25",
+    "name": "MagicFest 2025",
+    "set_type": "promo",
+    "card_count": 19,
+    "aliases": []
+  },
+  {
+    "code": "pw24",
+    "name": "Wizards Play Network 2024",
+    "set_type": "promo",
+    "card_count": 18,
+    "aliases": []
+  },
+  {
+    "code": "cm1",
+    "name": "Commander's Arsenal",
+    "set_type": "arsenal",
+    "card_count": 18,
+    "aliases": []
+  },
+  {
+    "code": "psus",
+    "name": "Junior Super Series",
+    "set_type": "promo",
+    "card_count": 18,
+    "aliases": []
+  },
+  {
+    "code": "pw25",
+    "name": "Wizards Play Network 2025",
+    "set_type": "promo",
+    "card_count": 17,
+    "aliases": []
+  },
+  {
+    "code": "pidw",
+    "name": "IDW Comics Inserts",
+    "set_type": "promo",
+    "card_count": 17,
+    "aliases": []
+  },
+  {
+    "code": "ppro",
+    "name": "Pro Tour Promos",
+    "set_type": "promo",
+    "card_count": 17,
+    "aliases": []
+  },
+  {
+    "code": "h2r",
+    "name": "Modern Horizons 2 Timeshifts",
+    "set_type": "draft_innovation",
+    "card_count": 16,
+    "aliases": []
+  },
+  {
+    "code": "v17",
+    "name": "From the Vault: Transform",
+    "set_type": "from_the_vault",
+    "card_count": 16,
+    "aliases": []
+  },
+  {
+    "code": "v16",
+    "name": "From the Vault: Lore",
+    "set_type": "from_the_vault",
+    "card_count": 16,
+    "aliases": []
+  },
+  {
+    "code": "w16",
+    "name": "Welcome Deck 2016",
+    "set_type": "starter",
+    "card_count": 16,
+    "aliases": []
+  },
+  {
+    "code": "v15",
+    "name": "From the Vault: Angels",
+    "set_type": "from_the_vault",
+    "card_count": 15,
+    "aliases": []
+  },
+  {
+    "code": "v14",
+    "name": "From the Vault: Annihilation",
+    "set_type": "from_the_vault",
+    "card_count": 15,
+    "aliases": []
+  },
+  {
+    "code": "v12",
+    "name": "From the Vault: Realms",
+    "set_type": "from_the_vault",
+    "card_count": 15,
+    "aliases": []
+  },
+  {
+    "code": "v11",
+    "name": "From the Vault: Legends",
+    "set_type": "from_the_vault",
+    "card_count": 15,
+    "aliases": []
+  },
+  {
+    "code": "v10",
+    "name": "From the Vault: Relics",
+    "set_type": "from_the_vault",
+    "card_count": 15,
+    "aliases": []
+  },
+  {
+    "code": "v09",
+    "name": "From the Vault: Exiled",
+    "set_type": "from_the_vault",
+    "card_count": 15,
+    "aliases": []
+  },
+  {
+    "code": "purl",
+    "name": "URL/Convention Promos",
+    "set_type": "promo",
+    "card_count": 15,
+    "aliases": []
+  },
+  {
+    "code": "drb",
+    "name": "From the Vault: Dragons",
+    "set_type": "from_the_vault",
+    "card_count": 15,
+    "aliases": []
+  },
+  {
+    "code": "pelp",
+    "name": "European Land Program",
+    "set_type": "promo",
+    "card_count": 15,
+    "aliases": []
+  },
+  {
+    "code": "palp",
+    "name": "Asia Pacific Land Program",
+    "set_type": "promo",
+    "card_count": 15,
+    "aliases": []
+  },
+  {
+    "code": "pm15",
+    "name": "Magic 2015 Promos",
+    "set_type": "promo",
+    "card_count": 14,
+    "aliases": []
+  },
+  {
+    "code": "j14",
+    "name": "Judge Gift Cards 2014",
+    "set_type": "promo",
+    "card_count": 14,
+    "aliases": []
+  },
+  {
+    "code": "pal04",
+    "name": "Arena League 2004",
+    "set_type": "promo",
+    "card_count": 14,
+    "aliases": []
+  },
+  {
+    "code": "f12",
+    "name": "Friday Night Magic 2012",
+    "set_type": "promo",
+    "card_count": 13,
+    "aliases": []
+  },
+  {
+    "code": "p10",
+    "name": "Magic Player Rewards 2010",
+    "set_type": "promo",
+    "card_count": 13,
+    "aliases": []
+  },
+  {
+    "code": "p09",
+    "name": "Magic Player Rewards 2009",
+    "set_type": "promo",
+    "card_count": 13,
+    "aliases": []
+  },
+  {
+    "code": "f03",
+    "name": "Friday Night Magic 2003",
+    "set_type": "promo",
+    "card_count": 13,
+    "aliases": []
+  },
+  {
+    "code": "f17",
+    "name": "Friday Night Magic 2017",
+    "set_type": "promo",
+    "card_count": 12,
+    "aliases": []
+  },
+  {
+    "code": "f16",
+    "name": "Friday Night Magic 2016",
+    "set_type": "promo",
+    "card_count": 12,
+    "aliases": []
+  },
+  {
+    "code": "f15",
+    "name": "Friday Night Magic 2015",
+    "set_type": "promo",
+    "card_count": 12,
+    "aliases": []
+  },
+  {
+    "code": "f14",
+    "name": "Friday Night Magic 2014",
+    "set_type": "promo",
+    "card_count": 12,
+    "aliases": []
+  },
+  {
+    "code": "f13",
+    "name": "Friday Night Magic 2013",
+    "set_type": "promo",
+    "card_count": 12,
+    "aliases": []
+  },
+  {
+    "code": "f11",
+    "name": "Friday Night Magic 2011",
+    "set_type": "promo",
+    "card_count": 12,
+    "aliases": []
+  },
+  {
+    "code": "f10",
+    "name": "Friday Night Magic 2010",
+    "set_type": "promo",
+    "card_count": 12,
+    "aliases": []
+  },
+  {
+    "code": "f09",
+    "name": "Friday Night Magic 2009",
+    "set_type": "promo",
+    "card_count": 12,
+    "aliases": []
+  },
+  {
+    "code": "f08",
+    "name": "Friday Night Magic 2008",
+    "set_type": "promo",
+    "card_count": 12,
+    "aliases": []
+  },
+  {
+    "code": "f07",
+    "name": "Friday Night Magic 2007",
+    "set_type": "promo",
+    "card_count": 12,
+    "aliases": []
+  },
+  {
+    "code": "pcmp",
+    "name": "Champs and States",
+    "set_type": "promo",
+    "card_count": 12,
+    "aliases": []
+  },
+  {
+    "code": "f06",
+    "name": "Friday Night Magic 2006",
+    "set_type": "promo",
+    "card_count": 12,
+    "aliases": []
+  },
+  {
+    "code": "f05",
+    "name": "Friday Night Magic 2005",
+    "set_type": "promo",
+    "card_count": 12,
+    "aliases": []
+  },
+  {
+    "code": "f04",
+    "name": "Friday Night Magic 2004",
+    "set_type": "promo",
+    "card_count": 12,
+    "aliases": []
+  },
+  {
+    "code": "pjjt",
+    "name": "Japan Junior Tournament",
+    "set_type": "promo",
+    "card_count": 12,
+    "aliases": []
+  },
+  {
+    "code": "f02",
+    "name": "Friday Night Magic 2002",
+    "set_type": "promo",
+    "card_count": 12,
+    "aliases": []
+  },
+  {
+    "code": "pal01",
+    "name": "Arena League 2001",
+    "set_type": "promo",
+    "card_count": 12,
+    "aliases": []
+  },
+  {
+    "code": "pw23",
+    "name": "Wizards Play Network 2023",
+    "set_type": "promo",
+    "card_count": 11,
+    "aliases": []
+  },
+  {
+    "code": "plg21",
+    "name": "Love Your LGS 2021",
+    "set_type": "promo",
+    "card_count": 11,
+    "aliases": []
+  },
+  {
+    "code": "pal00",
+    "name": "Arena League 2000",
+    "set_type": "promo",
+    "card_count": 11,
+    "aliases": []
+  },
+  {
+    "code": "fnm",
+    "name": "Friday Night Magic 2000",
+    "set_type": "promo",
+    "card_count": 11,
+    "aliases": []
+  },
+  {
+    "code": "pspl",
+    "name": "Spotlight Series",
+    "set_type": "promo",
+    "card_count": 10,
+    "aliases": []
+  },
+  {
+    "code": "p23",
+    "name": "Judge Gift Cards 2023",
+    "set_type": "promo",
+    "card_count": 10,
+    "aliases": []
+  },
+  {
+    "code": "p30h",
+    "name": "30th Anniversary History Promos",
+    "set_type": "promo",
+    "card_count": 10,
+    "aliases": []
+  },
+  {
+    "code": "p22",
+    "name": "Judge Gift Cards 2022",
+    "set_type": "promo",
+    "card_count": 10,
+    "aliases": []
+  },
+  {
+    "code": "pj21",
+    "name": "Judge Gift Cards 2021",
+    "set_type": "promo",
+    "card_count": 10,
+    "aliases": []
+  },
+  {
+    "code": "j20",
+    "name": "Judge Gift Cards 2020",
+    "set_type": "promo",
+    "card_count": 10,
+    "aliases": []
+  },
+  {
+    "code": "prw2",
+    "name": "RNA Ravnica Weekend",
+    "set_type": "promo",
+    "card_count": 10,
+    "aliases": []
+  },
+  {
+    "code": "prwk",
+    "name": "GRN Ravnica Weekend",
+    "set_type": "promo",
+    "card_count": 10,
+    "aliases": []
+  },
+  {
+    "code": "pxtc",
+    "name": "XLN Treasure Chest",
+    "set_type": "promo",
+    "card_count": 10,
+    "aliases": []
+  },
+  {
+    "code": "pjou",
+    "name": "Journey into Nyx Promos",
+    "set_type": "promo",
+    "card_count": 10,
+    "aliases": []
+  },
+  {
+    "code": "pths",
+    "name": "Theros Promos",
+    "set_type": "promo",
+    "card_count": 10,
+    "aliases": []
+  },
+  {
+    "code": "pgtc",
+    "name": "Gatecrash Promos",
+    "set_type": "promo",
+    "card_count": 10,
+    "aliases": []
+  },
+  {
+    "code": "prtr",
+    "name": "Return to Ravnica Promos",
+    "set_type": "promo",
+    "card_count": 10,
+    "aliases": []
+  },
+  {
+    "code": "g09",
+    "name": "Judge Gift Cards 2009",
+    "set_type": "promo",
+    "card_count": 10,
+    "aliases": []
+  },
+  {
+    "code": "pal99",
+    "name": "Arena League 1999",
+    "set_type": "promo",
+    "card_count": 10,
+    "aliases": []
+  },
+  {
+    "code": "pw26",
+    "name": "Wizards Play Network 2026",
+    "set_type": "promo",
+    "card_count": 9,
+    "aliases": []
+  },
+  {
+    "code": "pbig",
+    "name": "The Big Score Promos",
+    "set_type": "promo",
+    "card_count": 9,
+    "aliases": []
+  },
+  {
+    "code": "gdy",
+    "name": "Game Day Promos",
+    "set_type": "promo",
+    "card_count": 9,
+    "aliases": []
+  },
+  {
+    "code": "cc2",
+    "name": "Commander Collection: Black",
+    "set_type": "arsenal",
+    "card_count": 9,
+    "aliases": []
+  },
+  {
+    "code": "j17",
+    "name": "Judge Gift Cards 2017",
+    "set_type": "promo",
+    "card_count": 9,
+    "aliases": []
+  },
+  {
+    "code": "pbng",
+    "name": "Born of the Gods Promos",
+    "set_type": "promo",
+    "card_count": 9,
+    "aliases": []
+  },
+  {
+    "code": "j13",
+    "name": "Judge Gift Cards 2013",
+    "set_type": "promo",
+    "card_count": 9,
+    "aliases": []
+  },
+  {
+    "code": "j12",
+    "name": "Judge Gift Cards 2012",
+    "set_type": "promo",
+    "card_count": 9,
+    "aliases": []
+  },
+  {
+    "code": "pal06",
+    "name": "Arena League 2006",
+    "set_type": "promo",
+    "card_count": 9,
+    "aliases": []
+  },
+  {
+    "code": "pmat",
+    "name": "March of the Machine: The Aftermath Promos",
+    "set_type": "promo",
+    "card_count": 8,
+    "aliases": []
+  },
+  {
+    "code": "pewk",
+    "name": "Eternal Weekend",
+    "set_type": "promo",
+    "card_count": 8,
+    "aliases": []
+  },
+  {
+    "code": "cc1",
+    "name": "Commander Collection: Green",
+    "set_type": "arsenal",
+    "card_count": 8,
+    "aliases": []
+  },
+  {
+    "code": "ss3",
+    "name": "Signature Spellbook: Chandra",
+    "set_type": "spellbook",
+    "card_count": 8,
+    "aliases": []
+  },
+  {
+    "code": "ss2",
+    "name": "Signature Spellbook: Gideon",
+    "set_type": "spellbook",
+    "card_count": 8,
+    "aliases": []
+  },
+  {
+    "code": "j19",
+    "name": "Judge Gift Cards 2019",
+    "set_type": "promo",
+    "card_count": 8,
+    "aliases": []
+  },
+  {
+    "code": "ss1",
+    "name": "Signature Spellbook: Jace",
+    "set_type": "spellbook",
+    "card_count": 8,
+    "aliases": []
+  },
+  {
+    "code": "j18",
+    "name": "Judge Gift Cards 2018",
+    "set_type": "promo",
+    "card_count": 8,
+    "aliases": []
+  },
+  {
+    "code": "j16",
+    "name": "Judge Gift Cards 2016",
+    "set_type": "promo",
+    "card_count": 8,
+    "aliases": []
+  },
+  {
+    "code": "j15",
+    "name": "Judge Gift Cards 2015",
+    "set_type": "promo",
+    "card_count": 8,
+    "aliases": []
+  },
+  {
+    "code": "g11",
+    "name": "Judge Gift Cards 2011",
+    "set_type": "promo",
+    "card_count": 8,
+    "aliases": []
+  },
+  {
+    "code": "g10",
+    "name": "Judge Gift Cards 2010",
+    "set_type": "promo",
+    "card_count": 8,
+    "aliases": []
+  },
+  {
+    "code": "pal05",
+    "name": "Arena League 2005",
+    "set_type": "promo",
+    "card_count": 8,
+    "aliases": []
+  },
+  {
+    "code": "pjse",
+    "name": "Junior Series Europe",
+    "set_type": "promo",
+    "card_count": 8,
+    "aliases": []
+  },
+  {
+    "code": "pal03",
+    "name": "Arena League 2003",
+    "set_type": "promo",
+    "card_count": 8,
+    "aliases": []
+  },
+  {
+    "code": "mpr",
+    "name": "Magic Player Rewards 2001",
+    "set_type": "promo",
+    "card_count": 8,
+    "aliases": []
+  },
+  {
+    "code": "msc",
+    "name": "Marvel Super Heroes Commander",
+    "set_type": "commander",
+    "card_count": 7,
+    "aliases": []
+  },
+  {
+    "code": "plg24",
+    "name": "Love Your LGS 2024",
+    "set_type": "promo",
+    "card_count": 7,
+    "aliases": []
+  },
+  {
+    "code": "pl24",
+    "name": "Year of the Dragon 2024",
+    "set_type": "promo",
+    "card_count": 7,
+    "aliases": []
+  },
+  {
+    "code": "pf19",
+    "name": "MagicFest 2019",
+    "set_type": "promo",
+    "card_count": 7,
+    "aliases": []
+  },
+  {
+    "code": "p11",
+    "name": "Magic Player Rewards 2011",
+    "set_type": "promo",
+    "card_count": 7,
+    "aliases": []
+  },
+  {
+    "code": "p08",
+    "name": "Magic Player Rewards 2008",
+    "set_type": "promo",
+    "card_count": 7,
+    "aliases": []
+  },
+  {
+    "code": "p07",
+    "name": "Magic Player Rewards 2007",
+    "set_type": "promo",
+    "card_count": 7,
+    "aliases": []
+  },
+  {
+    "code": "p06",
+    "name": "Magic Player Rewards 2006",
+    "set_type": "promo",
+    "card_count": 7,
+    "aliases": []
+  },
+  {
+    "code": "p03",
+    "name": "Magic Player Rewards 2003",
+    "set_type": "promo",
+    "card_count": 7,
+    "aliases": []
+  },
+  {
+    "code": "f01",
+    "name": "Friday Night Magic 2001",
+    "set_type": "promo",
+    "card_count": 7,
+    "aliases": []
+  },
+  {
+    "code": "parl",
+    "name": "Arena League 1996",
+    "set_type": "promo",
+    "card_count": 7,
+    "aliases": []
+  },
+  {
+    "code": "pl25",
+    "name": "Year of the Snake 2025",
+    "set_type": "promo",
+    "card_count": 6,
+    "aliases": []
+  },
+  {
+    "code": "pl23",
+    "name": "Year of the Rabbit 2023",
+    "set_type": "promo",
+    "card_count": 6,
+    "aliases": []
+  },
+  {
+    "code": "ptsnc",
+    "name": "Streets of New Capenna Southeast Asia Tokens",
+    "set_type": "promo",
+    "card_count": 6,
+    "aliases": []
+  },
+  {
+    "code": "pw22",
+    "name": "Wizards Play Network 2022",
+    "set_type": "promo",
+    "card_count": 6,
+    "aliases": []
+  },
+  {
+    "code": "pw21",
+    "name": "Wizards Play Network 2021",
+    "set_type": "promo",
+    "card_count": 6,
+    "aliases": []
+  },
+  {
+    "code": "pl21",
+    "name": "Year of the Ox 2021",
+    "set_type": "promo",
+    "card_count": 6,
+    "aliases": []
+  },
+  {
+    "code": "pcmr",
+    "name": "Commander Legends Promos",
+    "set_type": "promo",
+    "card_count": 6,
+    "aliases": []
+  },
+  {
+    "code": "pf20",
+    "name": "MagicFest 2020",
+    "set_type": "promo",
+    "card_count": 6,
+    "aliases": []
+  },
+  {
+    "code": "ps17",
+    "name": "San Diego Comic-Con 2017",
+    "set_type": "promo",
+    "card_count": 6,
+    "aliases": []
+  },
+  {
+    "code": "cp3",
+    "name": "Magic Origins Clash Pack",
+    "set_type": "starter",
+    "card_count": 6,
+    "aliases": []
+  },
+  {
+    "code": "cp2",
+    "name": "Fate Reforged Clash Pack",
+    "set_type": "starter",
+    "card_count": 6,
+    "aliases": []
+  },
+  {
+    "code": "cp1",
+    "name": "Magic 2015 Clash Pack",
+    "set_type": "starter",
+    "card_count": 6,
+    "aliases": []
+  },
+  {
+    "code": "ps14",
+    "name": "San Diego Comic-Con 2014",
+    "set_type": "promo",
+    "card_count": 6,
+    "aliases": []
+  },
+  {
+    "code": "pm14",
+    "name": "Magic 2014 Promos",
+    "set_type": "promo",
+    "card_count": 6,
+    "aliases": []
+  },
+  {
+    "code": "pdgm",
+    "name": "Dragon's Maze Promos",
+    "set_type": "promo",
+    "card_count": 6,
+    "aliases": []
+  },
+  {
+    "code": "pm13",
+    "name": "Magic 2013 Promos",
+    "set_type": "promo",
+    "card_count": 6,
+    "aliases": []
+  },
+  {
+    "code": "pavr",
+    "name": "Avacyn Restored Promos",
+    "set_type": "promo",
+    "card_count": 6,
+    "aliases": []
+  },
+  {
+    "code": "pm11",
+    "name": "Magic 2011 Promos",
+    "set_type": "promo",
+    "card_count": 6,
+    "aliases": []
+  },
+  {
+    "code": "pwwk",
+    "name": "Worldwake Promos",
+    "set_type": "promo",
+    "card_count": 6,
+    "aliases": []
+  },
+  {
+    "code": "pmps08",
+    "name": "Magic Premiere Shop 2008",
+    "set_type": "promo",
+    "card_count": 6,
+    "aliases": []
+  },
+  {
+    "code": "pjas",
+    "name": "Junior APAC Series",
+    "set_type": "promo",
+    "card_count": 6,
+    "aliases": []
+  },
+  {
+    "code": "p05",
+    "name": "Magic Player Rewards 2005",
+    "set_type": "promo",
+    "card_count": 6,
+    "aliases": []
+  },
+  {
+    "code": "p04",
+    "name": "Magic Player Rewards 2004",
+    "set_type": "promo",
+    "card_count": 6,
+    "aliases": []
+  },
+  {
+    "code": "g04",
+    "name": "Judge Gift Cards 2004",
+    "set_type": "promo",
+    "card_count": 6,
+    "aliases": []
+  },
+  {
+    "code": "pr2",
+    "name": "Magic Player Rewards 2002",
+    "set_type": "promo",
+    "card_count": 6,
+    "aliases": []
+  },
+  {
+    "code": "pl26",
+    "name": "Year of the Horse 2026",
+    "set_type": "promo",
+    "card_count": 5,
+    "aliases": []
+  },
+  {
+    "code": "pcbb",
+    "name": "Cowboy Bebop",
+    "set_type": "promo",
+    "card_count": 5,
+    "aliases": []
+  },
+  {
+    "code": "pss4",
+    "name": "MKM Standard Showdown",
+    "set_type": "promo",
+    "card_count": 5,
+    "aliases": []
+  },
+  {
+    "code": "p30m",
+    "name": "30th Anniversary Misc Promos",
+    "set_type": "promo",
+    "card_count": 5,
+    "aliases": []
+  },
+  {
+    "code": "pl22",
+    "name": "Year of the Tiger 2022",
+    "set_type": "promo",
+    "card_count": 5,
+    "aliases": []
+  },
+  {
+    "code": "ps19",
+    "name": "San Diego Comic-Con 2019",
+    "set_type": "promo",
+    "card_count": 5,
+    "aliases": []
+  },
+  {
+    "code": "ppp1",
+    "name": "M20 Promo Packs",
+    "set_type": "promo",
+    "card_count": 5,
+    "aliases": []
+  },
+  {
+    "code": "ps18",
+    "name": "San Diego Comic-Con 2018",
+    "set_type": "promo",
+    "card_count": 5,
+    "aliases": []
+  },
+  {
+    "code": "pss3",
+    "name": "M19 Standard Showdown",
+    "set_type": "promo",
+    "card_count": 5,
+    "aliases": []
+  },
+  {
+    "code": "pss2",
+    "name": "XLN Standard Showdown",
+    "set_type": "promo",
+    "card_count": 5,
+    "aliases": []
+  },
+  {
+    "code": "ps16",
+    "name": "San Diego Comic-Con 2016",
+    "set_type": "promo",
+    "card_count": 5,
+    "aliases": []
+  },
+  {
+    "code": "pss1",
+    "name": "BFZ Standard Series",
+    "set_type": "promo",
+    "card_count": 5,
+    "aliases": []
+  },
+  {
+    "code": "ps15",
+    "name": "San Diego Comic-Con 2015",
+    "set_type": "promo",
+    "card_count": 5,
+    "aliases": []
+  },
+  {
+    "code": "psdc",
+    "name": "San Diego Comic-Con 2013",
+    "set_type": "promo",
+    "card_count": 5,
+    "aliases": []
+  },
+  {
+    "code": "wmc",
+    "name": "World Magic Cup Qualifiers",
+    "set_type": "promo",
+    "card_count": 5,
+    "aliases": []
+  },
+  {
+    "code": "pdka",
+    "name": "Dark Ascension Promos",
+    "set_type": "promo",
+    "card_count": 5,
+    "aliases": []
+  },
+  {
+    "code": "pisd",
+    "name": "Innistrad Promos",
+    "set_type": "promo",
+    "card_count": 5,
+    "aliases": []
+  },
+  {
+    "code": "pmps11",
+    "name": "Magic Premiere Shop 2011",
+    "set_type": "promo",
+    "card_count": 5,
+    "aliases": []
+  },
+  {
+    "code": "pmps10",
+    "name": "Magic Premiere Shop 2010",
+    "set_type": "promo",
+    "card_count": 5,
+    "aliases": []
+  },
+  {
+    "code": "pzen",
+    "name": "Zendikar Promos",
+    "set_type": "promo",
+    "card_count": 5,
+    "aliases": []
+  },
+  {
+    "code": "pmps09",
+    "name": "Magic Premiere Shop 2009",
+    "set_type": "promo",
+    "card_count": 5,
+    "aliases": []
+  },
+  {
+    "code": "g08",
+    "name": "Judge Gift Cards 2008",
+    "set_type": "promo",
+    "card_count": 5,
+    "aliases": []
+  },
+  {
+    "code": "g07",
+    "name": "Judge Gift Cards 2007",
+    "set_type": "promo",
+    "card_count": 5,
+    "aliases": []
+  },
+  {
+    "code": "pmps07",
+    "name": "Magic Premiere Shop 2007",
+    "set_type": "promo",
+    "card_count": 5,
+    "aliases": []
+  },
+  {
+    "code": "pmps06",
+    "name": "Magic Premiere Shop 2006",
+    "set_type": "promo",
+    "card_count": 5,
+    "aliases": []
+  },
+  {
+    "code": "jp1",
+    "name": "Hobby Japan Promos",
+    "set_type": "promo",
+    "card_count": 5,
+    "aliases": []
+  },
+  {
+    "code": "pal02",
+    "name": "Arena League 2002",
+    "set_type": "promo",
+    "card_count": 5,
+    "aliases": []
+  },
+  {
+    "code": "pgru",
+    "name": "Guru",
+    "set_type": "promo",
+    "card_count": 5,
+    "aliases": []
+  },
+  {
+    "code": "phpr",
+    "name": "HarperPrism Book Promos",
+    "set_type": "promo",
+    "card_count": 5,
+    "aliases": []
+  },
+  {
+    "code": "lmar",
+    "name": "Marvel Legends Series Inserts",
+    "set_type": "promo",
+    "card_count": 4,
+    "aliases": []
+  },
+  {
+    "code": "pjsc",
+    "name": "Japan Standard Cup",
+    "set_type": "promo",
+    "card_count": 4,
+    "aliases": []
+  },
+  {
+    "code": "pltc",
+    "name": "Tales of Middle-earth Deluxe Commander Kit",
+    "set_type": "promo",
+    "card_count": 4,
+    "aliases": []
+  },
+  {
+    "code": "pmda",
+    "name": "Magic × Duel Masters Promos",
+    "set_type": "promo",
+    "card_count": 4,
+    "aliases": []
+  },
+  {
+    "code": "pf23",
+    "name": "MagicFest 2023",
+    "set_type": "promo",
+    "card_count": 4,
+    "aliases": []
+  },
+  {
+    "code": "ptkdf",
+    "name": "Tarkir Dragonfury",
+    "set_type": "promo",
+    "card_count": 4,
+    "aliases": []
+  },
+  {
+    "code": "pnph",
+    "name": "New Phyrexia Promos",
+    "set_type": "promo",
+    "card_count": 4,
+    "aliases": []
+  },
+  {
+    "code": "pmbs",
+    "name": "Mirrodin Besieged Promos",
+    "set_type": "promo",
+    "card_count": 4,
+    "aliases": []
+  },
+  {
+    "code": "psom",
+    "name": "Scars of Mirrodin Promos",
+    "set_type": "promo",
+    "card_count": 4,
+    "aliases": []
+  },
+  {
+    "code": "proe",
+    "name": "Rise of the Eldrazi Promos",
+    "set_type": "promo",
+    "card_count": 4,
+    "aliases": []
+  },
+  {
+    "code": "g06",
+    "name": "Judge Gift Cards 2006",
+    "set_type": "promo",
+    "card_count": 4,
+    "aliases": []
+  },
+  {
+    "code": "g05",
+    "name": "Judge Gift Cards 2005",
+    "set_type": "promo",
+    "card_count": 4,
+    "aliases": []
+  },
+  {
+    "code": "pf26",
+    "name": "MagicFest 2026",
+    "set_type": "promo",
+    "card_count": 3,
+    "aliases": []
+  },
+  {
+    "code": "fdc",
+    "name": "Foundations Commander",
+    "set_type": "commander",
+    "card_count": 3,
+    "aliases": []
+  },
+  {
+    "code": "ptsr",
+    "name": "Time Spiral Remastered Promos",
+    "set_type": "promo",
+    "card_count": 3,
+    "aliases": []
+  },
+  {
+    "code": "pr23",
+    "name": "Regional Championship Qualifiers 2023",
+    "set_type": "promo",
+    "card_count": 3,
+    "aliases": []
+  },
+  {
+    "code": "prcq",
+    "name": "Regional Championship Qualifiers 2022",
+    "set_type": "promo",
+    "card_count": 3,
+    "aliases": []
+  },
+  {
+    "code": "psvc",
+    "name": "Summer Vacation Promos 2022",
+    "set_type": "promo",
+    "card_count": 3,
+    "aliases": []
+  },
+  {
+    "code": "f18",
+    "name": "Friday Night Magic 2018",
+    "set_type": "promo",
+    "card_count": 3,
+    "aliases": []
+  },
+  {
+    "code": "pdp14",
+    "name": "Duels of the Planeswalkers 2014 Promos",
+    "set_type": "promo",
+    "card_count": 3,
+    "aliases": []
+  },
+  {
+    "code": "pw12",
+    "name": "Wizards Play Network 2012",
+    "set_type": "promo",
+    "card_count": 3,
+    "aliases": []
+  },
+  {
+    "code": "pdp13",
+    "name": "Duels of the Planeswalkers 2013 Promos",
+    "set_type": "promo",
+    "card_count": 3,
+    "aliases": []
+  },
+  {
+    "code": "pm12",
+    "name": "Magic 2012 Promos",
+    "set_type": "promo",
+    "card_count": 3,
+    "aliases": []
+  },
+  {
+    "code": "pw11",
+    "name": "Wizards Play Network 2011",
+    "set_type": "promo",
+    "card_count": 3,
+    "aliases": []
+  },
+  {
+    "code": "pdp12",
+    "name": "Duels of the Planeswalkers 2012 Promos",
+    "set_type": "promo",
+    "card_count": 3,
+    "aliases": []
+  },
+  {
+    "code": "pm10",
+    "name": "Magic 2010 Promos",
+    "set_type": "promo",
+    "card_count": 3,
+    "aliases": []
+  },
+  {
+    "code": "parb",
+    "name": "Alara Reborn Promos",
+    "set_type": "promo",
+    "card_count": 3,
+    "aliases": []
+  },
+  {
+    "code": "plrw",
+    "name": "Lorwyn Promos",
+    "set_type": "promo",
+    "card_count": 3,
+    "aliases": []
+  },
+  {
+    "code": "p10e",
+    "name": "Tenth Edition Promos",
+    "set_type": "promo",
+    "card_count": 3,
+    "aliases": []
+  },
+  {
+    "code": "ptsp",
+    "name": "Time Spiral Promos",
+    "set_type": "promo",
+    "card_count": 3,
+    "aliases": []
+  },
+  {
+    "code": "g03",
+    "name": "Judge Gift Cards 2003",
+    "set_type": "promo",
+    "card_count": 3,
+    "aliases": []
+  },
+  {
+    "code": "ptor",
+    "name": "Torment Promos",
+    "set_type": "promo",
+    "card_count": 3,
+    "aliases": []
+  },
+  {
+    "code": "jgp",
+    "name": "Judge Gift Cards 1998",
+    "set_type": "promo",
+    "card_count": 3,
+    "aliases": []
+  },
+  {
+    "code": "rfin",
+    "name": "Final Fantasy Regional Promos",
+    "set_type": "promo",
+    "card_count": 2,
+    "aliases": []
+  },
+  {
+    "code": "pss5",
+    "name": "FIN Standard Showdown",
+    "set_type": "promo",
+    "card_count": 2,
+    "aliases": []
+  },
+  {
+    "code": "plg25",
+    "name": "Love Your LGS 2025",
+    "set_type": "promo",
+    "card_count": 2,
+    "aliases": []
+  },
+  {
+    "code": "pf24",
+    "name": "MagicFest 2024",
+    "set_type": "promo",
+    "card_count": 2,
+    "aliases": []
+  },
+  {
+    "code": "p30t",
+    "name": "30th Anniversary Celebration Tokyo",
+    "set_type": "promo",
+    "card_count": 2,
+    "aliases": []
+  },
+  {
+    "code": "plg22",
+    "name": "Love Your LGS 2022",
+    "set_type": "promo",
+    "card_count": 2,
+    "aliases": []
+  },
+  {
+    "code": "plg20",
+    "name": "Love Your LGS 2020",
+    "set_type": "promo",
+    "card_count": 2,
+    "aliases": []
+  },
+  {
+    "code": "pmh1",
+    "name": "Modern Horizons Promos",
+    "set_type": "promo",
+    "card_count": 2,
+    "aliases": []
+  },
+  {
+    "code": "pdp15",
+    "name": "Duels of the Planeswalkers 2015 Promos",
+    "set_type": "promo",
+    "card_count": 2,
+    "aliases": []
+  },
+  {
+    "code": "pdp10",
+    "name": "Duels of the Planeswalkers 2010 Promos",
+    "set_type": "promo",
+    "card_count": 2,
+    "aliases": []
+  },
+  {
+    "code": "pcon",
+    "name": "Conflux Promos",
+    "set_type": "promo",
+    "card_count": 2,
+    "aliases": []
+  },
+  {
+    "code": "pala",
+    "name": "Shards of Alara Promos",
+    "set_type": "promo",
+    "card_count": 2,
+    "aliases": []
+  },
+  {
+    "code": "peve",
+    "name": "Eventide Promos",
+    "set_type": "promo",
+    "card_count": 2,
+    "aliases": []
+  },
+  {
+    "code": "pshm",
+    "name": "Shadowmoor Promos",
+    "set_type": "promo",
+    "card_count": 2,
+    "aliases": []
+  },
+  {
+    "code": "p15a",
+    "name": "15th Anniversary Cards",
+    "set_type": "promo",
+    "card_count": 2,
+    "aliases": []
+  },
+  {
+    "code": "pmor",
+    "name": "Morningtide Promos",
+    "set_type": "promo",
+    "card_count": 2,
+    "aliases": []
+  },
+  {
+    "code": "pfut",
+    "name": "Future Sight Promos",
+    "set_type": "promo",
+    "card_count": 2,
+    "aliases": []
+  },
+  {
+    "code": "pplc",
+    "name": "Planar Chaos Promos",
+    "set_type": "promo",
+    "card_count": 2,
+    "aliases": []
+  },
+  {
+    "code": "pcsp",
+    "name": "Coldsnap Promos",
+    "set_type": "promo",
+    "card_count": 2,
+    "aliases": []
+  },
+  {
+    "code": "pdis",
+    "name": "Dissension Promos",
+    "set_type": "promo",
+    "card_count": 2,
+    "aliases": []
+  },
+  {
+    "code": "pgpt",
+    "name": "Guildpact Promos",
+    "set_type": "promo",
+    "card_count": 2,
+    "aliases": []
+  },
+  {
+    "code": "prav",
+    "name": "Ravnica: City of Guilds Promos",
+    "set_type": "promo",
+    "card_count": 2,
+    "aliases": []
+  },
+  {
+    "code": "p9ed",
+    "name": "Ninth Edition Promos",
+    "set_type": "promo",
+    "card_count": 2,
+    "aliases": []
+  },
+  {
+    "code": "psok",
+    "name": "Saviors of Kamigawa Promos",
+    "set_type": "promo",
+    "card_count": 2,
+    "aliases": []
+  },
+  {
+    "code": "pbok",
+    "name": "Betrayers of Kamigawa Promos",
+    "set_type": "promo",
+    "card_count": 2,
+    "aliases": []
+  },
+  {
+    "code": "g02",
+    "name": "Judge Gift Cards 2002",
+    "set_type": "promo",
+    "card_count": 2,
+    "aliases": []
+  },
+  {
+    "code": "g01",
+    "name": "Judge Gift Cards 2001",
+    "set_type": "promo",
+    "card_count": 2,
+    "aliases": []
+  },
+  {
+    "code": "g00",
+    "name": "Judge Gift Cards 2000",
+    "set_type": "promo",
+    "card_count": 2,
+    "aliases": []
+  },
+  {
+    "code": "pwor",
+    "name": "World Championship Promos",
+    "set_type": "promo",
+    "card_count": 2,
+    "aliases": []
+  },
+  {
+    "code": "pptk",
+    "name": "Portal Three Kingdoms Promos",
+    "set_type": "promo",
+    "card_count": 2,
+    "aliases": []
+  },
+  {
+    "code": "pulg",
+    "name": "Urza's Legacy Promos",
+    "set_type": "promo",
+    "card_count": 2,
+    "aliases": []
+  },
+  {
+    "code": "plgm",
+    "name": "DCI Legend Membership",
+    "set_type": "promo",
+    "card_count": 2,
+    "aliases": []
+  },
+  {
+    "code": "plny",
+    "name": "Lunar New Year 2018",
+    "set_type": "promo",
+    "card_count": 1,
+    "aliases": []
+  },
+  {
+    "code": "pnat",
+    "name": "Nationals Promos",
+    "set_type": "promo",
+    "card_count": 1,
+    "aliases": []
+  },
+  {
+    "code": "pust",
+    "name": "Unstable Promos",
+    "set_type": "promo",
+    "card_count": 1,
+    "aliases": []
+  },
+  {
+    "code": "pcns",
+    "name": "Conspiracy Promos",
+    "set_type": "promo",
+    "card_count": 1,
+    "aliases": []
+  },
+  {
+    "code": "phop",
+    "name": "Planechase Promos",
+    "set_type": "promo",
+    "card_count": 1,
+    "aliases": []
+  },
+  {
+    "code": "pdtp",
+    "name": "Duels of the Planeswalkers 2009 Promos",
+    "set_type": "promo",
+    "card_count": 1,
+    "aliases": []
+  },
+  {
+    "code": "p2hg",
+    "name": "Two-Headed Giant Tournament",
+    "set_type": "promo",
+    "card_count": 1,
+    "aliases": []
+  },
+  {
+    "code": "punh",
+    "name": "Unhinged Promos",
+    "set_type": "promo",
+    "card_count": 1,
+    "aliases": []
+  },
+  {
+    "code": "pchk",
+    "name": "Champions of Kamigawa Promos",
+    "set_type": "promo",
+    "card_count": 1,
+    "aliases": []
+  },
+  {
+    "code": "pmrd",
+    "name": "Mirrodin Promos",
+    "set_type": "promo",
+    "card_count": 1,
+    "aliases": []
+  },
+  {
+    "code": "p5dn",
+    "name": "Fifth Dawn Promos",
+    "set_type": "promo",
+    "card_count": 1,
+    "aliases": []
+  },
+  {
+    "code": "pdst",
+    "name": "Darksteel Promos",
+    "set_type": "promo",
+    "card_count": 1,
+    "aliases": []
+  },
+  {
+    "code": "p8ed",
+    "name": "Eighth Edition Promos",
+    "set_type": "promo",
+    "card_count": 1,
+    "aliases": []
+  },
+  {
+    "code": "pscg",
+    "name": "Scourge Promos",
+    "set_type": "promo",
+    "card_count": 1,
+    "aliases": []
+  },
+  {
+    "code": "plgn",
+    "name": "Legions Promos",
+    "set_type": "promo",
+    "card_count": 1,
+    "aliases": []
+  },
+  {
+    "code": "pons",
+    "name": "Onslaught Promos",
+    "set_type": "promo",
+    "card_count": 1,
+    "aliases": []
+  },
+  {
+    "code": "pjud",
+    "name": "Judgment Promos",
+    "set_type": "promo",
+    "card_count": 1,
+    "aliases": []
+  },
+  {
+    "code": "pody",
+    "name": "Odyssey Promos",
+    "set_type": "promo",
+    "card_count": 1,
+    "aliases": []
+  },
+  {
+    "code": "papc",
+    "name": "Apocalypse Promos",
+    "set_type": "promo",
+    "card_count": 1,
+    "aliases": []
+  },
+  {
+    "code": "ppls",
+    "name": "Planeshift Promos",
+    "set_type": "promo",
+    "card_count": 1,
+    "aliases": []
+  },
+  {
+    "code": "pinv",
+    "name": "Invasion Promos",
+    "set_type": "promo",
+    "card_count": 1,
+    "aliases": []
+  },
+  {
+    "code": "ppcy",
+    "name": "Prophecy Promos",
+    "set_type": "promo",
+    "card_count": 1,
+    "aliases": []
+  },
+  {
+    "code": "pnem",
+    "name": "Nemesis Promos",
+    "set_type": "promo",
+    "card_count": 1,
+    "aliases": []
+  },
+  {
+    "code": "pmmq",
+    "name": "Mercadian Masques Promos",
+    "set_type": "promo",
+    "card_count": 1,
+    "aliases": []
+  },
+  {
+    "code": "pwos",
+    "name": "Wizards of the Coast Online Store",
+    "set_type": "promo",
+    "card_count": 1,
+    "aliases": []
+  },
+  {
+    "code": "puds",
+    "name": "Urza's Destiny Promos",
+    "set_type": "promo",
+    "card_count": 1,
+    "aliases": []
+  },
+  {
+    "code": "g99",
+    "name": "Judge Gift Cards 1999",
+    "set_type": "promo",
+    "card_count": 1,
+    "aliases": []
+  },
+  {
+    "code": "pusg",
+    "name": "Urza's Saga Promos",
+    "set_type": "promo",
+    "card_count": 1,
+    "aliases": []
+  },
+  {
+    "code": "pexo",
+    "name": "Exodus Promos",
+    "set_type": "promo",
+    "card_count": 1,
+    "aliases": []
+  },
+  {
+    "code": "psth",
+    "name": "Stronghold Promos",
+    "set_type": "promo",
+    "card_count": 1,
+    "aliases": []
+  },
+  {
+    "code": "ptmp",
+    "name": "Tempest Promos",
+    "set_type": "promo",
+    "card_count": 1,
+    "aliases": []
+  },
+  {
+    "code": "pred",
+    "name": "Redemption Program",
+    "set_type": "promo",
+    "card_count": 1,
+    "aliases": []
+  },
+  {
+    "code": "pdrc",
+    "name": "Dragon Con",
+    "set_type": "promo",
+    "card_count": 1,
+    "aliases": []
+  },
+  {
+    "code": "om2",
+    "name": "Through the Omenpaths 2",
+    "set_type": "expansion",
+    "card_count": 0,
+    "aliases": []
+  }
+]

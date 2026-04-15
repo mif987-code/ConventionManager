@@ -1,5 +1,18 @@
 import { Request, Response, NextFunction } from 'express';
 
+// Convention ID middleware - extracts convention_id from header and attaches to request
+export function conventionMiddleware(req: Request, res: Response, next: NextFunction) {
+  const conventionId = req.headers['x-convention-id'] as string;
+  console.log('[Convention Middleware] Received x-convention-id header:', conventionId);
+  if (conventionId) {
+    (req as any).conventionId = parseInt(conventionId);
+    console.log('[Convention Middleware] Parsed convention_id:', (req as any).conventionId);
+  } else {
+    console.log('[Convention Middleware] No convention_id in request');
+  }
+  next();
+}
+
 // API Key authentication middleware
 export function apiKeyAuth(req: Request, res: Response, next: NextFunction) {
   const apiKey = req.headers['x-api-key'] as string;

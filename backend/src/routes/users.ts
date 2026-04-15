@@ -8,19 +8,20 @@ const router = Router();
 router.post('/register', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { name, nfc_uid, email, is_admin } = req.body;
+    const conventionId = (req as any).conventionId;
 
     if (!name) {
       return res.status(400).json({ error: 'name is required' });
     }
 
     if (nfc_uid) {
-      const existing = await userService.getUserByNfcUid(nfc_uid);
+      const existing = await userService.getUserByNfcUid(nfc_uid, conventionId);
       if (existing) {
         return res.status(409).json({ error: 'NFC tag already registered' });
       }
     }
 
-    const user = await userService.createUser(name, nfc_uid, email, is_admin);
+    const user = await userService.createUser(name, nfc_uid, email, is_admin, conventionId);
     res.status(201).json({ success: true, user });
   } catch (err) {
     next(err);
@@ -28,9 +29,10 @@ router.post('/register', async (req: Request, res: Response, next: NextFunction)
 });
 
 // GET /api/users - List all users
-router.get('/', async (_req: Request, res: Response, next: NextFunction) => {
+router.get('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const users = await userService.getAllUsers();
+    const conventionId = (req as any).conventionId;
+    const users = await userService.getAllUsers(conventionId);
     res.json({ success: true, users });
   } catch (err) {
     next(err);
