@@ -1,1 +1,1 @@
-{"version":3,"file":"nfcService.d.ts","sourceRoot":"","sources":["../../src/services/nfcService.ts"],"names":[],"mappings":"AAGA,wBAAsB,aAAa,CAAC,MAAM,EAAE,MAAM;;;;;;;;;;;;;;;;;;;;;;;;GAcjD"}
+{"version":3,"file":"nfcService.d.ts","sourceRoot":"","sources":["../../src/services/nfcService.ts"],"names":[],"mappings":"AAIA,wBAAsB,aAAa,CAAC,MAAM,EAAE,MAAM;;;;;;;;;;;;;;;;;;;;;;;;;GAcjD;AAGD,wBAAsB,YAAY,CAAC,MAAM,EAAE,MAAM;;;;;;;;;;;;;;;;;;;;;;;;;GAqBhD"}

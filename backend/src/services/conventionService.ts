@@ -6,6 +6,7 @@ export interface Convention {
   status: 'active' | 'ended';
   created_at: Date;
   ended_at: Date | null;
+  scan_mode?: 'nfc' | 'qr';
 }
 
 export interface ConventionStats {
@@ -43,8 +44,33 @@ export async function createConvention(name: string): Promise<Convention> {
 // Get convention by ID
 export async function getConvention(id: number): Promise<Convention | null> {
   const result = await pool.query(
-    'SELECT id, name, status, created_at, ended_at FROM conventions WHERE id = $1',
+    'SELECT id, name, status, created_at, ended_at, scan_mode FROM conventions WHERE id = $1',
     [id]
+  );
+  return result.rows[0] || null;
+}
+
+// Update convention
+export async function updateConvention(id: number, fields: Partial<{ name: string; scan_mode: string }>): Promise<Convention | null> {
+  const updates: string[] = [];
+  const values: any[] = [];
+  let paramIndex = 1;
+
+  if (fields.name !== undefined) {
+    updates.push(`name = $${paramIndex++}`);
+    values.push(fields.name);
+  }
+  if (fields.scan_mode !== undefined) {
+    updates.push(`scan_mode = $${paramIndex++}`);
+    values.push(fields.scan_mode);
+  }
+
+  if (updates.length === 0) return await getConvention(id);
+
+  values.push(id);
+  const result = await pool.query(
+    `UPDATE conventions SET ${updates.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
+    values
   );
   return result.rows[0] || null;
 }

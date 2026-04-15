@@ -40,6 +40,19 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
   }
 });
 
+// PUT /api/conventions/:id - Update convention
+router.put('/:id', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const convention = await conventionService.updateConvention(parseInt(req.params.id), req.body);
+    if (!convention) {
+      return res.status(404).json({ error: 'Convention not found' });
+    }
+    res.json({ success: true, convention });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // POST /api/conventions/:id/end - End convention (lock it)
 router.post('/:id/end', async (req: Request, res: Response, next: NextFunction) => {
   try {
