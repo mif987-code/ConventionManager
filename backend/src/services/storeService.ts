@@ -5,6 +5,12 @@ export interface StoreItem {
   id: number;
   name: string;
   description: string | null;
+  set_name: string | null;
+  card_number: string | null;
+  language: string | null;
+  condition: string | null;
+  foil: boolean;
+  cost: number;
   price_tix: number;
   stock: number;
   image_url: string | null;
@@ -29,12 +35,38 @@ export interface StoreOrder {
 // --- Items CRUD ---
 
 export async function createItem(
-  name: string, description: string | null, priceTix: number, stock: number, imageUrl: string | null
+  name: string,
+  description: string | null,
+  priceTix: number,
+  stock: number,
+  imageUrl: string | null,
+  mtgFields?: {
+    set_name?: string;
+    card_number?: string;
+    language?: string;
+    condition?: string;
+    foil?: boolean;
+    cost?: number;
+  },
+  conventionId?: number
 ): Promise<StoreItem> {
   const result = await pool.query(
-    `INSERT INTO store_items (name, description, price_tix, stock, image_url)
-     VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-    [name, description, priceTix, stock, imageUrl]
+    `INSERT INTO store_items (name, description, price_tix, stock, image_url, set_name, card_number, language, condition, foil, cost, convention_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
+    [
+      name,
+      description,
+      priceTix,
+      stock,
+      imageUrl,
+      mtgFields?.set_name || null,
+      mtgFields?.card_number || null,
+      mtgFields?.language || 'English',
+      mtgFields?.condition || 'NM',
+      mtgFields?.foil || false,
+      mtgFields?.cost || 0,
+      conventionId || null,
+    ]
   );
   return result.rows[0];
 }
@@ -46,6 +78,12 @@ export async function updateItem(id: number, fields: Partial<StoreItem>): Promis
 
   if (fields.name !== undefined) { sets.push(`name = $${idx++}`); params.push(fields.name); }
   if (fields.description !== undefined) { sets.push(`description = $${idx++}`); params.push(fields.description); }
+  if (fields.set_name !== undefined) { sets.push(`set_name = $${idx++}`); params.push(fields.set_name); }
+  if (fields.card_number !== undefined) { sets.push(`card_number = $${idx++}`); params.push(fields.card_number); }
+  if (fields.language !== undefined) { sets.push(`language = $${idx++}`); params.push(fields.language); }
+  if (fields.condition !== undefined) { sets.push(`condition = $${idx++}`); params.push(fields.condition); }
+  if (fields.foil !== undefined) { sets.push(`foil = $${idx++}`); params.push(fields.foil); }
+  if (fields.cost !== undefined) { sets.push(`cost = $${idx++}`); params.push(fields.cost); }
   if (fields.price_tix !== undefined) { sets.push(`price_tix = $${idx++}`); params.push(fields.price_tix); }
   if (fields.stock !== undefined) { sets.push(`stock = $${idx++}`); params.push(fields.stock); }
   if (fields.image_url !== undefined) { sets.push(`image_url = $${idx++}`); params.push(fields.image_url); }
@@ -73,11 +111,21 @@ export async function getItemById(id: number): Promise<StoreItem | null> {
   return result.rows[0] || null;
 }
 
-export async function getAllItems(activeOnly: boolean = false): Promise<StoreItem[]> {
-  const query = activeOnly
-    ? `SELECT * FROM store_items WHERE active = TRUE ORDER BY name`
-    : `SELECT * FROM store_items ORDER BY name`;
-  const result = await pool.query(query);
+export async function getAllItems(activeOnly: boolean = false, conventionId?: number): Promise<StoreItem[]> {
+  let query = `SELECT * FROM store_items`;
+  const params: any[] = [];
+  const conditions: string[] = [];
+  
+  if (activeOnly) conditions.push('active = TRUE');
+  if (conventionId) conditions.push('convention_id = $' + (conditions.length + 1));
+  
+  if (conditions.length > 0) {
+    query += ' WHERE ' + conditions.join(' AND ');
+    if (conventionId) params.push(conventionId);
+  }
+  
+  query += ' ORDER BY name';
+  const result = await pool.query(query, params);
   return result.rows;
 }
 

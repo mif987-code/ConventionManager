@@ -1,16 +1,26 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Users, Calendar, CreditCard, ScanLine } from 'lucide-react';
-import { users, events } from '../api';
+import { Users, Calendar, CreditCard, ScanLine, Trash2, AlertTriangle, Lock, Download, Save } from 'lucide-react';
+import { users, events, conventions } from '../api';
 
 export default function DashboardPage() {
   const [stats, setStats] = useState({ userCount: 0, openEvents: 0, totalEvents: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [convention, setConvention] = useState<any>(null);
+  const [ending, setEnding] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     async function load() {
       try {
+        const conventionId = localStorage.getItem('cm_convention_id');
+        if (conventionId) {
+          const convRes = await conventions.get(parseInt(conventionId));
+          setConvention(convRes.convention);
+        }
+        
         const [usersRes, eventsRes] = await Promise.all([
           users.list(),
           events.list(),
@@ -28,6 +38,68 @@ export default function DashboardPage() {
     }
     load();
   }, []);
+
+  async function handleEndConvention() {
+    if (!convention) return;
+    if (!confirm('End this convention? This will:\n- Lock all events (no new events can be created)\n- Lock the store (no new items can be added)\n- Prevent any further data modifications\n\nThis action CANNOT be undone. Continue?')) {
+      return;
+    }
+    
+    setEnding(true);
+    try {
+      const result = await conventions.end(convention.id);
+      setConvention(result.convention);
+      alert('Convention has been ended. All data is now locked.');
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setEnding(false);
+    }
+  }
+
+  async function handleExportConvention() {
+    if (!convention) return;
+    setExporting(true);
+    try {
+      const result = await conventions.export(convention.id);
+      const dataStr = JSON.stringify(result.data, null, 2);
+      const blob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `convention_${convention.name}_${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      alert('Convention data exported successfully.');
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  async function handleDeleteConvention() {
+    if (!convention) return;
+    if (convention.status !== 'ended') {
+      alert('You must end the convention before deleting it.');
+      return;
+    }
+    if (!confirm('DELETE this convention and ALL its data?\n\nThis includes:\n- All events and participants\n- All store items and orders\n- All transactions\n- All users\n\nThis action CANNOT be undone. Continue?')) {
+      return;
+    }
+    
+    setDeleting(true);
+    try {
+      await conventions.delete(convention.id);
+      localStorage.removeItem('cm_convention_id');
+      localStorage.removeItem('cm_convention_name');
+      window.location.reload();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   const cards = [
     { label: 'Total Users', value: stats.userCount, icon: <Users size={24} />, color: 'bg-blue-500', to: '/users' },
@@ -84,6 +156,38 @@ export default function DashboardPage() {
                 </div>
               </div>
             </Link>
+          </div>
+
+          <div className="mt-8 bg-white border border-gray-200 rounded-xl p-6">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">Convention Management</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <button
+                onClick={handleExportConvention}
+                disabled={exporting}
+                className="flex items-center justify-center gap-2 bg-indigo-600 text-white px-4 py-3 rounded-lg hover:bg-indigo-700 transition text-sm font-medium disabled:opacity-50"
+              >
+                {exporting ? 'Exporting...' : <><Download size={16} /> Export Data</>}
+              </button>
+              <button
+                onClick={handleEndConvention}
+                disabled={ending || convention?.status === 'ended'}
+                className="flex items-center justify-center gap-2 bg-amber-600 text-white px-4 py-3 rounded-lg hover:bg-amber-700 transition text-sm font-medium disabled:opacity-50"
+              >
+                {ending ? 'Ending...' : <><Lock size={16} /> End Convention</>}
+              </button>
+              <button
+                onClick={handleDeleteConvention}
+                disabled={deleting || convention?.status !== 'ended'}
+                className="flex items-center justify-center gap-2 bg-red-600 text-white px-4 py-3 rounded-lg hover:bg-red-700 transition text-sm font-medium disabled:opacity-50"
+              >
+                {deleting ? 'Deleting...' : <><Trash2 size={16} /> Delete</>}
+              </button>
+            </div>
+            {convention?.status === 'ended' && (
+              <p className="text-xs text-gray-500 mt-3 text-center">
+                ⚠️ Convention is ended. Data is locked. Only export and delete are available.
+              </p>
+            )}
           </div>
         </>
       )}

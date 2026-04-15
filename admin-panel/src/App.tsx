@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Routes, Route, NavLink } from 'react-router-dom';
-import { Users, Calendar, CreditCard, ScanLine, Trophy, Settings, Ticket, ShoppingBag, BarChart3, Shield } from 'lucide-react';
+import { Users, Calendar, CreditCard, ScanLine, Trophy, Settings, Ticket, ShoppingBag, BarChart3, Shield, LogOut } from 'lucide-react';
 import { getApiKey, setApiKey } from './api';
 import DashboardPage from './pages/DashboardPage';
 import UsersPage from './pages/UsersPage';
@@ -13,14 +13,24 @@ import PrizeTemplatesPage from './pages/PrizeTemplatesPage';
 import StorePage from './pages/StorePage';
 import StatsPage from './pages/StatsPage';
 import PermissionsPage from './pages/PermissionsPage';
+import ConventionSelectPage from './pages/ConventionSelectPage';
 
 function App() {
   const [authenticated, setAuthenticated] = useState(!!getApiKey());
   const [keyInput, setKeyInput] = useState('');
+  const [conventionId, setConventionId] = useState<string | null>(localStorage.getItem('cm_convention_id'));
+  const [conventionName, setConventionName] = useState<string | null>(localStorage.getItem('cm_convention_name'));
 
   useEffect(() => {
     setAuthenticated(!!getApiKey());
   }, []);
+
+  function switchConvention() {
+    setConventionId(null);
+    setConventionName(null);
+    localStorage.removeItem('cm_convention_id');
+    localStorage.removeItem('cm_convention_name');
+  }
 
   if (!authenticated) {
     return (
@@ -57,6 +67,10 @@ function App() {
     );
   }
 
+  if (!conventionId) {
+    return <ConventionSelectPage />;
+  }
+
   const navItems = [
     { to: '/', icon: <Settings size={20} />, label: 'Dashboard' },
     { to: '/users', icon: <Users size={20} />, label: 'Users' },
@@ -79,7 +93,7 @@ function App() {
             <span className="text-2xl">🎮</span>
             <div>
               <h1 className="font-bold text-gray-800">Convention</h1>
-              <p className="text-xs text-gray-500">Management Panel</p>
+              <p className="text-xs text-gray-500">{conventionName || 'Unknown'}</p>
             </div>
           </div>
         </div>
@@ -102,7 +116,13 @@ function App() {
             </NavLink>
           ))}
         </nav>
-        <div className="p-4 border-t border-gray-100">
+        <div className="p-4 border-t border-gray-100 space-y-2">
+          <button
+            onClick={switchConvention}
+            className="w-full text-sm text-gray-500 hover:text-indigo-600 transition py-2 flex items-center justify-center gap-2"
+          >
+            <LogOut size={14} /> Switch Convention
+          </button>
           <button
             onClick={() => { setApiKey(''); setAuthenticated(false); }}
             className="w-full text-sm text-gray-500 hover:text-red-600 transition py-2"

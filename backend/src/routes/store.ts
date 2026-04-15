@@ -1,6 +1,10 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import * as storeService from '../services/storeService';
+import * as bulkImportService from '../services/bulkImportService';
+import { pool } from '../config/db';
+import multer from 'multer';
 
+const upload = multer({ storage: multer.memoryStorage() });
 const router = Router();
 
 // --- Items ---
@@ -9,7 +13,8 @@ const router = Router();
 router.get('/items', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const activeOnly = req.query.active === 'true';
-    const items = await storeService.getAllItems(activeOnly);
+    const conventionId = (req as any).conventionId;
+    const items = await storeService.getAllItems(activeOnly, conventionId);
     res.json({ success: true, items });
   } catch (err) {
     next(err);
@@ -30,11 +35,20 @@ router.get('/items/:id', async (req: Request, res: Response, next: NextFunction)
 // POST /api/store/items - Create item (admin)
 router.post('/items', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { name, description, price_tix, stock, image_url } = req.body;
+    const { name, description, price_tix, stock, image_url, set_name, card_number, language, condition, foil, cost } = req.body;
+    const conventionId = (req as any).conventionId;
     if (!name || price_tix === undefined) {
       return res.status(400).json({ error: 'name and price_tix are required' });
     }
-    const item = await storeService.createItem(name, description || null, price_tix, stock || 0, image_url || null);
+    const item = await storeService.createItem(
+      name, 
+      description || null, 
+      price_tix, 
+      stock || 0, 
+      image_url || null,
+      { set_name, card_number, language, condition, foil, cost },
+      conventionId
+    );
     res.status(201).json({ success: true, item });
   } catch (err) {
     next(err);
@@ -56,6 +70,48 @@ router.delete('/items/:id', async (req: Request, res: Response, next: NextFuncti
   try {
     await storeService.deleteItem(parseInt(req.params.id));
     res.json({ success: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/store/bulk-import - Bulk import items from Excel/CSV (admin)
+router.post('/bulk-import', upload.single('file'), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    // If items are sent as JSON (from verification UI), import directly
+    if (req.body.items && Array.isArray(req.body.items)) {
+      const { items, validate_scryfall } = req.body;
+      const validateWithScryfall = validate_scryfall === 'true' || validate_scryfall === true;
+      const conventionId = (req as any).conventionId;
+      console.log('[Store Route] Bulk import from JSON - items:', items.length, 'conventionId:', conventionId);
+      
+      const result = await bulkImportService.bulkImportItems(items, validateWithScryfall, conventionId);
+      res.json(result);
+      return;
+    }
+
+    // Otherwise, parse from file upload
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+    
+    const { validate_scryfall, dry_run } = req.body;
+    const validateWithScryfall = validate_scryfall === 'true' || validate_scryfall === true;
+    const dryRun = dry_run === 'true' || dry_run === true;
+    const conventionId = (req as any).conventionId;
+    console.log('[Store Route] Bulk import - conventionId from request:', conventionId);
+    
+    const items = await bulkImportService.parseImportFile(req.file.buffer, req.file.originalname);
+    
+    if (dryRun) {
+      // Just parse and validate, don't import
+      const result = await bulkImportService.validateItems(items, validateWithScryfall);
+      res.json(result);
+    } else {
+      // Actually import
+      const result = await bulkImportService.bulkImportItems(items, validateWithScryfall, conventionId);
+      res.json(result);
+    }
   } catch (err) {
     next(err);
   }
@@ -130,6 +186,41 @@ router.post('/orders/:id/cancel', async (req: Request, res: Response, next: Next
     res.json(result);
   } catch (err) {
     next(err);
+  }
+});
+
+// POST /api/admin/reset-data - Reset all data (Super Admin only)
+router.post('/admin/reset-data', async (req: Request, res: Response, next: NextFunction) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    
+    const { confirm } = req.body;
+    if (confirm !== 'RESET_ALL_DATA') {
+      return res.status(400).json({ error: 'Confirmation required. Send { "confirm": "RESET_ALL_DATA" }' });
+    }
+    
+    // Delete in order to respect foreign key constraints
+    await client.query('DELETE FROM event_matches');
+    await client.query('DELETE FROM event_rounds');
+    await client.query('DELETE FROM event_participants');
+    await client.query('DELETE FROM events');
+    
+    await client.query('DELETE FROM store_orders');
+    await client.query('DELETE FROM store_items');
+    
+    await client.query('DELETE FROM transactions');
+    
+    // Reset user balances and vouchers (delete users except super admins)
+    await client.query('DELETE FROM users WHERE is_admin = FALSE');
+    
+    await client.query('COMMIT');
+    res.json({ success: true, message: 'All data reset successfully' });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    next(err);
+  } finally {
+    client.release();
   }
 });
 

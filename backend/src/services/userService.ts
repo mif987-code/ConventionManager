@@ -17,21 +17,22 @@ export interface User {
   updated_at: Date;
 }
 
-export async function createUser(name: string, nfcUid?: string, email?: string, isAdmin: boolean = false): Promise<User> {
+export async function createUser(name: string, nfcUid?: string, email?: string, isAdmin: boolean = false, conventionId?: number): Promise<User> {
   const result = await pool.query(
-    `INSERT INTO users (name, nfc_uid, email, is_admin)
-     VALUES ($1, $2, $3, $4)
+    `INSERT INTO users (name, nfc_uid, email, is_admin, convention_id)
+     VALUES ($1, $2, $3, $4, $5)
      RETURNING *`,
-    [name, nfcUid || null, email || null, isAdmin]
+    [name, nfcUid || null, email || null, isAdmin, conventionId || null]
   );
   return result.rows[0];
 }
 
-export async function getUserByNfcUid(nfcUid: string): Promise<User | null> {
-  const result = await pool.query(
-    `SELECT * FROM users WHERE nfc_uid = $1`,
-    [nfcUid]
-  );
+export async function getUserByNfcUid(nfcUid: string, conventionId?: number): Promise<User | null> {
+  const query = conventionId 
+    ? `SELECT * FROM users WHERE nfc_uid = $1 AND convention_id = $2`
+    : `SELECT * FROM users WHERE nfc_uid = $1`;
+  const params = conventionId ? [nfcUid, conventionId] : [nfcUid];
+  const result = await pool.query(query, params);
   return result.rows[0] || null;
 }
 
@@ -43,8 +44,12 @@ export async function getUserById(id: number): Promise<User | null> {
   return result.rows[0] || null;
 }
 
-export async function getAllUsers() {
-  const result = await pool.query(`SELECT * FROM users ORDER BY created_at DESC`);
+export async function getAllUsers(conventionId?: number) {
+  const query = conventionId
+    ? `SELECT * FROM users WHERE convention_id = $1 ORDER BY created_at DESC`
+    : `SELECT * FROM users ORDER BY created_at DESC`;
+  const params = conventionId ? [conventionId] : [];
+  const result = await pool.query(query, params);
   return result.rows;
 }
 

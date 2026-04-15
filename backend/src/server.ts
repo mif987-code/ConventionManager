@@ -3,7 +3,7 @@ import cors from 'cors';
 import path from 'path';
 import dotenv from 'dotenv';
 import { testConnection } from './config/db';
-import { apiKeyAuth, errorHandler } from './middleware/auth';
+import { apiKeyAuth, conventionMiddleware, errorHandler } from './middleware/auth';
 
 import usersRouter from './routes/users';
 import vouchersRouter from './routes/vouchers';
@@ -16,6 +16,9 @@ import storeRouter from './routes/store';
 import statsRouter from './routes/stats';
 import permissionsRouter from './routes/permissions';
 import playerRouter from './routes/player';
+import conventionsRouter from './routes/conventions';
+import setsRouter from './routes/sets';
+import cardsRouter from './routes/cards';
 
 dotenv.config();
 
@@ -29,9 +32,12 @@ app.use(express.json());
 // Public routes (no API key required)
 app.use('/public', publicRegistrationRouter);
 app.use('/player', playerRouter);
+app.use('/api/sets', setsRouter); // Sets lookup (public, no auth needed)
+app.use('/api/cards', cardsRouter); // Cards lookup (public, no auth needed)
 
 // API Key auth on all /api routes
 app.use('/api', apiKeyAuth);
+app.use('/api', conventionMiddleware);
 
 // Routes
 app.use('/api/users', usersRouter);
@@ -43,6 +49,7 @@ app.use('/api/prize-templates', prizeTemplatesRouter);
 app.use('/api/store', storeRouter);
 app.use('/api/stats', statsRouter);
 app.use('/api/permissions', permissionsRouter);
+app.use('/api/conventions', conventionsRouter);
 
 // Serve registration site static files
 app.use('/register', express.static(path.join(__dirname, '../../registration-site')));

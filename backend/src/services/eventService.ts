@@ -38,13 +38,14 @@ export async function createEventType(
   maxPlayers: number,
   prizeStructure: Record<string, number>,
   prizeStructureTies?: Record<string, number>,
-  tournamentStructure: TournamentStructure = 'swiss'
+  tournamentStructure: TournamentStructure = 'swiss',
+  conventionId?: number
 ): Promise<EventType> {
   const result = await pool.query(
-    `INSERT INTO event_types (name, category, format, entry_cost_vouchers, max_players, prize_structure, prize_structure_ties, tournament_structure)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    `INSERT INTO event_types (name, category, format, entry_cost_vouchers, max_players, prize_structure, prize_structure_ties, tournament_structure, convention_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
      RETURNING *`,
-    [name, category, format, entryCostVouchers, maxPlayers, JSON.stringify(prizeStructure), JSON.stringify(prizeStructureTies || {}), tournamentStructure]
+    [name, category, format, entryCostVouchers, maxPlayers, JSON.stringify(prizeStructure), JSON.stringify(prizeStructureTies || {}), tournamentStructure, conventionId || null]
   );
   return result.rows[0];
 }
@@ -77,8 +78,12 @@ export async function updateEventType(
   return result.rows[0];
 }
 
-export async function getAllEventTypes(): Promise<EventType[]> {
-  const result = await pool.query(`SELECT * FROM event_types ORDER BY category, name`);
+export async function getAllEventTypes(conventionId?: number): Promise<EventType[]> {
+  const query = conventionId
+    ? `SELECT * FROM event_types WHERE convention_id = $1 ORDER BY category, name`
+    : `SELECT * FROM event_types ORDER BY category, name`;
+  const params = conventionId ? [conventionId] : [];
+  const result = await pool.query(query, params);
   return result.rows;
 }
 
@@ -109,15 +114,15 @@ export async function duplicateEventType(id: number): Promise<EventType> {
 
 // --- Events ---
 
-export async function createEvent(name: string, eventTypeId: number): Promise<Event> {
+export async function createEvent(name: string, eventTypeId: number, conventionId?: number): Promise<Event> {
   const eventType = await getEventTypeById(eventTypeId);
   if (!eventType) throw new Error('Event type not found');
 
   const result = await pool.query(
-    `INSERT INTO events (name, event_type_id)
-     VALUES ($1, $2)
+    `INSERT INTO events (name, event_type_id, convention_id)
+     VALUES ($1, $2, $3)
      RETURNING *`,
-    [name, eventTypeId]
+    [name, eventTypeId, conventionId || null]
   );
   return result.rows[0];
 }
@@ -135,17 +140,22 @@ export async function getEventById(id: number) {
   return result.rows[0] || null;
 }
 
-export async function getAllEvents(status?: string) {
+export async function getAllEvents(status?: string, conventionId?: number) {
   let query = `SELECT e.*, et.name AS event_type_name, et.entry_cost_vouchers, et.max_players,
                et.tournament_structure,
                (SELECT COUNT(*) FROM event_participants ep WHERE ep.event_id = e.id)::int AS participant_count
                FROM events e
                JOIN event_types et ON e.event_type_id = et.id`;
   const params: any[] = [];
+  const conditions: string[] = [];
 
-  if (status) {
-    query += ` WHERE e.status = $1`;
-    params.push(status);
+  if (status) conditions.push(`e.status = $${conditions.length + 1}`);
+  if (conventionId) conditions.push(`e.convention_id = $${conditions.length + 1}`);
+
+  if (conditions.length > 0) {
+    query += ` WHERE ` + conditions.join(' AND ');
+    if (status) params.push(status);
+    if (conventionId) params.push(conventionId);
   }
 
   query += ` ORDER BY e.created_at DESC`;
