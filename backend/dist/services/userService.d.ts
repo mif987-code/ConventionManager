@@ -3,6 +3,7 @@ export interface User {
     name: string;
     last_name: string | null;
     nfc_uid: string | null;
+    qr_code: string | null;
     email: string | null;
     age: number | null;
     dob: string | null;
@@ -13,10 +14,11 @@ export interface User {
     created_at: Date;
     updated_at: Date;
 }
-export declare function createUser(name: string, nfcUid?: string, email?: string, isAdmin?: boolean): Promise<User>;
-export declare function getUserByNfcUid(nfcUid: string): Promise<User | null>;
+export declare function createUser(name: string, nfcUid?: string, email?: string, isAdmin?: boolean, conventionId?: number): Promise<User>;
+export declare function getUserByNfcUid(nfcUid: string, conventionId?: number): Promise<User | null>;
+export declare function getUserByQrCode(qrCode: string, conventionId?: number): Promise<User | null>;
 export declare function getUserById(id: number): Promise<User | null>;
-export declare function getAllUsers(): Promise<any[]>;
+export declare function getAllUsers(conventionId?: number): Promise<any[]>;
 export declare function getUserWithBalances(userId: number): Promise<{
     voucher_balance: number;
     tix_balance: number;
@@ -24,6 +26,7 @@ export declare function getUserWithBalances(userId: number): Promise<{
     name: string;
     last_name: string | null;
     nfc_uid: string | null;
+    qr_code: string | null;
     email: string | null;
     age: number | null;
     dob: string | null;
@@ -41,6 +44,7 @@ export declare function getUserByNfcUidWithBalances(nfcUid: string): Promise<{
     name: string;
     last_name: string | null;
     nfc_uid: string | null;
+    qr_code: string | null;
     email: string | null;
     age: number | null;
     dob: string | null;

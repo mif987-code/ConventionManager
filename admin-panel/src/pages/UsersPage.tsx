@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { UserPlus, Search, Link, X, Wifi } from 'lucide-react';
+import { UserPlus, Search, Link, X, Wifi, QrCode, X as CloseIcon } from 'lucide-react';
 import { users } from '../api';
 
 export default function UsersPage() {
@@ -12,6 +12,7 @@ export default function UsersPage() {
   const [form, setForm] = useState({ name: '', nfc_uid: '', email: '' });
   const [linkingUserId, setLinkingUserId] = useState<number | null>(null);
   const [linkNfcUid, setLinkNfcUid] = useState('');
+  const [showingQrUser, setShowingQrUser] = useState<any>(null);
 
   async function loadUsers() {
     try {
@@ -143,6 +144,7 @@ export default function UsersPage() {
                 <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">NFC UID</th>
                 <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Email</th>
                 <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Status</th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">QR Code</th>
                 <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Actions</th>
               </tr>
             </thead>
@@ -200,6 +202,16 @@ export default function UsersPage() {
                     </div>
                   </td>
                   <td className="px-6 py-3 text-sm">
+                    {u.qr_code ? (
+                      <button onClick={() => setShowingQrUser(u)}
+                        className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-700 font-medium">
+                        <QrCode size={12} /> View
+                      </button>
+                    ) : (
+                      <span className="text-gray-400 text-xs">—</span>
+                    )}
+                  </td>
+                  <td className="px-6 py-3 text-sm">
                     {!u.nfc_uid && linkingUserId !== u.id && (
                       <button onClick={() => { setLinkingUserId(u.id); setLinkNfcUid(''); }}
                         className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-700 font-medium">
@@ -210,10 +222,30 @@ export default function UsersPage() {
                 </tr>
               ))}
               {userList.length === 0 && (
-                <tr><td colSpan={6} className="px-6 py-8 text-center text-gray-400">No users found</td></tr>
+                <tr><td colSpan={7} className="px-6 py-8 text-center text-gray-400">No users found</td></tr>
               )}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {showingQrUser && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-lg p-6 max-w-sm w-full mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-800">QR Code</h3>
+              <button onClick={() => setShowingQrUser(null)} className="text-gray-400 hover:text-gray-600">
+                <CloseIcon size={20} />
+              </button>
+            </div>
+            <div className="text-center">
+              <p className="text-sm text-gray-600 mb-2">{showingQrUser.name}</p>
+              {showingQrUser.qr_code && (
+                <img src={showingQrUser.qr_code} alt="QR Code" className="mx-auto w-48 h-48" />
+              )}
+              <p className="text-xs text-gray-400 mt-4">Scan this code to register to events, load Tix, etc.</p>
+            </div>
+          </div>
         </div>
       )}
     </div>

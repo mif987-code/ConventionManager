@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Users, Calendar, CreditCard, ScanLine, Trash2, AlertTriangle, Lock, Download, Save } from 'lucide-react';
+import { Users, Calendar, CreditCard, ScanLine, Trash2, AlertTriangle, Lock, Download, Save, QrCode } from 'lucide-react';
 import { users, events, conventions } from '../api';
 
 export default function DashboardPage() {
@@ -11,6 +11,8 @@ export default function DashboardPage() {
   const [ending, setEnding] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [scanMode, setScanMode] = useState<'nfc' | 'qr'>('qr');
+  const [updatingMode, setUpdatingMode] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -19,6 +21,9 @@ export default function DashboardPage() {
         if (conventionId) {
           const convRes = await conventions.get(parseInt(conventionId));
           setConvention(convRes.convention);
+          if (convRes.convention.scan_mode) {
+            setScanMode(convRes.convention.scan_mode);
+          }
         }
         
         const [usersRes, eventsRes] = await Promise.all([
@@ -38,6 +43,21 @@ export default function DashboardPage() {
     }
     load();
   }, []);
+
+  async function handleUpdateScanMode(mode: 'nfc' | 'qr') {
+    if (!convention) return;
+    setUpdatingMode(true);
+    try {
+      // Update the convention with new scan mode
+      await conventions.update(convention.id, { scan_mode: mode });
+      setScanMode(mode);
+      setConvention({ ...convention, scan_mode: mode });
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setUpdatingMode(false);
+    }
+  }
 
   async function handleEndConvention() {
     if (!convention) return;
@@ -140,10 +160,10 @@ export default function DashboardPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Link to="/scan" className="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl p-6 text-white hover:shadow-lg transition">
               <div className="flex items-center gap-4">
-                <ScanLine size={32} />
+                {scanMode === 'qr' ? <QrCode size={32} /> : <ScanLine size={32} />}
                 <div>
-                  <h3 className="text-lg font-semibold">NFC Scanner</h3>
-                  <p className="text-indigo-100 text-sm">Scan a tag to look up a player</p>
+                  <h3 className="text-lg font-semibold">{scanMode === 'qr' ? 'QR Scanner' : 'NFC Scanner'}</h3>
+                  <p className="text-indigo-100 text-sm">Scan a {scanMode === 'qr' ? 'QR code' : 'tag'} to look up a player</p>
                 </div>
               </div>
             </Link>
@@ -160,6 +180,33 @@ export default function DashboardPage() {
 
           <div className="mt-8 bg-white border border-gray-200 rounded-xl p-6">
             <h3 className="text-lg font-semibold text-gray-800 mb-4">Convention Management</h3>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Default Scan Mode</label>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleUpdateScanMode('nfc')}
+                  disabled={updatingMode}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg transition text-sm font-medium ${
+                    scanMode === 'nfc' 
+                      ? 'bg-indigo-600 text-white' 
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  } disabled:opacity-50`}
+                >
+                  <ScanLine size={16} /> NFC
+                </button>
+                <button
+                  onClick={() => handleUpdateScanMode('qr')}
+                  disabled={updatingMode}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg transition text-sm font-medium ${
+                    scanMode === 'qr' 
+                      ? 'bg-indigo-600 text-white' 
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  } disabled:opacity-50`}
+                >
+                  <QrCode size={16} /> QR Code
+                </button>
+              </div>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <button
                 onClick={handleExportConvention}

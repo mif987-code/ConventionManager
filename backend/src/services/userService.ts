@@ -1,11 +1,13 @@
 import { pool } from '../config/db';
 import { getBalance } from './transactionService';
+import QRCode from 'qrcode';
 
 export interface User {
   id: number;
   name: string;
   last_name: string | null;
   nfc_uid: string | null;
+  qr_code: string | null;
   email: string | null;
   age: number | null;
   dob: string | null;
@@ -24,7 +26,22 @@ export async function createUser(name: string, nfcUid?: string, email?: string, 
      RETURNING *`,
     [name, nfcUid || null, email || null, isAdmin, conventionId || null]
   );
-  return result.rows[0];
+  
+  const user = result.rows[0];
+  
+  // Generate QR code for the user
+  const qrData = JSON.stringify({ userId: user.id, name: user.name });
+  const qrCode = await QRCode.toDataURL(qrData);
+  
+  // Update user with QR code
+  await pool.query(
+    `UPDATE users SET qr_code = $1 WHERE id = $2`,
+    [qrCode, user.id]
+  );
+  
+  user.qr_code = qrCode;
+  
+  return user;
 }
 
 export async function getUserByNfcUid(nfcUid: string, conventionId?: number): Promise<User | null> {
@@ -32,6 +49,15 @@ export async function getUserByNfcUid(nfcUid: string, conventionId?: number): Pr
     ? `SELECT * FROM users WHERE nfc_uid = $1 AND convention_id = $2`
     : `SELECT * FROM users WHERE nfc_uid = $1`;
   const params = conventionId ? [nfcUid, conventionId] : [nfcUid];
+  const result = await pool.query(query, params);
+  return result.rows[0] || null;
+}
+
+export async function getUserByQrCode(qrCode: string, conventionId?: number): Promise<User | null> {
+  const query = conventionId 
+    ? `SELECT * FROM users WHERE qr_code = $1 AND convention_id = $2`
+    : `SELECT * FROM users WHERE qr_code = $1`;
+  const params = conventionId ? [qrCode, conventionId] : [qrCode];
   const result = await pool.query(query, params);
   return result.rows[0] || null;
 }

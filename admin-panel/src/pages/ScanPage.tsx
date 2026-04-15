@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { ScanLine } from 'lucide-react';
+import { ScanLine, QrCode } from 'lucide-react';
 import { scan } from '../api';
 
 export default function ScanPage() {
-  const [nfcUid, setNfcUid] = useState('');
+  const [scanMode, setScanMode] = useState<'nfc' | 'qr'>('qr');
+  const [inputValue, setInputValue] = useState('');
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -14,8 +15,13 @@ export default function ScanPage() {
     setResult(null);
     setLoading(true);
     try {
-      const res = await scan.lookup(nfcUid);
-      setResult(res.user);
+      if (scanMode === 'nfc') {
+        const res = await scan.lookup(inputValue);
+        setResult(res.user);
+      } else {
+        const res = await scan.lookupQr(inputValue);
+        setResult(res.user);
+      }
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -25,18 +31,44 @@ export default function ScanPage() {
 
   return (
     <div className="max-w-2xl mx-auto">
-      <h1 className="text-2xl font-bold text-gray-800 mb-6 text-center">NFC Scanner</h1>
+      <h1 className="text-2xl font-bold text-gray-800 mb-6 text-center">Scanner</h1>
 
       <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl p-8 text-white mb-8">
         <div className="text-center mb-6">
-          <ScanLine size={48} className="mx-auto mb-3 opacity-80" />
-          <p className="text-indigo-100">Scan an NFC tag or enter the UID manually</p>
+          {scanMode === 'nfc' ? (
+            <ScanLine size={48} className="mx-auto mb-3 opacity-80" />
+          ) : (
+            <QrCode size={48} className="mx-auto mb-3 opacity-80" />
+          )}
+          <p className="text-indigo-100">
+            {scanMode === 'nfc' ? 'Scan an NFC tag or enter the UID manually' : 'Enter QR code or scan with camera'}
+          </p>
         </div>
+
+        <div className="flex justify-center gap-2 mb-4">
+          <button
+            onClick={() => { setScanMode('nfc'); setInputValue(''); setResult(null); setError(''); }}
+            className={`px-4 py-2 rounded-lg font-medium transition ${
+              scanMode === 'nfc' ? 'bg-white text-indigo-600' : 'bg-indigo-400 text-white hover:bg-indigo-300'
+            }`}
+          >
+            NFC
+          </button>
+          <button
+            onClick={() => { setScanMode('qr'); setInputValue(''); setResult(null); setError(''); }}
+            className={`px-4 py-2 rounded-lg font-medium transition ${
+              scanMode === 'qr' ? 'bg-white text-indigo-600' : 'bg-indigo-400 text-white hover:bg-indigo-300'
+            }`}
+          >
+            QR Code
+          </button>
+        </div>
+
         <form onSubmit={handleScan} className="flex gap-3">
           <input
-            placeholder="NFC UID..."
-            value={nfcUid}
-            onChange={(e) => setNfcUid(e.target.value)}
+            placeholder={scanMode === 'nfc' ? 'NFC UID...' : 'QR code data...'}
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
             required
             autoFocus
             className="flex-1 px-4 py-3 rounded-xl text-gray-800 outline-none focus:ring-2 focus:ring-white text-lg"
@@ -63,7 +95,9 @@ export default function ScanPage() {
               </span>
             </div>
             <h2 className="text-xl font-bold text-gray-800">{result.name}</h2>
-            <p className="text-sm text-gray-500 font-mono">{result.nfc_uid}</p>
+            <p className="text-sm text-gray-500 font-mono">
+              {scanMode === 'nfc' ? result.nfc_uid : 'QR Code'}
+            </p>
           </div>
 
           <div className="grid grid-cols-2 gap-4 mb-6">

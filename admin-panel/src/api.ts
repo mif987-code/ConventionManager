@@ -115,6 +115,10 @@ export const scan = {
     request<any>('/scan', { method: 'POST', body: JSON.stringify({ nfc_uid }) }),
   balance: (nfc_uid: string) =>
     request<any>('/scan/balance', { method: 'POST', body: JSON.stringify({ nfc_uid }) }),
+  lookupQr: (qr_code: string) =>
+    request<any>('/scan/qr', { method: 'POST', body: JSON.stringify({ qr_code }) }),
+  balanceQr: (qr_code: string) =>
+    request<any>('/scan/qr/balance', { method: 'POST', body: JSON.stringify({ qr_code }) }),
 };
 
 // Store
@@ -157,6 +161,7 @@ export const conventions = {
   list: () => request<any>('/conventions'),
   create: (name: string) => request<any>('/conventions', { method: 'POST', body: JSON.stringify({ name }) }),
   get: (id: number) => request<any>(`/conventions/${id}`),
+  update: (id: number, fields: any) => request<any>(`/conventions/${id}`, { method: 'PUT', body: JSON.stringify(fields) }),
   end: (id: number) => request<any>(`/conventions/${id}/end`, { method: 'POST' }),
   getStats: (id: number) => request<any>(`/conventions/${id}/stats`),
   export: (id: number) => request<any>(`/conventions/${id}/export`),
