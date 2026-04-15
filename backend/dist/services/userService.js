@@ -1,7 +1,4 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.createUser = createUser;
 exports.getUserByNfcUid = getUserByNfcUid;
@@ -12,18 +9,23 @@ exports.getUserWithBalances = getUserWithBalances;
 exports.getUserByNfcUidWithBalances = getUserByNfcUidWithBalances;
 exports.updateUser = updateUser;
 exports.searchUsers = searchUsers;
+exports.regenerateQRCode = regenerateQRCode;
 const db_1 = require("../config/db");
 const transactionService_1 = require("./transactionService");
-const qrcode_1 = __importDefault(require("qrcode"));
+const qrTokenService_1 = require("./qrTokenService");
 async function createUser(name, nfcUid, email, isAdmin = false, conventionId) {
     const result = await db_1.pool.query(`INSERT INTO users (name, nfc_uid, email, is_admin, convention_id)
      VALUES ($1, $2, $3, $4, $5)
      RETURNING *`, [name, nfcUid || null, email || null, isAdmin, conventionId || null]);
     const user = result.rows[0];
-    // Generate QR code for the user
-    const qrData = JSON.stringify({ userId: user.id, name: user.name });
-    const qrCode = await qrcode_1.default.toDataURL(qrData);
-    // Update user with QR code
+    // Generate secure QR token
+    const token = (0, qrTokenService_1.generateQRToken)(user.id, 24); // 24 hour expiration
+    const expiresAt = new Date(Date.now() + (24 * 60 * 60 * 1000));
+    // Store the token in qr_tokens table
+    await (0, qrTokenService_1.storeIssuedToken)(user.id, token, expiresAt);
+    // Generate QR code image from the token
+    const qrCode = await (0, qrTokenService_1.generateQRImage)(token);
+    // Update user with QR code image
     await db_1.pool.query(`UPDATE users SET qr_code = $1 WHERE id = $2`, [qrCode, user.id]);
     user.qr_code = qrCode;
     return user;
@@ -114,5 +116,23 @@ async function updateUser(id, fields) {
 async function searchUsers(query) {
     const result = await db_1.pool.query(`SELECT * FROM users WHERE name ILIKE $1 OR last_name ILIKE $1 OR nfc_uid ILIKE $1 OR email ILIKE $1 ORDER BY name`, [`%${query}%`]);
     return result.rows;
+}
+// Regenerate QR code for an existing user
+async function regenerateQRCode(userId) {
+    const user = await getUserById(userId);
+    if (!user) {
+        throw new Error('User not found');
+    }
+    // Generate new secure QR token
+    const token = (0, qrTokenService_1.generateQRToken)(userId, 24); // 24 hour expiration
+    const expiresAt = new Date(Date.now() + (24 * 60 * 60 * 1000));
+    // Store the token in qr_tokens table
+    await (0, qrTokenService_1.storeIssuedToken)(userId, token, expiresAt);
+    // Generate QR code image from the token
+    const qrCode = await (0, qrTokenService_1.generateQRImage)(token);
+    // Update user with new QR code image
+    await db_1.pool.query(`UPDATE users SET qr_code = $1 WHERE id = $2`, [qrCode, userId]);
+    user.qr_code = qrCode;
+    return user;
 }
 //# sourceMappingURL=userService.js.map

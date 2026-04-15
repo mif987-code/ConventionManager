@@ -79,4 +79,14 @@ router.put('/:id', async (req: Request, res: Response, next: NextFunction) => {
   }
 });
 
+// POST /api/users/:id/regenerate-qr - Regenerate QR code for user
+router.post('/:id/regenerate-qr', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const user = await userService.regenerateQRCode(parseInt(req.params.id));
+    res.json({ success: true, user });
+  } catch (err) {
+    next(err);
+  }
+});
+
 export default router;

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { UserPlus, Search, Link, X, Wifi, QrCode, X as CloseIcon } from 'lucide-react';
+import { UserPlus, Search, Link, X, Wifi, QrCode, X as CloseIcon, RefreshCw } from 'lucide-react';
 import { users } from '../api';
 
 export default function UsersPage() {
@@ -13,6 +13,7 @@ export default function UsersPage() {
   const [linkingUserId, setLinkingUserId] = useState<number | null>(null);
   const [linkNfcUid, setLinkNfcUid] = useState('');
   const [showingQrUser, setShowingQrUser] = useState<any>(null);
+  const [regeneratingQR, setRegeneratingQR] = useState(false);
 
   async function loadUsers() {
     try {
@@ -57,6 +58,20 @@ export default function UsersPage() {
       loadUsers();
     } catch (err: any) {
       setError(err.message);
+    }
+  }
+
+  async function handleRegenerateQR(userId: number) {
+    setRegeneratingQR(true);
+    try {
+      const res = await users.regenerateQR(userId);
+      setShowingQrUser(res.user);
+      setSuccess('QR code regenerated successfully!');
+      loadUsers();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setRegeneratingQR(false);
     }
   }
 
@@ -244,6 +259,13 @@ export default function UsersPage() {
                 <img src={showingQrUser.qr_code} alt="QR Code" className="mx-auto w-48 h-48" />
               )}
               <p className="text-xs text-gray-400 mt-4">Scan this code to register to events, load Tix, etc.</p>
+              <button
+                onClick={() => handleRegenerateQR(showingQrUser.id)}
+                disabled={regeneratingQR}
+                className="mt-4 flex items-center justify-center gap-2 w-full bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition text-sm font-medium disabled:opacity-50"
+              >
+                {regeneratingQR ? <><RefreshCw size={16} className="animate-spin" /> Regenerating...</> : <><RefreshCw size={16} /> Regenerate QR Code</>}
+              </button>
             </div>
           </div>
         </div>

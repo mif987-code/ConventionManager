@@ -57,4 +57,5 @@ export declare function getUserByNfcUidWithBalances(nfcUid: string): Promise<{
 } | null>;
 export declare function updateUser(id: number, fields: Partial<Pick<User, 'name' | 'nfc_uid' | 'email' | 'days_playing' | 'is_admin'>>): Promise<any>;
 export declare function searchUsers(query: string): Promise<any[]>;
+export declare function regenerateQRCode(userId: number): Promise<User>;
 //# sourceMappingURL=userService.d.ts.map

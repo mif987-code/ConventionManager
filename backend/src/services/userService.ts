@@ -1,6 +1,7 @@
 import { pool } from '../config/db';
 import { getBalance } from './transactionService';
 import QRCode from 'qrcode';
+import { generateQRToken, generateQRImage, storeIssuedToken } from './qrTokenService';
 
 export interface User {
   id: number;
@@ -26,21 +27,27 @@ export async function createUser(name: string, nfcUid?: string, email?: string, 
      RETURNING *`,
     [name, nfcUid || null, email || null, isAdmin, conventionId || null]
   );
-  
+
   const user = result.rows[0];
-  
-  // Generate QR code for the user
-  const qrData = JSON.stringify({ userId: user.id, name: user.name });
-  const qrCode = await QRCode.toDataURL(qrData);
-  
-  // Update user with QR code
+
+  // Generate secure QR token
+  const token = generateQRToken(user.id, 24); // 24 hour expiration
+  const expiresAt = new Date(Date.now() + (24 * 60 * 60 * 1000));
+
+  // Store the token in qr_tokens table
+  await storeIssuedToken(user.id, token, expiresAt);
+
+  // Generate QR code image from the token
+  const qrCode = await generateQRImage(token);
+
+  // Update user with QR code image
   await pool.query(
     `UPDATE users SET qr_code = $1 WHERE id = $2`,
     [qrCode, user.id]
   );
-  
+
   user.qr_code = qrCode;
-  
+
   return user;
 }
 
@@ -151,4 +158,32 @@ export async function searchUsers(query: string) {
     [`%${query}%`]
   );
   return result.rows;
+}
+
+// Regenerate QR code for an existing user
+export async function regenerateQRCode(userId: number): Promise<User> {
+  const user = await getUserById(userId);
+  if (!user) {
+    throw new Error('User not found');
+  }
+
+  // Generate new secure QR token
+  const token = generateQRToken(userId, 24); // 24 hour expiration
+  const expiresAt = new Date(Date.now() + (24 * 60 * 60 * 1000));
+
+  // Store the token in qr_tokens table
+  await storeIssuedToken(userId, token, expiresAt);
+
+  // Generate QR code image from the token
+  const qrCode = await generateQRImage(token);
+
+  // Update user with new QR code image
+  await pool.query(
+    `UPDATE users SET qr_code = $1 WHERE id = $2`,
+    [qrCode, userId]
+  );
+
+  user.qr_code = qrCode;
+
+  return user;
 }

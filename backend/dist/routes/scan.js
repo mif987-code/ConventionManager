@@ -83,5 +83,45 @@ router.post('/qr/balance', async (req, res, next) => {
         next(err);
     }
 });
+// POST /api/scan/token - Scan QR token with security validation
+router.post('/token', async (req, res, next) => {
+    try {
+        const { token, device_id } = req.body;
+        if (!token) {
+            return res.status(400).json({ error: 'token is required' });
+        }
+        const result = await (0, nfcService_1.handleQrTokenScan)(token, device_id);
+        if (!result.found) {
+            return res.status(404).json(result);
+        }
+        res.json({ success: true, ...result });
+    }
+    catch (err) {
+        next(err);
+    }
+});
+// POST /api/scan/token/balance - Quick balance check via QR token
+router.post('/token/balance', async (req, res, next) => {
+    try {
+        const { token, device_id } = req.body;
+        if (!token) {
+            return res.status(400).json({ error: 'token is required' });
+        }
+        const result = await (0, nfcService_1.handleQrTokenScan)(token, device_id);
+        if (!result.found || !result.user) {
+            return res.status(404).json({ error: result.message || 'User not found' });
+        }
+        res.json({
+            success: true,
+            user_id: result.user.id,
+            name: result.user.name,
+            voucher_balance: result.user.voucher_balance,
+            tix_balance: result.user.tix_balance,
+        });
+    }
+    catch (err) {
+        next(err);
+    }
+});
 exports.default = router;
 //# sourceMappingURL=scan.js.map
