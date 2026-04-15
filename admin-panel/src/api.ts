@@ -32,12 +32,14 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 // Users
 export const users = {
   list: () => request<any>('/users'),
+  search: (query: string) => request<any>(`/users/search?q=${encodeURIComponent(query)}`),
+  register: (name: string, nfcUid?: string, email?: string) =>
+    request<any>('/users/register', { method: 'POST', body: JSON.stringify({ name, nfc_uid: nfcUid, email }) }),
   get: (id: number) => request<any>(`/users/${id}`),
-  search: (q: string) => request<any>(`/users/search?q=${encodeURIComponent(q)}`),
-  register: (name: string, nfc_uid: string, email?: string) =>
-    request<any>('/users/register', { method: 'POST', body: JSON.stringify({ name, nfc_uid, email }) }),
   update: (id: number, fields: any) =>
     request<any>(`/users/${id}`, { method: 'PUT', body: JSON.stringify(fields) }),
+  regenerateQR: (id: number) =>
+    request<any>(`/users/${id}/regenerate-qr`, { method: 'POST' }),
 };
 
 // Vouchers
