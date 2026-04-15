@@ -65,20 +65,103 @@ router.get('/set/:setCode', async (req: Request, res: Response) => {
   }
 });
 
-// GET /api/cards/:cardName/sets - Get all sets that contain a specific card
-router.get('/:cardName/sets', async (req: Request, res: Response) => {
+// Prints search URI cache for performance
+const printsSearchUriCache = new Map<string, string>();
+
+// GET /api/cards/sets-by-card - Get all sets that contain a specific card
+router.get('/sets-by-card', async (req: Request, res: Response) => {
   try {
-    const { cardName } = req.params;
+    const { name } = req.query;
+    
+    if (!name || typeof name !== 'string') {
+      return res.status(400).json({ error: 'Missing card name' });
+    }
     
     const EXCLUDE_LAYOUTS = new Set(['token', 'art_series', 'emblem']);
     const EXCLUDE_SET_TYPES = new Set(['memorabilia', 'minigame']);
-    
-    const url = `https://api.scryfall.com/cards/search?q=!${encodeURIComponent(cardName)}+game:paper`;
-    let next = url;
     const setsMap = new Map();
     
+    // Step 1: Get Oracle ID and prints_search_uri from card name (with caching)
+    let printsSearchUri: string | null = null;
+    if (printsSearchUriCache.has(name)) {
+      const cachedData = printsSearchUriCache.get(name)!;
+      printsSearchUri = cachedData;
+      console.log('[Cards API] Using cached prints_search_uri for:', name);
+    } else {
+      try {
+        const namedRes = await axios.get(
+          `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(name)}`,
+          {
+            headers: {
+              'User-Agent': 'ConventionManager/1.0',
+              'Accept': 'application/json',
+            },
+          }
+        );
+        printsSearchUri = namedRes.data.prints_search_uri;
+        if (printsSearchUri) {
+          printsSearchUriCache.set(name, printsSearchUri);
+          console.log('[Cards API] Fetched and cached prints_search_uri for:', name);
+        }
+      } catch (err) {
+        console.log('[Cards API] Failed to fetch card data for:', name, 'will use name search only');
+      }
+    }
+    
+    // Step 2: Search using prints_search_uri if available
+    if (printsSearchUri) {
+      try {
+        console.log('[Cards API] Using prints_search_uri:', printsSearchUri);
+        let next = printsSearchUri;
+        
+        while (next) {
+          const response = await axios.get(next, {
+            headers: {
+              'User-Agent': 'ConventionManager/1.0',
+              'Accept': 'application/json',
+            },
+          });
+          const data = response.data;
+          console.log('[Cards API] Prints search page - cards:', data.data?.length || 0, 'has_more:', data.has_more);
+          
+          if (data.data) {
+            for (const card of data.data) {
+              // Filter out digital-only cards
+              if (!card.games || !card.games.includes('paper')) continue;
+              
+              // Filter out unwanted layouts and set types
+              if (EXCLUDE_LAYOUTS.has(card.layout)) continue;
+              if (EXCLUDE_SET_TYPES.has(card.set_type)) continue;
+              
+              if (!setsMap.has(card.set)) {
+                setsMap.set(card.set, {
+                  code: card.set,
+                  name: card.set_name,
+                  released_at: card.released_at,
+                });
+              }
+            }
+          }
+          
+          next = data.has_more ? data.next_page : null;
+        }
+      } catch (err) {
+        console.log('[Cards API] Prints search failed, falling back to name search');
+      }
+    }
+    
+    // Step 3: Fallback/Supplement with name search
+    console.log('[Cards API] Supplementing with name search');
+    const nameUrl = `https://api.scryfall.com/cards/search?q=!"${encodeURIComponent(name)}"+game:paper`;
+    let next = nameUrl;
+    
     while (next) {
-      const response = await axios.get(next);
+      const response = await axios.get(next, {
+        headers: {
+          'User-Agent': 'ConventionManager/1.0',
+          'Accept': 'application/json',
+        },
+      });
       const data = response.data;
       
       if (data.data) {
@@ -90,8 +173,7 @@ router.get('/:cardName/sets', async (req: Request, res: Response) => {
             setsMap.set(card.set, {
               code: card.set,
               name: card.set_name,
-              set_type: card.set_type,
-              card_count: 0,
+              released_at: card.released_at,
             });
           }
         }
@@ -100,11 +182,16 @@ router.get('/:cardName/sets', async (req: Request, res: Response) => {
       next = data.has_more ? data.next_page : null;
     }
     
-    const sets = Array.from(setsMap.values());
-    res.json({ sets });
+    const result = Array.from(setsMap.values()).sort((a, b) =>
+      (b.released_at || '').localeCompare(a.released_at || '')
+    );
+    
+    console.log('[Cards API] Sets returned for card:', name, 'count:', result.length);
+    res.json(result);
   } catch (err: any) {
     console.error('[Cards API] Error fetching card sets:', err.message);
-    res.json({ sets: [] });
+    console.error('[Cards API] Full error:', err);
+    res.status(500).json({ error: 'Failed to fetch sets' });
   }
 });
 

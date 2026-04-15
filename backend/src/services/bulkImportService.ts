@@ -37,16 +37,26 @@ const SCRYFALL_API = 'https://api.scryfall.com/cards';
 async function validateCardWithScryfall(name: string, setCode: string, collectorNumber: string): Promise<{ valid: boolean; scryfallData?: any }> {
   try {
     // Search by name + set + collector number for exact match
-    const url = `${SCRYFALL_API}/search?q=!${encodeURIComponent(name)}+set:${encodeURIComponent(setCode)}+cn:${encodeURIComponent(collectorNumber)}`;
-    const response = await axios.get(url);
+    const url = `${SCRYFALL_API}/search?q=!"${encodeURIComponent(name)}"+set:${encodeURIComponent(setCode)}+cn:${encodeURIComponent(collectorNumber)}`;
+    const response = await axios.get(url, {
+      headers: {
+        'User-Agent': 'ConventionManager/1.0',
+        'Accept': 'application/json',
+      },
+    });
     
     if (response.data && response.data.data && response.data.data.length > 0) {
       return { valid: true, scryfallData: response.data.data[0] };
     }
     
     // Fallback: search by name + set
-    const fallbackUrl = `${SCRYFALL_API}/search?q=!${encodeURIComponent(name)}+set:${encodeURIComponent(setCode)}`;
-    const fallbackResponse = await axios.get(fallbackUrl);
+    const fallbackUrl = `${SCRYFALL_API}/search?q=!"${encodeURIComponent(name)}"+set:${encodeURIComponent(setCode)}`;
+    const fallbackResponse = await axios.get(fallbackUrl, {
+      headers: {
+        'User-Agent': 'ConventionManager/1.0',
+        'Accept': 'application/json',
+      },
+    });
     
     if (fallbackResponse.data && fallbackResponse.data.data && fallbackResponse.data.data.length > 0) {
       return { valid: true, scryfallData: fallbackResponse.data.data[0] };
