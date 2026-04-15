@@ -71,11 +71,12 @@ export default function BulkImportVerification({ items, onUpload, onCancel }: Bu
     if (cardSets[itemId]) return; // Already loaded
     
     try {
-      const res = await fetch(`/api/cards/${encodeURIComponent(cardName)}/sets`);
+      const res = await fetch(`/api/cards/sets-by-card?name=${encodeURIComponent(cardName)}`);
       const data = await res.json();
-      setCardSets(prev => ({ ...prev, [itemId]: data.sets || [] }));
+      console.log('[Frontend] Sets from API for card:', cardName, data);
+      setCardSets(prev => ({ ...prev, [itemId]: Array.isArray(data) ? data : [] }));
     } catch (err) {
-      console.error('Failed to load card sets:', err);
+      console.error('[Frontend] Failed to load card sets:', err);
     }
   }
 
@@ -232,6 +233,7 @@ export default function BulkImportVerification({ items, onUpload, onCancel }: Bu
                             const isOpening = setDropdownOpen !== item.id;
                             setSetDropdownOpen(setDropdownOpen === item.id ? null : item.id);
                             if (isOpening && item.name) {
+                              console.log('[Frontend] Opening dropdown for card:', item.name, 'itemId:', item.id);
                               loadCardSets(item.name, item.id);
                             }
                           }}
@@ -251,20 +253,24 @@ export default function BulkImportVerification({ items, onUpload, onCancel }: Bu
                               autoFocus
                               onClick={(e) => e.stopPropagation()}
                             />
-                            {(cardSets[item.id] || sets).filter((set: ScryfallSet) => 
-                              !setSearchQuery[item.id] || 
-                              set.name.toLowerCase().includes(setSearchQuery[item.id].toLowerCase()) || 
-                              set.code.toLowerCase().includes(setSearchQuery[item.id].toLowerCase())
-                            ).map((set: ScryfallSet) => (
-                              <button
-                                key={set.code}
-                                onClick={() => handleSetSelect(item.id, set.code, set.name)}
-                                className="w-full text-left px-3 py-2 hover:bg-gray-100 flex justify-between"
-                              >
-                                <span>{set.name}</span>
-                                <span className="text-gray-500 text-xs">{set.code}</span>
-                              </button>
-                            ))}
+                            {(() => {
+                              const availableSets = cardSets[item.id] || sets;
+                              console.log('[Frontend] Rendering dropdown for item:', item.id, 'cardSets[item.id]:', cardSets[item.id], 'sets.length:', sets.length, 'availableSets.length:', availableSets.length);
+                              return availableSets.filter((set: ScryfallSet) => 
+                                !setSearchQuery[item.id] || 
+                                set.name.toLowerCase().includes(setSearchQuery[item.id].toLowerCase()) || 
+                                set.code.toLowerCase().includes(setSearchQuery[item.id].toLowerCase())
+                              ).map((set: ScryfallSet) => (
+                                <button
+                                  key={set.code}
+                                  onClick={() => handleSetSelect(item.id, set.code, set.name)}
+                                  className="w-full text-left px-3 py-2 hover:bg-gray-100 flex justify-between"
+                                >
+                                  <span>{set.name}</span>
+                                  <span className="text-gray-500 text-xs">{set.code}</span>
+                                </button>
+                              ));
+                            })()}
                           </div>
                         )}
                       </div>
