@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ScanLine, QrCode } from 'lucide-react';
-import { scan } from '../api';
+import { scan, conventions } from '../api';
 
 export default function ScanPage() {
   const [scanMode, setScanMode] = useState<'nfc' | 'qr'>('qr');
@@ -8,6 +8,23 @@ export default function ScanPage() {
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    async function loadConvention() {
+      try {
+        const conventionId = localStorage.getItem('cm_convention_id');
+        if (conventionId) {
+          const res = await conventions.get(parseInt(conventionId));
+          if (res.convention?.scan_mode) {
+            setScanMode(res.convention.scan_mode);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load convention:', err);
+      }
+    }
+    loadConvention();
+  }, []);
 
   async function handleScan(e: React.FormEvent) {
     e.preventDefault();
