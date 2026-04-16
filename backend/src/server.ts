@@ -21,6 +21,7 @@ import setsRouter from './routes/sets';
 import cardsRouter from './routes/cards';
 import adminSettingsRouter from './routes/adminSettings';
 import attendanceRouter from './routes/attendance';
+import specialVouchersRouter from './routes/specialVouchers';
 
 dotenv.config();
 
@@ -54,6 +55,7 @@ app.use('/api/permissions', permissionsRouter);
 app.use('/api/conventions', conventionsRouter);
 app.use('/api/admin/settings', adminSettingsRouter);
 app.use('/api/attendance', attendanceRouter);
+app.use('/api/special-vouchers', specialVouchersRouter);
 
 // Serve registration site static files
 app.use('/register', express.static(path.join(__dirname, '../../registration-site')));

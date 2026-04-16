@@ -170,3 +170,18 @@ export const conventions = {
   export: (id: number) => request<any>(`/conventions/${id}/export`),
   delete: (id: number) => request<any>(`/conventions/${id}`, { method: 'DELETE' }),
 };
+
+// Special Vouchers
+export const specialVouchers = {
+  create: (data: { event_id: number; name: string; amount: number; description?: string; icon?: string; color?: string; max_awards?: number }) =>
+    request<any>('/special-vouchers', { method: 'POST', body: JSON.stringify(data) }),
+  getByEvent: (eventId: number) => request<any>(`/special-vouchers/event/${eventId}`),
+  get: (id: number) => request<any>(`/special-vouchers/${id}`),
+  update: (id: number, fields: any) => request<any>(`/special-vouchers/${id}`, { method: 'PUT', body: JSON.stringify(fields) }),
+  delete: (id: number) => request<any>(`/special-vouchers/${id}`, { method: 'DELETE' }),
+  award: (id: number, data: { user_id: number; event_id: number; awarded_by?: string }) =>
+    request<any>(`/special-vouchers/${id}/award`, { method: 'POST', body: JSON.stringify(data) }),
+  getAwards: (id: number) => request<any>(`/special-vouchers/${id}/awards`),
+  getUserAwards: (userId: number, eventId: number) => request<any>(`/special-vouchers/user/${userId}/event/${eventId}`),
+  deleteAward: (awardId: number) => request<any>(`/special-vouchers/awards/${awardId}`, { method: 'DELETE' }),
+};

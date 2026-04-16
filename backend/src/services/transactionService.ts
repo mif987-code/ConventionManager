@@ -2,7 +2,7 @@ import { pool } from '../config/db';
 import { PoolClient } from 'pg';
 
 export type TransactionType = 'voucher' | 'tix';
-export type TransactionReason = 'topup' | 'event_entry' | 'prize' | 'refund' | 'admin_adjust' | 'purchase';
+export type TransactionReason = 'topup' | 'event_entry' | 'prize' | 'refund' | 'admin_adjust' | 'purchase' | 'special_voucher' | 'special_voucher_refund';
 
 interface AddTransactionParams {
   userId: number;
