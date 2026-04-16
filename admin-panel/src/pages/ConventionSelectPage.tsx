@@ -9,6 +9,8 @@ export default function ConventionSelectPage() {
   const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newConventionName, setNewConventionName] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState('');
 
@@ -31,7 +33,7 @@ export default function ConventionSelectPage() {
     if (!newConventionName.trim()) return;
     setCreating(true);
     try {
-      const res = await conventions.create(newConventionName);
+      const res = await conventions.create(newConventionName, startDate || undefined, endDate || undefined);
       localStorage.setItem('cm_convention_id', res.convention.id.toString());
       localStorage.setItem('cm_convention_name', res.convention.name);
       navigate('/dashboard');
@@ -106,6 +108,26 @@ export default function ConventionSelectPage() {
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none mb-4"
             autoFocus
           />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Start Date (optional)</label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={e => setStartDate(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">End Date (optional)</label>
+              <input
+                type="date"
+                value={endDate}
+                onChange={e => setEndDate(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+              />
+            </div>
+          </div>
           <div className="flex gap-3">
             <button
               onClick={handleCreate}
@@ -115,7 +137,7 @@ export default function ConventionSelectPage() {
               {creating ? 'Creating...' : 'Create'}
             </button>
             <button
-              onClick={() => { setShowCreateForm(false); setNewConventionName(''); }}
+              onClick={() => { setShowCreateForm(false); setNewConventionName(''); setStartDate(''); setEndDate(''); }}
               className="bg-gray-100 text-gray-600 px-4 py-2 rounded-lg hover:bg-gray-200 transition text-sm font-medium"
             >
               Cancel

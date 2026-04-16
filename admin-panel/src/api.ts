@@ -33,8 +33,8 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 export const users = {
   list: () => request<any>('/users'),
   search: (query: string) => request<any>(`/users/search?q=${encodeURIComponent(query)}`),
-  register: (name: string, nfcUid?: string, email?: string) =>
-    request<any>('/users/register', { method: 'POST', body: JSON.stringify({ name, nfc_uid: nfcUid, email }) }),
+  register: (name: string, nfcUid?: string, email?: string, attendanceDates?: string[]) =>
+    request<any>('/users/register', { method: 'POST', body: JSON.stringify({ name, nfc_uid: nfcUid, email, attendance_dates: attendanceDates }) }),
   get: (id: number) => request<any>(`/users/${id}`),
   update: (id: number, fields: any) =>
     request<any>(`/users/${id}`, { method: 'PUT', body: JSON.stringify(fields) }),
@@ -161,7 +161,8 @@ export const permissions = {
 // Conventions
 export const conventions = {
   list: () => request<any>('/conventions'),
-  create: (name: string) => request<any>('/conventions', { method: 'POST', body: JSON.stringify({ name }) }),
+  create: (name: string, startDate?: string, endDate?: string) => 
+    request<any>('/conventions', { method: 'POST', body: JSON.stringify({ name, start_date: startDate, end_date: endDate }) }),
   get: (id: number) => request<any>(`/conventions/${id}`),
   update: (id: number, fields: any) => request<any>(`/conventions/${id}`, { method: 'PUT', body: JSON.stringify(fields) }),
   end: (id: number) => request<any>(`/conventions/${id}/end`, { method: 'POST' }),
