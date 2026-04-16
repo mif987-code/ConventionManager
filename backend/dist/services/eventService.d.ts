@@ -22,7 +22,7 @@ export interface Event {
     created_at: Date;
     finished_at: Date | null;
 }
-export declare function createEventType(name: string, category: string, format: string | null, entryCostVouchers: number, maxPlayers: number, prizeStructure: Record<string, number>, prizeStructureTies?: Record<string, number>, tournamentStructure?: TournamentStructure): Promise<EventType>;
+export declare function createEventType(name: string, category: string, format: string | null, entryCostVouchers: number, maxPlayers: number, prizeStructure: Record<string, number>, prizeStructureTies?: Record<string, number>, tournamentStructure?: TournamentStructure, conventionId?: number): Promise<EventType>;
 export declare function updateEventType(id: number, fields: {
     name?: string;
     category?: string;
@@ -33,13 +33,13 @@ export declare function updateEventType(id: number, fields: {
     prize_structure_ties?: Record<string, number>;
     tournament_structure?: TournamentStructure;
 }): Promise<EventType>;
-export declare function getAllEventTypes(): Promise<EventType[]>;
+export declare function getAllEventTypes(conventionId?: number): Promise<EventType[]>;
 export declare function getEventTypeById(id: number): Promise<EventType | null>;
 export declare function deleteEventType(id: number): Promise<void>;
 export declare function duplicateEventType(id: number): Promise<EventType>;
-export declare function createEvent(name: string, eventTypeId: number): Promise<Event>;
+export declare function createEvent(name: string, eventTypeId: number, conventionId?: number): Promise<Event>;
 export declare function getEventById(id: number): Promise<any>;
-export declare function getAllEvents(status?: string): Promise<any[]>;
+export declare function getAllEvents(status?: string, conventionId?: number): Promise<any[]>;
 export declare function getEventParticipants(eventId: number): Promise<any[]>;
 export declare function registerToEvent(userId: number, eventId: number, createdBy?: string): Promise<{
     success: boolean;

@@ -41,10 +41,11 @@ const router = (0, express_1.Router)();
 router.post('/types', async (req, res, next) => {
     try {
         const { name, category, format, entry_cost_vouchers, max_players, prize_structure, prize_structure_ties, tournament_structure } = req.body;
+        const conventionId = req.conventionId;
         if (!name || !category || entry_cost_vouchers === undefined || !prize_structure) {
             return res.status(400).json({ error: 'name, category, entry_cost_vouchers, and prize_structure are required' });
         }
-        const eventType = await eventService.createEventType(name, category, format || null, entry_cost_vouchers, max_players || 8, prize_structure, prize_structure_ties, tournament_structure || 'swiss');
+        const eventType = await eventService.createEventType(name, category, format || null, entry_cost_vouchers, max_players || 8, prize_structure, prize_structure_ties, tournament_structure || 'swiss', conventionId);
         res.status(201).json({ success: true, event_type: eventType });
     }
     catch (err) {
@@ -85,10 +86,11 @@ router.post('/types/:id/duplicate', async (req, res, next) => {
     }
 });
 // GET /api/events/types - List all event types
-router.get('/types', async (_req, res, next) => {
+router.get('/types', async (req, res, next) => {
+    const conventionId = req.conventionId;
     try {
-        const types = await eventService.getAllEventTypes();
-        res.json({ success: true, event_types: types });
+        const eventTypes = await eventService.getAllEventTypes(conventionId);
+        res.json({ success: true, event_types: eventTypes });
     }
     catch (err) {
         next(err);
@@ -99,10 +101,11 @@ router.get('/types', async (_req, res, next) => {
 router.post('/', async (req, res, next) => {
     try {
         const { name, event_type_id } = req.body;
+        const conventionId = req.conventionId;
         if (!name || !event_type_id) {
             return res.status(400).json({ error: 'name and event_type_id are required' });
         }
-        const event = await eventService.createEvent(name, event_type_id);
+        const event = await eventService.createEvent(name, event_type_id, conventionId);
         res.status(201).json({ success: true, event });
     }
     catch (err) {
@@ -113,7 +116,8 @@ router.post('/', async (req, res, next) => {
 router.get('/', async (req, res, next) => {
     try {
         const status = req.query.status;
-        const events = await eventService.getAllEvents(status);
+        const conventionId = req.conventionId;
+        const events = await eventService.getAllEvents(status, conventionId);
         res.json({ success: true, events });
     }
     catch (err) {

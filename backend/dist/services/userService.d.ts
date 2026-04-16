@@ -11,10 +11,11 @@ export interface User {
     admin_permissions: string[];
     is_preregistered: boolean;
     days_playing: number;
+    convention_id: number | null;
     created_at: Date;
     updated_at: Date;
 }
-export declare function createUser(name: string, nfcUid?: string, email?: string, isAdmin?: boolean, conventionId?: number): Promise<User>;
+export declare function createUser(name: string, nfcUid?: string, email?: string, isAdmin?: boolean, conventionId?: number, attendanceDates?: Date[]): Promise<User>;
 export declare function getUserByNfcUid(nfcUid: string, conventionId?: number): Promise<User | null>;
 export declare function getUserByQrCode(qrCode: string, conventionId?: number): Promise<User | null>;
 export declare function getUserById(id: number): Promise<User | null>;
@@ -34,6 +35,7 @@ export declare function getUserWithBalances(userId: number): Promise<{
     admin_permissions: string[];
     is_preregistered: boolean;
     days_playing: number;
+    convention_id: number | null;
     created_at: Date;
     updated_at: Date;
 } | null>;
@@ -52,6 +54,7 @@ export declare function getUserByNfcUidWithBalances(nfcUid: string): Promise<{
     admin_permissions: string[];
     is_preregistered: boolean;
     days_playing: number;
+    convention_id: number | null;
     created_at: Date;
     updated_at: Date;
 } | null>;

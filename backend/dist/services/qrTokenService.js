@@ -15,32 +15,46 @@ exports.calculateRiskScore = calculateRiskScore;
 const crypto_1 = __importDefault(require("crypto"));
 const qrcode_1 = __importDefault(require("qrcode"));
 const db_1 = require("../config/db");
-// Secret key for signing QR tokens (should be in environment variables in production)
-const SECRET_KEY = process.env.QR_SECRET_KEY || 'change-this-secret-key-in-production';
+const adminSettingsService_1 = require("./adminSettingsService");
+// Secret key for signing QR tokens (retrieved from database or environment variable)
+let cachedSecretKey = null;
+let secretKeyCacheTime = 0;
+const SECRET_KEY_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+async function getSecretKey() {
+    const now = Date.now();
+    if (cachedSecretKey && now - secretKeyCacheTime < SECRET_KEY_CACHE_TTL) {
+        return cachedSecretKey;
+    }
+    cachedSecretKey = await (0, adminSettingsService_1.getQRSecretKey)();
+    secretKeyCacheTime = now;
+    return cachedSecretKey;
+}
 // Generate a signed QR token
-function generateQRToken(userId, expiresInHours = 24) {
+async function generateQRToken(userId, expiresInHours = 24) {
     const payload = {
         user_id: userId,
         exp: Date.now() + (expiresInHours * 60 * 60 * 1000), // Convert hours to milliseconds
         nonce: crypto_1.default.randomBytes(8).toString('hex'),
     };
     const payloadBase64 = Buffer.from(JSON.stringify(payload)).toString('base64');
+    const secretKey = await getSecretKey();
     const signature = crypto_1.default
-        .createHmac('sha256', SECRET_KEY)
+        .createHmac('sha256', secretKey)
         .update(payloadBase64)
         .digest('hex');
     return `${payloadBase64}.${signature}`;
 }
 // Verify and decode a QR token
-function verifyQRToken(token) {
+async function verifyQRToken(token) {
     const parts = token.split('.');
     if (parts.length !== 2) {
         throw new Error('Invalid token format');
     }
     const [payloadBase64, signature] = parts;
     // Verify signature
+    const secretKey = await getSecretKey();
     const expectedSig = crypto_1.default
-        .createHmac('sha256', SECRET_KEY)
+        .createHmac('sha256', secretKey)
         .update(payloadBase64)
         .digest('hex');
     if (signature !== expectedSig) {

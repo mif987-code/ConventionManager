@@ -20,6 +20,11 @@ const store_1 = __importDefault(require("./routes/store"));
 const stats_1 = __importDefault(require("./routes/stats"));
 const permissions_1 = __importDefault(require("./routes/permissions"));
 const player_1 = __importDefault(require("./routes/player"));
+const conventions_1 = __importDefault(require("./routes/conventions"));
+const sets_1 = __importDefault(require("./routes/sets"));
+const cards_1 = __importDefault(require("./routes/cards"));
+const adminSettings_1 = __importDefault(require("./routes/adminSettings"));
+const attendance_1 = __importDefault(require("./routes/attendance"));
 dotenv_1.default.config();
 const app = (0, express_1.default)();
 const PORT = parseInt(process.env.PORT || '3000');
@@ -29,8 +34,11 @@ app.use(express_1.default.json());
 // Public routes (no API key required)
 app.use('/public', publicRegistration_1.default);
 app.use('/player', player_1.default);
+app.use('/api/sets', sets_1.default); // Sets lookup (public, no auth needed)
+app.use('/api/cards', cards_1.default); // Cards lookup (public, no auth needed)
 // API Key auth on all /api routes
 app.use('/api', auth_1.apiKeyAuth);
+app.use('/api', auth_1.conventionMiddleware);
 // Routes
 app.use('/api/users', users_1.default);
 app.use('/api/vouchers', vouchers_1.default);
@@ -41,6 +49,9 @@ app.use('/api/prize-templates', prizeTemplates_1.default);
 app.use('/api/store', store_1.default);
 app.use('/api/stats', stats_1.default);
 app.use('/api/permissions', permissions_1.default);
+app.use('/api/conventions', conventions_1.default);
+app.use('/api/admin/settings', adminSettings_1.default);
+app.use('/api/attendance', attendance_1.default);
 // Serve registration site static files
 app.use('/register', express_1.default.static(path_1.default.join(__dirname, '../../registration-site')));
 // Serve NFC registration PWA

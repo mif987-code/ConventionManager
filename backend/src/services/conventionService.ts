@@ -4,6 +4,8 @@ export interface Convention {
   id: number;
   name: string;
   status: 'active' | 'ended';
+  start_date?: Date;
+  end_date?: Date;
   created_at: Date;
   ended_at: Date | null;
   scan_mode?: 'nfc' | 'qr';
@@ -33,10 +35,10 @@ export async function listConventions(): Promise<{ conventions: Convention[] }> 
 }
 
 // Create a new convention
-export async function createConvention(name: string): Promise<Convention> {
+export async function createConvention(name: string, startDate?: Date, endDate?: Date): Promise<Convention> {
   const result = await pool.query(
-    'INSERT INTO conventions (name, status) VALUES ($1, $2) RETURNING *',
-    [name, 'active']
+    'INSERT INTO conventions (name, status, start_date, end_date) VALUES ($1, $2, $3, $4) RETURNING *',
+    [name, 'active', startDate || null, endDate || null]
   );
   return result.rows[0];
 }
@@ -44,14 +46,14 @@ export async function createConvention(name: string): Promise<Convention> {
 // Get convention by ID
 export async function getConvention(id: number): Promise<Convention | null> {
   const result = await pool.query(
-    'SELECT id, name, status, created_at, ended_at, scan_mode FROM conventions WHERE id = $1',
+    'SELECT id, name, status, start_date, end_date, created_at, ended_at, scan_mode FROM conventions WHERE id = $1',
     [id]
   );
   return result.rows[0] || null;
 }
 
 // Update convention
-export async function updateConvention(id: number, fields: Partial<{ name: string; scan_mode: string }>): Promise<Convention | null> {
+export async function updateConvention(id: number, fields: Partial<{ name: string; scan_mode: string; start_date: Date; end_date: Date }>): Promise<Convention | null> {
   const updates: string[] = [];
   const values: any[] = [];
   let paramIndex = 1;
@@ -63,6 +65,14 @@ export async function updateConvention(id: number, fields: Partial<{ name: strin
   if (fields.scan_mode !== undefined) {
     updates.push(`scan_mode = $${paramIndex++}`);
     values.push(fields.scan_mode);
+  }
+  if (fields.start_date !== undefined) {
+    updates.push(`start_date = $${paramIndex++}`);
+    values.push(fields.start_date);
+  }
+  if (fields.end_date !== undefined) {
+    updates.push(`end_date = $${paramIndex++}`);
+    values.push(fields.end_date);
   }
 
   if (updates.length === 0) return await getConvention(id);

@@ -14,9 +14,22 @@ exports.getUserOrders = getUserOrders;
 const db_1 = require("../config/db");
 const transactionService_1 = require("./transactionService");
 // --- Items CRUD ---
-async function createItem(name, description, priceTix, stock, imageUrl) {
-    const result = await db_1.pool.query(`INSERT INTO store_items (name, description, price_tix, stock, image_url)
-     VALUES ($1, $2, $3, $4, $5) RETURNING *`, [name, description, priceTix, stock, imageUrl]);
+async function createItem(name, description, priceTix, stock, imageUrl, mtgFields, conventionId) {
+    const result = await db_1.pool.query(`INSERT INTO store_items (name, description, price_tix, stock, image_url, set_name, card_number, language, condition, foil, cost, convention_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`, [
+        name,
+        description,
+        priceTix,
+        stock,
+        imageUrl,
+        mtgFields?.set_name || null,
+        mtgFields?.card_number || null,
+        mtgFields?.language || 'English',
+        mtgFields?.condition || 'NM',
+        mtgFields?.foil || false,
+        mtgFields?.cost || 0,
+        conventionId || null,
+    ]);
     return result.rows[0];
 }
 async function updateItem(id, fields) {
@@ -30,6 +43,30 @@ async function updateItem(id, fields) {
     if (fields.description !== undefined) {
         sets.push(`description = $${idx++}`);
         params.push(fields.description);
+    }
+    if (fields.set_name !== undefined) {
+        sets.push(`set_name = $${idx++}`);
+        params.push(fields.set_name);
+    }
+    if (fields.card_number !== undefined) {
+        sets.push(`card_number = $${idx++}`);
+        params.push(fields.card_number);
+    }
+    if (fields.language !== undefined) {
+        sets.push(`language = $${idx++}`);
+        params.push(fields.language);
+    }
+    if (fields.condition !== undefined) {
+        sets.push(`condition = $${idx++}`);
+        params.push(fields.condition);
+    }
+    if (fields.foil !== undefined) {
+        sets.push(`foil = $${idx++}`);
+        params.push(fields.foil);
+    }
+    if (fields.cost !== undefined) {
+        sets.push(`cost = $${idx++}`);
+        params.push(fields.cost);
     }
     if (fields.price_tix !== undefined) {
         sets.push(`price_tix = $${idx++}`);
@@ -65,11 +102,21 @@ async function getItemById(id) {
     const result = await db_1.pool.query(`SELECT * FROM store_items WHERE id = $1`, [id]);
     return result.rows[0] || null;
 }
-async function getAllItems(activeOnly = false) {
-    const query = activeOnly
-        ? `SELECT * FROM store_items WHERE active = TRUE ORDER BY name`
-        : `SELECT * FROM store_items ORDER BY name`;
-    const result = await db_1.pool.query(query);
+async function getAllItems(activeOnly = false, conventionId) {
+    let query = `SELECT * FROM store_items`;
+    const params = [];
+    const conditions = [];
+    if (activeOnly)
+        conditions.push('active = TRUE');
+    if (conventionId)
+        conditions.push('convention_id = $' + (conditions.length + 1));
+    if (conditions.length > 0) {
+        query += ' WHERE ' + conditions.join(' AND ');
+        if (conventionId)
+            params.push(conventionId);
+    }
+    query += ' ORDER BY name';
+    const result = await db_1.pool.query(query, params);
     return result.rows;
 }
 // --- Orders ---

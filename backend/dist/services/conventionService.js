@@ -15,13 +15,13 @@ async function listConventions() {
     return { conventions: result.rows };
 }
 // Create a new convention
-async function createConvention(name) {
-    const result = await db_1.pool.query('INSERT INTO conventions (name, status) VALUES ($1, $2) RETURNING *', [name, 'active']);
+async function createConvention(name, startDate, endDate) {
+    const result = await db_1.pool.query('INSERT INTO conventions (name, status, start_date, end_date) VALUES ($1, $2, $3, $4) RETURNING *', [name, 'active', startDate || null, endDate || null]);
     return result.rows[0];
 }
 // Get convention by ID
 async function getConvention(id) {
-    const result = await db_1.pool.query('SELECT id, name, status, created_at, ended_at, scan_mode FROM conventions WHERE id = $1', [id]);
+    const result = await db_1.pool.query('SELECT id, name, status, start_date, end_date, created_at, ended_at, scan_mode FROM conventions WHERE id = $1', [id]);
     return result.rows[0] || null;
 }
 // Update convention
@@ -36,6 +36,14 @@ async function updateConvention(id, fields) {
     if (fields.scan_mode !== undefined) {
         updates.push(`scan_mode = $${paramIndex++}`);
         values.push(fields.scan_mode);
+    }
+    if (fields.start_date !== undefined) {
+        updates.push(`start_date = $${paramIndex++}`);
+        values.push(fields.start_date);
+    }
+    if (fields.end_date !== undefined) {
+        updates.push(`end_date = $${paramIndex++}`);
+        values.push(fields.end_date);
     }
     if (updates.length === 0)
         return await getConvention(id);

@@ -7,6 +7,7 @@ const router = (0, express_1.Router)();
 router.post('/topup', async (req, res, next) => {
     try {
         const { user_id, amount } = req.body;
+        const conventionId = req.conventionId;
         if (!user_id || !amount || amount <= 0) {
             return res.status(400).json({ error: 'user_id and positive amount are required' });
         }
@@ -17,8 +18,9 @@ router.post('/topup', async (req, res, next) => {
             amount: amount,
             reason: 'topup',
             createdBy: 'admin',
+            conventionId,
         });
-        const newBalance = await (0, transactionService_1.getBalance)(user_id, 'voucher');
+        const newBalance = await (0, transactionService_1.getBalance)(user_id, 'voucher', undefined, conventionId);
         res.json({ success: true, new_balance: newBalance });
     }
     catch (err) {
@@ -29,6 +31,7 @@ router.post('/topup', async (req, res, next) => {
 router.post('/adjust', async (req, res, next) => {
     try {
         const { user_id, amount, reason } = req.body;
+        const conventionId = req.conventionId;
         if (!user_id || amount === undefined) {
             return res.status(400).json({ error: 'user_id and amount are required' });
         }
@@ -38,8 +41,9 @@ router.post('/adjust', async (req, res, next) => {
             amount: amount,
             reason: 'admin_adjust',
             createdBy: 'admin',
+            conventionId,
         });
-        const newBalance = await (0, transactionService_1.getBalance)(user_id, 'voucher');
+        const newBalance = await (0, transactionService_1.getBalance)(user_id, 'voucher', undefined, conventionId);
         res.json({ success: true, new_balance: newBalance });
     }
     catch (err) {
@@ -50,7 +54,8 @@ router.post('/adjust', async (req, res, next) => {
 router.get('/balance/:userId', async (req, res, next) => {
     try {
         const userId = parseInt(req.params.userId);
-        const balance = await (0, transactionService_1.getBalance)(userId, 'voucher');
+        const conventionId = req.conventionId;
+        const balance = await (0, transactionService_1.getBalance)(userId, 'voucher', undefined, conventionId);
         res.json({ success: true, user_id: userId, balance });
     }
     catch (err) {

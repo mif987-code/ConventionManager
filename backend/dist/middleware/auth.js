@@ -1,8 +1,22 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.conventionMiddleware = conventionMiddleware;
 exports.apiKeyAuth = apiKeyAuth;
 exports.adminOnly = adminOnly;
 exports.errorHandler = errorHandler;
+// Convention ID middleware - extracts convention_id from header and attaches to request
+function conventionMiddleware(req, res, next) {
+    const conventionId = req.headers['x-convention-id'];
+    console.log('[Convention Middleware] Received x-convention-id header:', conventionId);
+    if (conventionId) {
+        req.conventionId = parseInt(conventionId);
+        console.log('[Convention Middleware] Parsed convention_id:', req.conventionId);
+    }
+    else {
+        console.log('[Convention Middleware] No convention_id in request');
+    }
+    next();
+}
 // API Key authentication middleware
 function apiKeyAuth(req, res, next) {
     const apiKey = req.headers['x-api-key'];

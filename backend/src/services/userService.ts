@@ -2,6 +2,7 @@ import { pool } from '../config/db';
 import { getBalance } from './transactionService';
 import QRCode from 'qrcode';
 import { generateQRToken, generateQRImage, storeIssuedToken } from './qrTokenService';
+import { setUserAttendance } from './attendanceService';
 
 export interface User {
   id: number;
@@ -16,11 +17,12 @@ export interface User {
   admin_permissions: string[];
   is_preregistered: boolean;
   days_playing: number;
+  convention_id: number | null;
   created_at: Date;
   updated_at: Date;
 }
 
-export async function createUser(name: string, nfcUid?: string, email?: string, isAdmin: boolean = false, conventionId?: number): Promise<User> {
+export async function createUser(name: string, nfcUid?: string, email?: string, isAdmin: boolean = false, conventionId?: number, attendanceDates?: Date[]): Promise<User> {
   const result = await pool.query(
     `INSERT INTO users (name, nfc_uid, email, is_admin, convention_id)
      VALUES ($1, $2, $3, $4, $5)
@@ -30,8 +32,13 @@ export async function createUser(name: string, nfcUid?: string, email?: string, 
 
   const user = result.rows[0];
 
+  // Set attendance dates if provided and convention is set
+  if (attendanceDates && attendanceDates.length > 0 && conventionId) {
+    await setUserAttendance(user.id, conventionId, attendanceDates);
+  }
+
   // Generate secure QR token
-  const token = generateQRToken(user.id, 24); // 24 hour expiration
+  const token = await generateQRToken(user.id, 24); // 24 hour expiration
   const expiresAt = new Date(Date.now() + (24 * 60 * 60 * 1000));
 
   // Store the token in qr_tokens table
@@ -168,7 +175,7 @@ export async function regenerateQRCode(userId: number): Promise<User> {
   }
 
   // Generate new secure QR token
-  const token = generateQRToken(userId, 24); // 24 hour expiration
+  const token = await generateQRToken(userId, 24); // 24 hour expiration
   const expiresAt = new Date(Date.now() + (24 * 60 * 60 * 1000));
 
   // Store the token in qr_tokens table

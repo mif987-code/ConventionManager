@@ -3,8 +3,8 @@ export interface QRTokenPayload {
     exp: number;
     nonce: string;
 }
-export declare function generateQRToken(userId: number, expiresInHours?: number): string;
-export declare function verifyQRToken(token: string): QRTokenPayload;
+export declare function generateQRToken(userId: number, expiresInHours?: number): Promise<string>;
+export declare function verifyQRToken(token: string): Promise<QRTokenPayload>;
 export declare function generateQRImage(token: string): Promise<string>;
 export declare function storeIssuedToken(userId: number, token: string, expiresAt: Date): Promise<void>;
 export declare function isTokenUsed(token: string): Promise<boolean>;

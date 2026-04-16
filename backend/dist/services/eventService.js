@@ -23,10 +23,10 @@ exports.cancelEvent = cancelEvent;
 const db_1 = require("../config/db");
 const transactionService_1 = require("./transactionService");
 // --- Event Types ---
-async function createEventType(name, category, format, entryCostVouchers, maxPlayers, prizeStructure, prizeStructureTies, tournamentStructure = 'swiss') {
-    const result = await db_1.pool.query(`INSERT INTO event_types (name, category, format, entry_cost_vouchers, max_players, prize_structure, prize_structure_ties, tournament_structure)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-     RETURNING *`, [name, category, format, entryCostVouchers, maxPlayers, JSON.stringify(prizeStructure), JSON.stringify(prizeStructureTies || {}), tournamentStructure]);
+async function createEventType(name, category, format, entryCostVouchers, maxPlayers, prizeStructure, prizeStructureTies, tournamentStructure = 'swiss', conventionId) {
+    const result = await db_1.pool.query(`INSERT INTO event_types (name, category, format, entry_cost_vouchers, max_players, prize_structure, prize_structure_ties, tournament_structure, convention_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+     RETURNING *`, [name, category, format, entryCostVouchers, maxPlayers, JSON.stringify(prizeStructure), JSON.stringify(prizeStructureTies || {}), tournamentStructure, conventionId || null]);
     return result.rows[0];
 }
 async function updateEventType(id, fields) {
@@ -72,8 +72,12 @@ async function updateEventType(id, fields) {
         throw new Error('Event type not found');
     return result.rows[0];
 }
-async function getAllEventTypes() {
-    const result = await db_1.pool.query(`SELECT * FROM event_types ORDER BY category, name`);
+async function getAllEventTypes(conventionId) {
+    const query = conventionId
+        ? `SELECT * FROM event_types WHERE convention_id = $1 ORDER BY category, name`
+        : `SELECT * FROM event_types ORDER BY category, name`;
+    const params = conventionId ? [conventionId] : [];
+    const result = await db_1.pool.query(query, params);
     return result.rows;
 }
 async function getEventTypeById(id) {
@@ -92,13 +96,13 @@ async function duplicateEventType(id) {
     return createEventType(`${original.name} (Copy)`, original.category, original.format, original.entry_cost_vouchers, original.max_players, original.prize_structure, original.prize_structure_ties, original.tournament_structure);
 }
 // --- Events ---
-async function createEvent(name, eventTypeId) {
+async function createEvent(name, eventTypeId, conventionId) {
     const eventType = await getEventTypeById(eventTypeId);
     if (!eventType)
         throw new Error('Event type not found');
-    const result = await db_1.pool.query(`INSERT INTO events (name, event_type_id)
-     VALUES ($1, $2)
-     RETURNING *`, [name, eventTypeId]);
+    const result = await db_1.pool.query(`INSERT INTO events (name, event_type_id, convention_id)
+     VALUES ($1, $2, $3)
+     RETURNING *`, [name, eventTypeId, conventionId || null]);
     return result.rows[0];
 }
 async function getEventById(id) {
@@ -110,16 +114,24 @@ async function getEventById(id) {
      WHERE e.id = $1`, [id]);
     return result.rows[0] || null;
 }
-async function getAllEvents(status) {
+async function getAllEvents(status, conventionId) {
     let query = `SELECT e.*, et.name AS event_type_name, et.entry_cost_vouchers, et.max_players,
                et.tournament_structure,
                (SELECT COUNT(*) FROM event_participants ep WHERE ep.event_id = e.id)::int AS participant_count
                FROM events e
                JOIN event_types et ON e.event_type_id = et.id`;
     const params = [];
-    if (status) {
-        query += ` WHERE e.status = $1`;
-        params.push(status);
+    const conditions = [];
+    if (status)
+        conditions.push(`e.status = $${conditions.length + 1}`);
+    if (conventionId)
+        conditions.push(`e.convention_id = $${conditions.length + 1}`);
+    if (conditions.length > 0) {
+        query += ` WHERE ` + conditions.join(' AND ');
+        if (status)
+            params.push(status);
+        if (conventionId)
+            params.push(conventionId);
     }
     query += ` ORDER BY e.created_at DESC`;
     const result = await db_1.pool.query(query, params);
