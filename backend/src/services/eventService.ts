@@ -211,8 +211,8 @@ export async function registerToEvent(userId: number, eventId: number, createdBy
     );
     if (countRes.rows[0].count >= event.max_players) throw new Error('Event is full');
 
-    // 4. Check voucher balance
-    const balance = await getBalance(userId, 'voucher', client);
+    // 4. Check voucher balance (scoped to convention)
+    const balance = await getBalance(userId, 'voucher', client, event.convention_id);
     if (balance < event.entry_cost_vouchers) {
       throw new Error(`Not enough vouchers. Need ${event.entry_cost_vouchers}, have ${balance}`);
     }
@@ -226,6 +226,7 @@ export async function registerToEvent(userId: number, eventId: number, createdBy
       eventId,
       createdBy,
       client,
+      conventionId: event.convention_id,
     });
 
     // 6. Add participant
@@ -740,6 +741,7 @@ export async function finishEvent(eventId: number, createdBy: string = 'system')
             eventId,
             createdBy,
             client,
+            conventionId: event.convention_id,
           });
         }
         prizes.push({ userId: sorted[i].user_id, record: key, amount: reward });
@@ -762,6 +764,7 @@ export async function finishEvent(eventId: number, createdBy: string = 'system')
             eventId,
             createdBy,
             client,
+            conventionId: event.convention_id,
           });
           prizes.push({ userId: p.user_id, record: recordWithTies, amount: reward });
         }
@@ -818,6 +821,7 @@ export async function cancelEvent(eventId: number, createdBy: string = 'system')
         eventId,
         createdBy,
         client,
+        conventionId: event.convention_id,
       });
     }
 

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Play, Trophy, XCircle, UserPlus, ChevronRight, Wifi, Search, Check, X, Loader2 } from 'lucide-react';
-import { events, users } from '../api';
+import { ArrowLeft, Play, Trophy, XCircle, UserPlus, ChevronRight, Wifi, Search, Check, X, Loader2, QrCode, ScanLine } from 'lucide-react';
+import { events, users, conventions } from '../api';
 
 const STATUS_COLORS: Record<string, string> = {
   open: 'bg-green-100 text-green-700',
@@ -31,6 +31,9 @@ export default function EventDetailPage() {
   const [nfcListening, setNfcListening] = useState(false);
   const [nfcStatus, setNfcStatus] = useState('');
   const [registering, setRegistering] = useState(false);
+  const [convention, setConvention] = useState<any>(null);
+  const [scanMode, setScanMode] = useState<'nfc' | 'qr'>('nfc');
+  const [qrInput, setQrInput] = useState('');
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [matchOutcomes, setMatchOutcomes] = useState<Record<number, 'p1' | 'p2' | 'draw'>>({});
@@ -51,7 +54,22 @@ export default function EventDetailPage() {
     }
   }
 
-  useEffect(() => { loadEvent(); }, [id]);
+  async function loadConvention() {
+    try {
+      const conventionId = localStorage.getItem('cm_convention_id');
+      if (conventionId) {
+        const res = await conventions.get(parseInt(conventionId));
+        setConvention(res.convention);
+        if (res.convention?.scan_mode) {
+          setScanMode(res.convention.scan_mode);
+        }
+      }
+    } catch (err: any) {
+      console.error('Failed to load convention:', err);
+    }
+  }
+
+  useEffect(() => { loadEvent(); loadConvention(); }, [id]);
 
   const doSearch = useCallback(async (query: string) => {
     if (query.trim().length < 1) { setSearchResults([]); return; }
@@ -134,6 +152,37 @@ export default function EventDetailPage() {
   function stopNfcScan() {
     setNfcListening(false);
     setNfcStatus('');
+  }
+
+  async function handleQrScan() {
+    if (!qrInput.trim()) return;
+    setNfcStatus(`Scanning QR code...`);
+    try {
+      const res = await fetch('/api/scan/qr', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': localStorage.getItem('cm_api_key') || '',
+        },
+        body: JSON.stringify({ qr_code: qrInput.trim() }),
+      });
+      const data = await res.json();
+      if (data.found) {
+        setNfcStatus(`Found: ${data.user.name} — registering...`);
+        try {
+          await events.register(parseInt(id!), data.user.id);
+          setNfcStatus(`Registered via QR! (${data.user.name})`);
+          setQrInput('');
+          loadEvent();
+        } catch (err: any) {
+          setNfcStatus(`Error: ${err.message}`);
+        }
+      } else {
+        setNfcStatus(`Error: ${data.message}`);
+      }
+    } catch (err: any) {
+      setNfcStatus(`QR error: ${err.message}`);
+    }
   }
 
   async function handleStart() {
@@ -459,23 +508,61 @@ export default function EventDetailPage() {
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="font-semibold text-gray-800">Add Player to Event</h2>
-                {/* NFC Scan Button */}
-                {nfcListening ? (
+                {/* Scan Mode Toggle */}
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setScanMode('nfc')}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition ${
+                      scanMode === 'nfc' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    <ScanLine size={16} /> NFC
+                  </button>
+                  <button
+                    onClick={() => setScanMode('qr')}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition ${
+                      scanMode === 'qr' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    <QrCode size={16} /> QR
+                  </button>
+                </div>
+              </div>
+
+              {/* NFC/QR Scan Button */}
+              {scanMode === 'nfc' ? (
+                nfcListening ? (
                   <button onClick={stopNfcScan}
-                    className="flex items-center gap-2 bg-red-100 text-red-700 px-4 py-2 rounded-lg hover:bg-red-200 transition text-sm font-medium animate-pulse">
+                    className="flex items-center gap-2 bg-red-100 text-red-700 px-4 py-2 rounded-lg hover:bg-red-200 transition text-sm font-medium animate-pulse mb-4">
                     <Wifi size={16} /> Stop NFC Scan
                   </button>
                 ) : (
                   <button onClick={handleNfcScan}
-                    className="flex items-center gap-2 bg-emerald-100 text-emerald-700 px-4 py-2 rounded-lg hover:bg-emerald-200 transition text-sm font-medium">
+                    className="flex items-center gap-2 bg-emerald-100 text-emerald-700 px-4 py-2 rounded-lg hover:bg-emerald-200 transition text-sm font-medium mb-4">
                     <Wifi size={16} /> Scan NFC Tag
                   </button>
-                )}
-              </div>
+                )
+              ) : (
+                <div className="mb-4">
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={qrInput}
+                      onChange={(e) => setQrInput(e.target.value)}
+                      placeholder="Enter QR code or scan..."
+                      className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                    />
+                    <button onClick={handleQrScan}
+                      className="flex items-center gap-2 bg-emerald-100 text-emerald-700 px-4 py-2 rounded-lg hover:bg-emerald-200 transition text-sm font-medium">
+                      <QrCode size={16} /> Scan QR
+                    </button>
+                  </div>
+                </div>
+              )}
 
-              {/* NFC Status */}
+              {/* NFC/QR Status */}
               {nfcStatus && (
-                <div className={`text-sm px-3 py-2 rounded-lg mb-4 ${nfcStatus.startsWith('Error') || nfcStatus.startsWith('NFC error') || nfcStatus.startsWith('Web NFC')
+                <div className={`text-sm px-3 py-2 rounded-lg mb-4 ${nfcStatus.startsWith('Error') || nfcStatus.startsWith('NFC error') || nfcStatus.startsWith('Web NFC') || nfcStatus.startsWith('QR error')
                   ? 'bg-red-50 text-red-700' : nfcStatus.includes('Registered') ? 'bg-green-50 text-green-700' : 'bg-blue-50 text-blue-700'}`}>
                   {nfcStatus}
                   <button onClick={() => setNfcStatus('')} className="ml-2 font-bold">&times;</button>

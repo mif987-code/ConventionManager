@@ -7,7 +7,8 @@ const router = Router();
 router.get('/balance/:userId', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = parseInt(req.params.userId);
-    const balance = await getBalance(userId, 'tix');
+    const conventionId = (req as any).conventionId;
+    const balance = await getBalance(userId, 'tix', undefined, conventionId);
     res.json({ success: true, user_id: userId, balance });
   } catch (err) {
     next(err);
@@ -32,6 +33,7 @@ router.get('/history/:userId', async (req: Request, res: Response, next: NextFun
 router.post('/adjust', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { user_id, amount } = req.body;
+    const conventionId = (req as any).conventionId;
 
     if (!user_id || amount === undefined) {
       return res.status(400).json({ error: 'user_id and amount are required' });
@@ -43,9 +45,10 @@ router.post('/adjust', async (req: Request, res: Response, next: NextFunction) =
       amount: amount,
       reason: 'admin_adjust',
       createdBy: 'admin',
+      conventionId,
     });
 
-    const newBalance = await getBalance(user_id, 'tix');
+    const newBalance = await getBalance(user_id, 'tix', undefined, conventionId);
     res.json({ success: true, new_balance: newBalance });
   } catch (err) {
     next(err);
