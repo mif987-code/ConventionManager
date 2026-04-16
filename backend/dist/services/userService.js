@@ -13,13 +13,18 @@ exports.regenerateQRCode = regenerateQRCode;
 const db_1 = require("../config/db");
 const transactionService_1 = require("./transactionService");
 const qrTokenService_1 = require("./qrTokenService");
-async function createUser(name, nfcUid, email, isAdmin = false, conventionId) {
+const attendanceService_1 = require("./attendanceService");
+async function createUser(name, nfcUid, email, isAdmin = false, conventionId, attendanceDates) {
     const result = await db_1.pool.query(`INSERT INTO users (name, nfc_uid, email, is_admin, convention_id)
      VALUES ($1, $2, $3, $4, $5)
      RETURNING *`, [name, nfcUid || null, email || null, isAdmin, conventionId || null]);
     const user = result.rows[0];
+    // Set attendance dates if provided and convention is set
+    if (attendanceDates && attendanceDates.length > 0 && conventionId) {
+        await (0, attendanceService_1.setUserAttendance)(user.id, conventionId, attendanceDates);
+    }
     // Generate secure QR token
-    const token = (0, qrTokenService_1.generateQRToken)(user.id, 24); // 24 hour expiration
+    const token = await (0, qrTokenService_1.generateQRToken)(user.id, 24); // 24 hour expiration
     const expiresAt = new Date(Date.now() + (24 * 60 * 60 * 1000));
     // Store the token in qr_tokens table
     await (0, qrTokenService_1.storeIssuedToken)(user.id, token, expiresAt);
@@ -124,7 +129,7 @@ async function regenerateQRCode(userId) {
         throw new Error('User not found');
     }
     // Generate new secure QR token
-    const token = (0, qrTokenService_1.generateQRToken)(userId, 24); // 24 hour expiration
+    const token = await (0, qrTokenService_1.generateQRToken)(userId, 24); // 24 hour expiration
     const expiresAt = new Date(Date.now() + (24 * 60 * 60 * 1000));
     // Store the token in qr_tokens table
     await (0, qrTokenService_1.storeIssuedToken)(userId, token, expiresAt);

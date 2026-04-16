@@ -39,7 +39,7 @@ const router = (0, express_1.Router)();
 // POST /api/users/register - Register a new user (NFC optional)
 router.post('/register', async (req, res, next) => {
     try {
-        const { name, nfc_uid, email, is_admin } = req.body;
+        const { name, nfc_uid, email, is_admin, attendance_dates } = req.body;
         const conventionId = req.conventionId;
         if (!name) {
             return res.status(400).json({ error: 'name is required' });
@@ -50,7 +50,9 @@ router.post('/register', async (req, res, next) => {
                 return res.status(409).json({ error: 'NFC tag already registered' });
             }
         }
-        const user = await userService.createUser(name, nfc_uid, email, is_admin, conventionId);
+        // Convert attendance dates strings to Date objects
+        const dates = attendance_dates ? attendance_dates.map((d) => new Date(d)) : undefined;
+        const user = await userService.createUser(name, nfc_uid, email, is_admin, conventionId, dates);
         res.status(201).json({ success: true, user });
     }
     catch (err) {

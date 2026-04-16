@@ -2,6 +2,12 @@ export interface StoreItem {
     id: number;
     name: string;
     description: string | null;
+    set_name: string | null;
+    card_number: string | null;
+    language: string | null;
+    condition: string | null;
+    foil: boolean;
+    cost: number;
     price_tix: number;
     stock: number;
     image_url: string | null;
@@ -21,11 +27,18 @@ export interface StoreOrder {
     created_at: Date;
     updated_at: Date;
 }
-export declare function createItem(name: string, description: string | null, priceTix: number, stock: number, imageUrl: string | null): Promise<StoreItem>;
+export declare function createItem(name: string, description: string | null, priceTix: number, stock: number, imageUrl: string | null, mtgFields?: {
+    set_name?: string;
+    card_number?: string;
+    language?: string;
+    condition?: string;
+    foil?: boolean;
+    cost?: number;
+}, conventionId?: number): Promise<StoreItem>;
 export declare function updateItem(id: number, fields: Partial<StoreItem>): Promise<StoreItem>;
 export declare function deleteItem(id: number): Promise<void>;
 export declare function getItemById(id: number): Promise<StoreItem | null>;
-export declare function getAllItems(activeOnly?: boolean): Promise<StoreItem[]>;
+export declare function getAllItems(activeOnly?: boolean, conventionId?: number): Promise<StoreItem[]>;
 export declare function purchaseItem(userId: number, itemId: number, quantity?: number): Promise<{
     success: boolean;
     order: any;

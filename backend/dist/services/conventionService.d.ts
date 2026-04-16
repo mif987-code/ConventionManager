@@ -2,6 +2,8 @@ export interface Convention {
     id: number;
     name: string;
     status: 'active' | 'ended';
+    start_date?: Date;
+    end_date?: Date;
     created_at: Date;
     ended_at: Date | null;
     scan_mode?: 'nfc' | 'qr';
@@ -39,11 +41,13 @@ export interface ConventionStats {
 export declare function listConventions(): Promise<{
     conventions: Convention[];
 }>;
-export declare function createConvention(name: string): Promise<Convention>;
+export declare function createConvention(name: string, startDate?: Date, endDate?: Date): Promise<Convention>;
 export declare function getConvention(id: number): Promise<Convention | null>;
 export declare function updateConvention(id: number, fields: Partial<{
     name: string;
     scan_mode: string;
+    start_date: Date;
+    end_date: Date;
 }>): Promise<Convention | null>;
 export declare function endConvention(id: number): Promise<Convention>;
 export declare function getConventionStats(id: number): Promise<ConventionStats>;

@@ -6,19 +6,25 @@ exports.getTransactionHistory = getTransactionHistory;
 const db_1 = require("../config/db");
 // Core ledger function — all balance changes go through here
 async function addTransaction(params) {
-    const { userId, type, amount, reason, eventId, createdBy, client } = params;
+    const { userId, type, amount, reason, eventId, createdBy, client, conventionId } = params;
     const executor = client || db_1.pool;
-    const result = await executor.query(`INSERT INTO transactions (user_id, type, amount, reason, event_id, created_by)
-     VALUES ($1, $2, $3, $4, $5, $6)
-     RETURNING id`, [userId, type, amount, reason, eventId || null, createdBy]);
+    const result = await executor.query(`INSERT INTO transactions (user_id, type, amount, reason, event_id, created_by, convention_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
+     RETURNING id`, [userId, type, amount, reason, eventId || null, createdBy, conventionId || null]);
     return result.rows[0].id;
 }
 // Balance is ALWAYS computed from the ledger, never stored
-async function getBalance(userId, type, client) {
+async function getBalance(userId, type, client, conventionId) {
     const executor = client || db_1.pool;
-    const result = await executor.query(`SELECT COALESCE(SUM(amount), 0)::int AS balance
-     FROM transactions
-     WHERE user_id = $1 AND type = $2`, [userId, type]);
+    const query = conventionId
+        ? `SELECT COALESCE(SUM(amount), 0)::int AS balance
+       FROM transactions
+       WHERE user_id = $1 AND type = $2 AND convention_id = $3`
+        : `SELECT COALESCE(SUM(amount), 0)::int AS balance
+       FROM transactions
+       WHERE user_id = $1 AND type = $2`;
+    const params = conventionId ? [userId, type, conventionId] : [userId, type];
+    const result = await executor.query(query, params);
     return result.rows[0].balance;
 }
 async function getTransactionHistory(userId, type, limit = 50, offset = 0) {

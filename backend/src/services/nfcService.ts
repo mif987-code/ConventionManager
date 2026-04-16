@@ -1,6 +1,7 @@
 import { getUserByNfcUidWithBalances, getUserByQrCode, getUserWithBalances, getUserById } from './userService';
 import { getBalance } from './transactionService';
 import { verifyQRToken, isTokenUsed, markTokenAsUsed, checkRateLimit, calculateRiskScore } from './qrTokenService';
+import { isUserAttendingOnDate, getUserAttendance } from './attendanceService';
 
 // NFC scan handler — resolves an NFC UID to a user with balances
 export async function handleNfcScan(nfcUid: string) {
@@ -55,7 +56,7 @@ export async function handleQrTokenScan(token: string, deviceIdentifier?: string
     }
 
     // Verify token signature and decode payload
-    const payload = verifyQRToken(token);
+    const payload = await verifyQRToken(token);
 
     // Check if token has already been used (anti-replay protection)
     if (await isTokenUsed(token)) {
@@ -72,6 +73,32 @@ export async function handleQrTokenScan(token: string, deviceIdentifier?: string
         found: false,
         message: 'User not found',
       };
+    }
+
+    // Check if user is attending on the current date (if convention has dates set)
+    if (user.convention_id) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const isAttending = await isUserAttendingOnDate(user.id, user.convention_id, today);
+      
+      // If attendance is tracked and user is not attending today, reject
+      // We need to check if the convention has attendance tracking enabled
+      // For now, we'll allow the scan if attendance is not set (backward compatibility)
+      const attendanceDates = await getUserAttendance(user.id, user.convention_id);
+      if (attendanceDates.length > 0) {
+        const isAttendingToday = attendanceDates.some((date: Date) => {
+          const d = new Date(date);
+          d.setHours(0, 0, 0, 0);
+          return d.getTime() === today.getTime();
+        });
+        
+        if (!isAttendingToday) {
+          return {
+            found: false,
+            message: 'User is not registered to attend today. Please check attendance dates.',
+          };
+        }
+      }
     }
 
     // Get user balances

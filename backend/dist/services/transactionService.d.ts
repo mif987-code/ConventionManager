@@ -9,9 +9,10 @@ interface AddTransactionParams {
     eventId?: number | null;
     createdBy: string;
     client?: PoolClient;
+    conventionId?: number;
 }
 export declare function addTransaction(params: AddTransactionParams): Promise<number>;
-export declare function getBalance(userId: number, type: TransactionType, client?: PoolClient): Promise<number>;
+export declare function getBalance(userId: number, type: TransactionType, client?: PoolClient, conventionId?: number): Promise<number>;
 export declare function getTransactionHistory(userId: number, type?: TransactionType, limit?: number, offset?: number): Promise<any[]>;
 export {};
 //# sourceMappingURL=transactionService.d.ts.map

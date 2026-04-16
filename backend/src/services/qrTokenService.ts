@@ -1,9 +1,23 @@
 import crypto from 'crypto';
 import QRCode from 'qrcode';
 import { pool } from '../config/db';
+import { getQRSecretKey } from './adminSettingsService';
 
-// Secret key for signing QR tokens (should be in environment variables in production)
-const SECRET_KEY = process.env.QR_SECRET_KEY || 'change-this-secret-key-in-production';
+// Secret key for signing QR tokens (retrieved from database or environment variable)
+let cachedSecretKey: string | null = null;
+let secretKeyCacheTime = 0;
+const SECRET_KEY_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+async function getSecretKey(): Promise<string> {
+  const now = Date.now();
+  if (cachedSecretKey && now - secretKeyCacheTime < SECRET_KEY_CACHE_TTL) {
+    return cachedSecretKey;
+  }
+  
+  cachedSecretKey = await getQRSecretKey();
+  secretKeyCacheTime = now;
+  return cachedSecretKey;
+}
 
 export interface QRTokenPayload {
   user_id: number;
@@ -12,7 +26,7 @@ export interface QRTokenPayload {
 }
 
 // Generate a signed QR token
-export function generateQRToken(userId: number, expiresInHours: number = 24): string {
+export async function generateQRToken(userId: number, expiresInHours: number = 24): Promise<string> {
   const payload: QRTokenPayload = {
     user_id: userId,
     exp: Date.now() + (expiresInHours * 60 * 60 * 1000), // Convert hours to milliseconds
@@ -20,8 +34,9 @@ export function generateQRToken(userId: number, expiresInHours: number = 24): st
   };
 
   const payloadBase64 = Buffer.from(JSON.stringify(payload)).toString('base64');
+  const secretKey = await getSecretKey();
   const signature = crypto
-    .createHmac('sha256', SECRET_KEY)
+    .createHmac('sha256', secretKey)
     .update(payloadBase64)
     .digest('hex');
 
@@ -29,7 +44,7 @@ export function generateQRToken(userId: number, expiresInHours: number = 24): st
 }
 
 // Verify and decode a QR token
-export function verifyQRToken(token: string): QRTokenPayload {
+export async function verifyQRToken(token: string): Promise<QRTokenPayload> {
   const parts = token.split('.');
   if (parts.length !== 2) {
     throw new Error('Invalid token format');
@@ -38,8 +53,9 @@ export function verifyQRToken(token: string): QRTokenPayload {
   const [payloadBase64, signature] = parts;
 
   // Verify signature
+  const secretKey = await getSecretKey();
   const expectedSig = crypto
-    .createHmac('sha256', SECRET_KEY)
+    .createHmac('sha256', secretKey)
     .update(payloadBase64)
     .digest('hex');
 

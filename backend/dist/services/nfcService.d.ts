@@ -19,6 +19,7 @@ export declare function handleNfcScan(nfcUid: string): Promise<{
         admin_permissions: string[];
         is_preregistered: boolean;
         days_playing: number;
+        convention_id: number | null;
         created_at: Date;
         updated_at: Date;
     };
@@ -45,6 +46,7 @@ export declare function handleQrScan(qrCode: string): Promise<{
         admin_permissions: string[];
         is_preregistered: boolean;
         days_playing: number;
+        convention_id: number | null;
         created_at: Date;
         updated_at: Date;
     };
@@ -67,6 +69,7 @@ export declare function handleQrTokenScan(token: string, deviceIdentifier?: stri
         admin_permissions: string[];
         is_preregistered: boolean;
         days_playing: number;
+        convention_id: number | null;
         created_at: Date;
         updated_at: Date;
     };
@@ -91,6 +94,7 @@ export declare function getUserByQrTokenWithBalances(token: string, deviceIdenti
     admin_permissions: string[];
     is_preregistered: boolean;
     days_playing: number;
+    convention_id: number | null;
     created_at: Date;
     updated_at: Date;
 } | null | undefined>;

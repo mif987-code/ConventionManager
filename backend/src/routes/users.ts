@@ -7,7 +7,7 @@ const router = Router();
 // POST /api/users/register - Register a new user (NFC optional)
 router.post('/register', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { name, nfc_uid, email, is_admin } = req.body;
+    const { name, nfc_uid, email, is_admin, attendance_dates } = req.body;
     const conventionId = (req as any).conventionId;
 
     if (!name) {
@@ -21,7 +21,10 @@ router.post('/register', async (req: Request, res: Response, next: NextFunction)
       }
     }
 
-    const user = await userService.createUser(name, nfc_uid, email, is_admin, conventionId);
+    // Convert attendance dates strings to Date objects
+    const dates = attendance_dates ? attendance_dates.map((d: string) => new Date(d)) : undefined;
+
+    const user = await userService.createUser(name, nfc_uid, email, is_admin, conventionId, dates);
     res.status(201).json({ success: true, user });
   } catch (err) {
     next(err);
