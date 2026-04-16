@@ -63,10 +63,13 @@ app.use('/register', express.static(path.join(__dirname, '../../registration-sit
 // Serve NFC registration PWA
 app.use('/nfc', express.static(path.join(__dirname, '../../nfc-app')));
 
-// Serve Player Store PWA
+// Serve Admin Panel (React app with left sidebar)
+app.use('/admin', express.static(path.join(__dirname, '../../admin-panel/dist')));
+
+// Serve Player Store PWA (staff-facing)
 app.use('/store', express.static(path.join(__dirname, '../../store-app')));
 
-// Serve Player App PWA
+// Serve Player App PWA (player-facing)
 app.use('/app', express.static(path.join(__dirname, '../../player-app')));
 
 // Redirect root to NFC admin app
