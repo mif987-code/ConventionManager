@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Routes, Route, NavLink } from 'react-router-dom';
-import { Users, Calendar, CreditCard, ScanLine, Trophy, Settings, Ticket, ShoppingBag, BarChart3, Shield, LogOut } from 'lucide-react';
+import { Users, Calendar, CreditCard, ScanLine, Trophy, Settings as SettingsIcon, Ticket, ShoppingBag, BarChart3, Shield, LogOut } from 'lucide-react';
 import { getApiKey, setApiKey } from './api';
 import DashboardPage from './pages/DashboardPage';
 import UsersPage from './pages/UsersPage';
@@ -14,6 +14,7 @@ import StorePage from './pages/StorePage';
 import StatsPage from './pages/StatsPage';
 import PermissionsPage from './pages/PermissionsPage';
 import ConventionSelectPage from './pages/ConventionSelectPage';
+import SettingsPage from './pages/SettingsPage';
 
 function App() {
   const [authenticated, setAuthenticated] = useState(!!getApiKey());
@@ -72,7 +73,7 @@ function App() {
   }
 
   const navItems = [
-    { to: '/', icon: <Settings size={20} />, label: 'Dashboard' },
+    { to: '/', icon: <SettingsIcon size={20} />, label: 'Dashboard' },
     { to: '/users', icon: <Users size={20} />, label: 'Users' },
     { to: '/events', icon: <Calendar size={20} />, label: 'Events' },
     { to: '/event-types', icon: <Trophy size={20} />, label: 'Event Types' },
@@ -82,6 +83,7 @@ function App() {
     { to: '/scan', icon: <ScanLine size={20} />, label: 'NFC Scan' },
     { to: '/stats', icon: <BarChart3 size={20} />, label: 'Statistics' },
     { to: '/permissions', icon: <Shield size={20} />, label: 'Permissions' },
+    { to: '/settings', icon: <SettingsIcon size={20} />, label: 'Settings' },
   ];
 
   return (
@@ -147,6 +149,7 @@ function App() {
             <Route path="/scan" element={<ScanPage />} />
             <Route path="/stats" element={<StatsPage />} />
             <Route path="/permissions" element={<PermissionsPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
           </Routes>
         </div>
       </main>

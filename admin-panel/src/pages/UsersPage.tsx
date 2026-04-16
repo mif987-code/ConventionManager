@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { UserPlus, Search, Link, X, Wifi, QrCode, X as CloseIcon, RefreshCw } from 'lucide-react';
-import { users } from '../api';
+import { UserPlus, Search, Link, X, Wifi, QrCode, X as CloseIcon, RefreshCw, Calendar } from 'lucide-react';
+import { users, conventions } from '../api';
 
 export default function UsersPage() {
   const [userList, setUserList] = useState<any[]>([]);
@@ -14,6 +14,8 @@ export default function UsersPage() {
   const [linkNfcUid, setLinkNfcUid] = useState('');
   const [showingQrUser, setShowingQrUser] = useState<any>(null);
   const [regeneratingQR, setRegeneratingQR] = useState(false);
+  const [convention, setConvention] = useState<any>(null);
+  const [selectedAttendanceDates, setSelectedAttendanceDates] = useState<string[]>([]);
 
   async function loadUsers() {
     try {
@@ -29,13 +31,39 @@ export default function UsersPage() {
     }
   }
 
-  useEffect(() => { loadUsers(); }, []);
+  async function loadConvention() {
+    try {
+      const conventionId = localStorage.getItem('cm_convention_id');
+      if (conventionId) {
+        const res = await conventions.get(parseInt(conventionId));
+        setConvention(res.convention);
+      }
+    } catch (err: any) {
+      console.error('Failed to load convention:', err);
+    }
+  }
+
+  function getAvailableDates(startDate: string, endDate: string): string[] {
+    const dates: string[] = [];
+    const current = new Date(startDate);
+    const end = new Date(endDate);
+    
+    while (current <= end) {
+      dates.push(current.toISOString().split('T')[0]);
+      current.setDate(current.getDate() + 1);
+    }
+    
+    return dates;
+  }
+
+  useEffect(() => { loadUsers(); loadConvention(); }, []);
 
   async function handleRegister(e: React.FormEvent) {
     e.preventDefault();
     try {
-      await users.register(form.name, form.nfc_uid, form.email || undefined);
+      await users.register(form.name, form.nfc_uid, form.email || undefined, selectedAttendanceDates);
       setForm({ name: '', nfc_uid: '', email: '' });
+      setSelectedAttendanceDates([]);
       setShowRegister(false);
       loadUsers();
     } catch (err: any) {
@@ -129,6 +157,40 @@ export default function UsersPage() {
               Create
             </button>
           </form>
+          
+          {convention && convention.start_date && convention.end_date && (
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                <Calendar size={16} /> Attendance Dates
+              </label>
+              <p className="text-xs text-gray-500 mb-2">Convention: {new Date(convention.start_date).toLocaleDateString()} - {new Date(convention.end_date).toLocaleDateString()}</p>
+              <div className="flex flex-wrap gap-2">
+                {getAvailableDates(convention.start_date, convention.end_date).map((date: string) => {
+                  const isSelected = selectedAttendanceDates.includes(date);
+                  return (
+                    <button
+                      key={date}
+                      type="button"
+                      onClick={() => {
+                        if (isSelected) {
+                          setSelectedAttendanceDates(selectedAttendanceDates.filter(d => d !== date));
+                        } else {
+                          setSelectedAttendanceDates([...selectedAttendanceDates, date]);
+                        }
+                      }}
+                      className={`px-3 py-1 rounded-full text-sm font-medium transition ${
+                        isSelected 
+                          ? 'bg-indigo-600 text-white' 
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      {new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
