@@ -8,6 +8,8 @@ export default function ConventionSelectPage() {
   const [conventionList, setConventionList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [showEditForm, setShowEditForm] = useState(false);
+  const [editingConvention, setEditingConvention] = useState<any>(null);
   const [newConventionName, setNewConventionName] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -57,6 +59,33 @@ export default function ConventionSelectPage() {
       loadConventions();
     } catch (err: any) {
       setError(err.message);
+    }
+  }
+
+  function handleEdit(conv: any) {
+    setEditingConvention(conv);
+    setStartDate(conv.start_date || '');
+    setEndDate(conv.end_date || '');
+    setShowEditForm(true);
+  }
+
+  async function handleUpdate() {
+    if (!editingConvention) return;
+    setCreating(true);
+    try {
+      await conventions.update(editingConvention.id, {
+        start_date: startDate || null,
+        end_date: endDate || null
+      });
+      setShowEditForm(false);
+      setEditingConvention(null);
+      setStartDate('');
+      setEndDate('');
+      loadConventions();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setCreating(false);
     }
   }
 
@@ -146,6 +175,48 @@ export default function ConventionSelectPage() {
         </div>
       )}
 
+      {showEditForm && editingConvention && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+          <h2 className="font-semibold text-gray-800 mb-4">Edit Convention: {editingConvention.name}</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={e => setStartDate(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+              <input
+                type="date"
+                value={endDate}
+                onChange={e => setEndDate(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+              />
+            </div>
+          </div>
+          <p className="text-sm text-gray-500 mb-4">These dates determine the available attendance days for pre-registration.</p>
+          <div className="flex gap-3">
+            <button
+              onClick={handleUpdate}
+              disabled={creating}
+              className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition text-sm font-medium disabled:opacity-50"
+            >
+              {creating ? 'Updating...' : 'Update'}
+            </button>
+            <button
+              onClick={() => { setShowEditForm(false); setEditingConvention(null); setStartDate(''); setEndDate(''); }}
+              className="bg-gray-100 text-gray-600 px-4 py-2 rounded-lg hover:bg-gray-200 transition text-sm font-medium"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
       <h2 className="text-xl font-semibold text-gray-800 mb-4">Existing Conventions</h2>
       {conventionList.length === 0 ? (
         <div className="bg-gray-50 rounded-xl p-8 text-center text-gray-500">
@@ -175,6 +246,7 @@ export default function ConventionSelectPage() {
                   </div>
                   <p className="text-sm text-gray-500 mt-1">
                     Created: {new Date(conv.created_at).toLocaleDateString()}
+                    {conv.start_date && conv.end_date && ` • ${new Date(conv.start_date).toLocaleDateString()} - ${new Date(conv.end_date).toLocaleDateString()}`}
                     {conv.ended_at && ` • Ended: ${new Date(conv.ended_at).toLocaleDateString()}`}
                   </p>
                 </div>
@@ -184,6 +256,13 @@ export default function ConventionSelectPage() {
                     className="text-indigo-600 hover:text-indigo-700 text-sm font-medium px-3 py-1 rounded hover:bg-indigo-50 transition"
                   >
                     Open
+                  </button>
+                  <button
+                    onClick={() => handleEdit(conv)}
+                    className="text-gray-500 hover:text-gray-700 p-2 rounded hover:bg-gray-50 transition"
+                    title="Edit dates"
+                  >
+                    <Download size={16} className="rotate-[-45deg]" />
                   </button>
                   <button
                     onClick={() => handleDelete(conv.id)}
