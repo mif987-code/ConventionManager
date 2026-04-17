@@ -1,6 +1,6 @@
-import { useState, useRef, useCallback } from 'react';
-import { CreditCard, Search, X, Loader2, Wifi } from 'lucide-react';
-import { vouchers, tix, users, scan } from '../api';
+import { useState, useRef, useCallback, useEffect } from 'react';
+import { CreditCard, Search, X, Loader2, Wifi, Gift, Plus, Trash2, QrCode, ScanLine } from 'lucide-react';
+import { vouchers, tix, users, scan, specialVouchers, events, conventions } from '../api';
 
 export default function VouchersPage() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -14,6 +14,17 @@ export default function VouchersPage() {
   const [success, setSuccess] = useState('');
   const [nfcListening, setNfcListening] = useState(false);
   const [nfcStatus, setNfcStatus] = useState('');
+  const [scanMode, setScanMode] = useState<'nfc' | 'qr'>('nfc');
+  const [qrInput, setQrInput] = useState('');
+  const [activeTab, setActiveTab] = useState<'regular' | 'special'>('regular');
+  const [specialVouchersList, setSpecialVouchersList] = useState<any[]>([]);
+  const [openEvents, setOpenEvents] = useState<any[]>([]);
+  const [showCreateVoucher, setShowCreateVoucher] = useState(false);
+  const [newVoucher, setNewVoucher] = useState({ name: '', amount: 5, description: '', event_id: '', max_awards: 1 });
+  const [creatingVoucher, setCreatingVoucher] = useState(false);
+  const [selectedSpecialVoucher, setSelectedSpecialVoucher] = useState<number | null>(null);
+  const [awarding, setAwarding] = useState(false);
+  const [userAwardedVouchers, setUserAwardedVouchers] = useState<any[]>([]);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const doSearch = useCallback(async (query: string) => {
@@ -37,6 +48,7 @@ export default function VouchersPage() {
     setSearchQuery('');
     setError('');
     setSuccess('');
+    setSelectedSpecialVoucher(null);
     try {
       const [balRes, tBalRes, vhRes, thRes] = await Promise.all([
         vouchers.balance(u.id),
@@ -47,6 +59,7 @@ export default function VouchersPage() {
       setUser({ ...u, voucher_balance: balRes.balance ?? 0, tix_balance: tBalRes.balance ?? 0 });
       setVoucherHistory(vhRes.transactions || []);
       setTixHistory(thRes.transactions || []);
+      loadUserAwardedVouchers(u.id);
     } catch (err: any) { setError(err.message); }
   }
 
@@ -79,6 +92,31 @@ export default function VouchersPage() {
     }
   }
 
+  async function handleQrScan() {
+    if (!qrInput.trim()) return;
+    setNfcStatus(`Scanning QR code...`);
+    try {
+      const res = await fetch('/api/scan/qr', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': localStorage.getItem('cm_api_key') || '',
+        },
+        body: JSON.stringify({ qr_code: qrInput.trim() }),
+      });
+      const data = await res.json();
+      if (data.found) {
+        setNfcStatus(`Found: ${data.user.name}`);
+        selectUser(data.user);
+        setQrInput('');
+      } else {
+        setNfcStatus(`Error: ${data.message}`);
+      }
+    } catch (err: any) {
+      setNfcStatus(`QR error: ${err.message}`);
+    }
+  }
+
   async function handleTopup(e: React.FormEvent) {
     e.preventDefault();
     if (!user || !topupAmount) return;
@@ -95,9 +133,156 @@ export default function VouchersPage() {
     }
   }
 
+  // Load special vouchers and open events
+  async function loadSpecialVouchers() {
+    try {
+      const conventionId = localStorage.getItem('cm_convention_id');
+      if (!conventionId) return;
+
+      const [svRes, eventsRes, convRes] = await Promise.all([
+        specialVouchers.list(parseInt(conventionId)),
+        events.list('open'),
+        conventions.get(parseInt(conventionId)),
+      ]);
+      setSpecialVouchersList(svRes.special_vouchers || []);
+      setOpenEvents(eventsRes.events || []);
+      if (convRes.convention?.scan_mode) {
+        setScanMode(convRes.convention.scan_mode);
+      }
+    } catch (err: any) {
+      console.error('Failed to load special vouchers:', err);
+    }
+  }
+
+  useEffect(() => { loadSpecialVouchers(); }, []);
+
+  async function handleCreateSpecialVoucher(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newVoucher.name || !newVoucher.event_id || newVoucher.amount <= 0) return;
+    setCreatingVoucher(true);
+    setError('');
+    try {
+      await specialVouchers.create({
+        event_id: parseInt(newVoucher.event_id),
+        name: newVoucher.name,
+        amount: newVoucher.amount,
+        description: newVoucher.description,
+        max_awards: newVoucher.max_awards,
+      });
+      setSuccess('Special voucher created successfully!');
+      setNewVoucher({ name: '', amount: 5, description: '', event_id: '', max_awards: 1 });
+      setShowCreateVoucher(false);
+      loadSpecialVouchers();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setCreatingVoucher(false);
+    }
+  }
+
+  async function handleDeleteSpecialVoucher(voucherId: number) {
+    if (!confirm('Delete this special voucher?')) return;
+    setError('');
+    try {
+      await specialVouchers.delete(voucherId);
+      setSuccess('Special voucher deleted successfully!');
+      loadSpecialVouchers();
+    } catch (err: any) {
+      setError(err.message);
+    }
+  }
+
+  async function loadUserAwardedVouchers(userId: number) {
+    try {
+      const conventionId = localStorage.getItem('cm_convention_id');
+      if (!conventionId) return;
+      // Get all special vouchers for the convention, then check which ones the user has
+      const svRes = await specialVouchers.list(parseInt(conventionId));
+      const vouchers = svRes.special_vouchers || [];
+
+      const awardedData = await Promise.all(
+        vouchers.map(async (sv: any) => {
+          try {
+            const awardsRes = await specialVouchers.getUserAwards(userId, sv.event_id);
+            const userAwards = awardsRes.awards || [];
+            const hasAward = userAwards.some((a: any) => a.special_voucher_id === sv.id);
+            return { ...sv, hasAward };
+          } catch {
+            return { ...sv, hasAward: false };
+          }
+        })
+      );
+      setUserAwardedVouchers(awardedData);
+    } catch (err: any) {
+      console.error('Failed to load user awarded vouchers:', err);
+    }
+  }
+
+  async function handleAwardSpecialVoucher() {
+    if (!user || !selectedSpecialVoucher) return;
+    setAwarding(true);
+    setError('');
+    try {
+      const voucher = specialVouchersList.find((v: any) => v.id === selectedSpecialVoucher);
+      if (!voucher) throw new Error('Voucher not found');
+
+      await specialVouchers.award(selectedSpecialVoucher, {
+        user_id: user.id,
+        event_id: voucher.event_id,
+        awarded_by: 'manual'
+      });
+      setSuccess(`Special voucher "${voucher.name}" awarded to ${user.name}!`);
+      setSelectedSpecialVoucher(null);
+      loadUserAwardedVouchers(user.id);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setAwarding(false);
+    }
+  }
+
+  async function handleRemoveSpecialVoucherAward(voucherId: number) {
+    if (!user) return;
+    setError('');
+    try {
+      const conventionId = localStorage.getItem('cm_convention_id');
+      if (!conventionId) return;
+
+      const awardsRes = await specialVouchers.getUserAwards(user.id, specialVouchersList.find((v: any) => v.id === voucherId)?.event_id);
+      const award = awardsRes.awards?.find((a: any) => a.special_voucher_id === voucherId);
+      if (award) {
+        await specialVouchers.deleteAward(award.id);
+        setSuccess('Special voucher award removed!');
+        loadUserAwardedVouchers(user.id);
+      }
+    } catch (err: any) {
+      setError(err.message);
+    }
+  }
+
   return (
     <div>
       <h1 className="text-2xl font-bold text-gray-800 mb-6">Vouchers & Tix</h1>
+
+      {/* Tabs */}
+      <div className="flex border-b border-gray-200 mb-6">
+        <button
+          onClick={() => setActiveTab('regular')}
+          className={`px-4 py-2.5 text-sm font-medium border-b-2 transition ${
+            activeTab === 'regular' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          Regular Vouchers & Tix
+        </button>
+        <button
+          onClick={() => setActiveTab('special')}
+          className={`px-4 py-2.5 text-sm font-medium border-b-2 transition ${
+            activeTab === 'special' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          Special Vouchers
+        </button>
+      </div>
 
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
@@ -112,6 +297,8 @@ export default function VouchersPage() {
         </div>
       )}
 
+      {activeTab === 'regular' && (
+        <>
       {/* NFC Status */}
       {nfcStatus && (
         <div className={`text-sm px-3 py-2 rounded-lg mb-4 ${nfcStatus.startsWith('Error') || nfcStatus.startsWith('NFC error') || nfcStatus.startsWith('Web NFC')
@@ -161,17 +348,34 @@ export default function VouchersPage() {
           )}
         </div>
 
-        {/* NFC Scan */}
-        {nfcListening ? (
-          <button onClick={() => { setNfcListening(false); setNfcStatus(''); }}
-            className="flex items-center gap-2 bg-red-100 text-red-700 px-5 py-3 rounded-lg hover:bg-red-200 transition font-medium animate-pulse whitespace-nowrap">
-            <Wifi size={18} /> Stop NFC
-          </button>
+        {/* Scan */}
+        {scanMode === 'nfc' ? (
+          nfcListening ? (
+            <button onClick={() => { setNfcListening(false); setNfcStatus(''); }}
+              className="flex items-center gap-2 bg-red-100 text-red-700 px-5 py-3 rounded-lg hover:bg-red-200 transition font-medium animate-pulse whitespace-nowrap">
+              <Wifi size={18} /> Stop NFC
+            </button>
+          ) : (
+            <button onClick={handleNfcScan}
+              className="flex items-center gap-2 bg-emerald-100 text-emerald-700 px-5 py-3 rounded-lg hover:bg-emerald-200 transition font-medium whitespace-nowrap">
+              <Wifi size={18} /> Scan NFC
+            </button>
+          )
         ) : (
-          <button onClick={handleNfcScan}
-            className="flex items-center gap-2 bg-emerald-100 text-emerald-700 px-5 py-3 rounded-lg hover:bg-emerald-200 transition font-medium whitespace-nowrap">
-            <Wifi size={18} /> Scan NFC
-          </button>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              placeholder="Enter QR code..."
+              value={qrInput}
+              onChange={(e) => setQrInput(e.target.value)}
+              className="px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none w-48"
+              onKeyPress={(e) => e.key === 'Enter' && handleQrScan()}
+            />
+            <button onClick={handleQrScan}
+              className="flex items-center gap-2 bg-emerald-100 text-emerald-700 px-5 py-3 rounded-lg hover:bg-emerald-200 transition font-medium whitespace-nowrap">
+              <QrCode size={18} /> Scan QR
+            </button>
+          </div>
         )}
       </div>
 
@@ -287,6 +491,277 @@ export default function VouchersPage() {
                 </table>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+        </>
+      )}
+
+      {/* Special Vouchers Tab */}
+      {activeTab === 'special' && (
+        <div className="space-y-6">
+          {/* Award Special Voucher to User Section */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <h2 className="font-semibold text-gray-800 mb-4">Award Special Voucher to User</h2>
+
+            {/* Search bar */}
+            <div className="flex gap-2 mb-4 items-start">
+              <div className="relative flex-1">
+                <Search size={18} className="absolute left-3 top-3.5 text-gray-400" />
+                <input
+                  placeholder="Search by player name or NFC UID..."
+                  value={searchQuery}
+                  onChange={(e) => handleSearchInput(e.target.value)}
+                  className="w-full pl-10 pr-8 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-lg"
+                />
+                {searchQuery && (
+                  <button onClick={() => { setSearchQuery(''); setSearchResults([]); setSelectedSpecialVoucher(null); setUserAwardedVouchers([]); setUser(null); }}
+                    className="absolute right-3 top-3.5 text-gray-400 hover:text-gray-600">
+                    <X size={16} />
+                  </button>
+                )}
+                {searching && <Loader2 size={18} className="absolute right-10 top-3.5 text-indigo-500 animate-spin" />}
+
+                {/* Autocomplete dropdown */}
+                {searchResults.length > 0 && (
+                  <div className="absolute z-10 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-y-auto">
+                    {searchResults.map((u: any) => (
+                      <button key={u.id} onClick={() => selectUser(u)}
+                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-indigo-50 transition text-left border-b border-gray-100 last:border-0">
+                        <div className="flex-1 min-w-0">
+                          <span className="font-medium text-gray-800">{u.name}</span>
+                          <span className="text-gray-400 text-sm ml-2 font-mono">{u.nfc_uid}</span>
+                          {u.email && <span className="text-gray-400 text-sm ml-2">{u.email}</span>}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {searchQuery.length >= 1 && !searching && searchResults.length === 0 && (
+                  <div className="absolute z-10 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg px-4 py-3">
+                    <p className="text-sm text-gray-400 italic">No players found.</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Scan */}
+              {scanMode === 'nfc' ? (
+                nfcListening ? (
+                  <button onClick={() => { setNfcListening(false); setNfcStatus(''); }}
+                    className="flex items-center gap-2 bg-red-100 text-red-700 px-5 py-3 rounded-lg hover:bg-red-200 transition font-medium animate-pulse whitespace-nowrap">
+                    <Wifi size={18} /> Stop
+                  </button>
+                ) : (
+                  <button onClick={handleNfcScan}
+                    className="flex items-center gap-2 bg-emerald-100 text-emerald-700 px-5 py-3 rounded-lg hover:bg-emerald-200 transition font-medium whitespace-nowrap">
+                    <Wifi size={18} /> Scan NFC
+                  </button>
+                )
+              ) : (
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Enter QR code..."
+                    value={qrInput}
+                    onChange={(e) => setQrInput(e.target.value)}
+                    className="px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none w-48"
+                    onKeyPress={(e) => e.key === 'Enter' && handleQrScan()}
+                  />
+                  <button onClick={handleQrScan}
+                    className="flex items-center gap-2 bg-emerald-100 text-emerald-700 px-5 py-3 rounded-lg hover:bg-emerald-200 transition font-medium whitespace-nowrap">
+                    <QrCode size={18} /> Scan QR
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {user && (
+              <div className="border-t border-gray-200 pt-4">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <p className="text-sm text-gray-500">Selected player:</p>
+                    <p className="font-medium text-gray-800">{user.name}</p>
+                  </div>
+                  <button onClick={() => { setUser(null); setSearchQuery(''); setSelectedSpecialVoucher(null); setUserAwardedVouchers([]); }}
+                    className="text-sm text-gray-500 hover:text-gray-700">Clear</button>
+                </div>
+
+                {/* Award form */}
+                <div className="flex gap-2 items-end">
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Select Special Voucher</label>
+                    <select
+                      value={selectedSpecialVoucher || ''}
+                      onChange={(e) => setSelectedSpecialVoucher(e.target.value ? parseInt(e.target.value) : null)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                    >
+                      <option value="">Choose a voucher...</option>
+                      {specialVouchersList.map((v: any) => (
+                        <option key={v.id} value={v.id}>{v.name} ({v.amount} vouchers)</option>
+                      ))}
+                    </select>
+                  </div>
+                  <button
+                    onClick={handleAwardSpecialVoucher}
+                    disabled={!selectedSpecialVoucher || awarding}
+                    className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition font-medium disabled:opacity-50"
+                  >
+                    {awarding ? 'Awarding...' : 'Award'}
+                  </button>
+                </div>
+
+                {/* User's awarded special vouchers */}
+                {userAwardedVouchers.length > 0 && (
+                  <div className="mt-6">
+                    <h3 className="text-sm font-medium text-gray-700 mb-3">User's Special Vouchers</h3>
+                    <div className="grid gap-2">
+                      {userAwardedVouchers.map((v: any) => (
+                        <div key={v.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
+                          <div>
+                            <p className="font-medium text-gray-800 text-sm">{v.name}</p>
+                            <p className="text-xs text-gray-500">{v.amount} vouchers • {v.event_name || 'No event'}</p>
+                          </div>
+                          {v.hasAward && (
+                            <button onClick={() => handleRemoveSpecialVoucherAward(v.id)}
+                              className="text-red-500 hover:text-red-600 text-sm">
+                              Remove
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Manage Special Vouchers Section */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-semibold text-gray-800">Manage Special Vouchers</h2>
+              <button onClick={() => setShowCreateVoucher(true)}
+                className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition text-sm font-medium">
+                <Plus size={16} /> Create Special Voucher
+              </button>
+            </div>
+            <p className="text-sm text-gray-500 mb-4">
+              Special vouchers are event-specific prizes that can be awarded to players. They award regular vouchers when claimed.
+            </p>
+
+            {specialVouchersList.length === 0 ? (
+              <div className="text-center py-8 text-gray-400">
+                <Gift size={48} className="mx-auto mb-3 opacity-50" />
+                <p>No special vouchers created yet.</p>
+              </div>
+            ) : (
+              <div className="grid gap-4">
+                {specialVouchersList.map((voucher: any) => (
+                  <div key={voucher.id} className="border border-gray-200 rounded-lg p-4 flex items-start justify-between">
+                    <div className="flex items-start gap-3">
+                      <div className="w-12 h-12 rounded-lg flex items-center justify-center bg-indigo-100 text-indigo-600">
+                        <Gift size={24} />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-gray-800">{voucher.name}</h3>
+                        {voucher.event_name && <p className="text-sm text-indigo-600 mt-1">Event: {voucher.event_name}</p>}
+                        {voucher.description && <p className="text-sm text-gray-500 mt-1">{voucher.description}</p>}
+                        <div className="flex items-center gap-4 mt-2 text-sm">
+                          <span className="text-indigo-600 font-semibold">{voucher.amount} vouchers</span>
+                          <span className="text-gray-500">{voucher.awarded_count}/{voucher.max_awards} awarded</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={() => handleDeleteSpecialVoucher(voucher.id)}
+                        className="flex items-center gap-1 bg-red-100 text-red-700 px-3 py-1.5 rounded-lg hover:bg-red-200 transition text-sm font-medium">
+                        <Trash2 size={14} /> Delete
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Create Special Voucher Modal */}
+      {showCreateVoucher && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">Create Special Voucher</h3>
+            <form onSubmit={handleCreateSpecialVoucher}>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                  <input
+                    type="text"
+                    value={newVoucher.name}
+                    onChange={(e) => setNewVoucher({ ...newVoucher, name: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                    placeholder="e.g., First Place Bonus"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Event</label>
+                  <select
+                    value={newVoucher.event_id}
+                    onChange={(e) => setNewVoucher({ ...newVoucher, event_id: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                    required
+                  >
+                    <option value="">Select an event</option>
+                    {openEvents.map((evt: any) => (
+                      <option key={evt.id} value={evt.id}>{evt.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Amount (vouchers)</label>
+                  <input
+                    type="number"
+                    value={newVoucher.amount}
+                    onChange={(e) => setNewVoucher({ ...newVoucher, amount: parseInt(e.target.value) || 0 })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                    min="1"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Description (optional)</label>
+                  <textarea
+                    value={newVoucher.description}
+                    onChange={(e) => setNewVoucher({ ...newVoucher, description: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                    rows={2}
+                    placeholder="e.g., Bonus for winning the first round"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Max Awards</label>
+                  <input
+                    type="number"
+                    value={newVoucher.max_awards}
+                    onChange={(e) => setNewVoucher({ ...newVoucher, max_awards: parseInt(e.target.value) || 1 })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                    min="1"
+                    required
+                  />
+                </div>
+              </div>
+              <div className="flex gap-3 mt-6">
+                <button type="button" onClick={() => setShowCreateVoucher(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition text-sm font-medium">
+                  Cancel
+                </button>
+                <button type="submit" disabled={creatingVoucher}
+                  className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition text-sm font-medium disabled:opacity-50">
+                  {creatingVoucher ? 'Creating...' : 'Create'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
