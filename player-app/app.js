@@ -3,7 +3,8 @@
 const API_BASE = '/player';
 let token = localStorage.getItem('player_token');
 let player = null;
-let currentPage = 'home';
+let currentPage = 'profile';
+let convention = null;
 
 // ---- API Helper ----
 async function api(path, opts = {}) {
@@ -91,7 +92,7 @@ function logout() {
 async function enterApp() {
   document.getElementById('login-screen').classList.add('hidden');
   document.getElementById('app-shell').classList.add('active');
-  navigate('home');
+  navigate('profile');
 }
 
 // ---- Auto-login on load ----
@@ -115,7 +116,6 @@ function navigate(page) {
 
   const content = document.getElementById('page-content');
   switch (page) {
-    case 'home': renderHome(content); break;
     case 'events': renderEvents(content); break;
     case 'store': renderStore(content); break;
     case 'profile': renderProfile(content); break;
@@ -127,69 +127,7 @@ async function refreshPlayer() {
   try {
     const data = await api('/me');
     player = data.player;
-  } catch { /* ignore */ }
-}
-
-// ==========================================
-//  HOME PAGE
-// ==========================================
-async function renderHome(el) {
-  await refreshPlayer();
-  el.innerHTML = `
-    <div class="page-hdr">Welcome, ${esc(player.name)}!</div>
-    <div class="balance-bar">
-      <div class="bal-card bal-vouchers">
-        <div class="bal-label">Vouchers</div>
-        <div class="bal-value">${player.voucher_balance}</div>
-      </div>
-      <div class="bal-card bal-tix">
-        <div class="bal-label">Tix</div>
-        <div class="bal-value">${player.tix_balance}</div>
-      </div>
-    </div>
-    <div id="home-upcoming"></div>
-    <div id="home-recent"></div>
-  `;
-  // Load upcoming events
-  try {
-    const data = await api('/upcoming-events');
-    const open = data.events || [];
-    let html = '<div class="card"><h3 style="font-size:0.9rem;font-weight:700;margin-bottom:10px;">Open Events</h3>';
-    if (open.length === 0) html += '<p style="color:var(--text3);font-size:0.85rem;">No open events right now.</p>';
-    else open.forEach(ev => {
-      html += `<div class="evt-card" onclick="navigate('events')">
-        <div class="evt-name">${esc(ev.name)}</div>
-        <div class="evt-meta">
-          <span class="badge badge-open">Open</span>
-          <span class="badge ${ev.tournament_structure === 'single_elimination' ? 'badge-elim' : 'badge-swiss'}">${ev.tournament_structure === 'single_elimination' ? 'Single Elim' : 'Swiss'}</span>
-          <span>${ev.participant_count}/${ev.max_players} players</span>
-          ${ev.already_registered ? '<span class="badge badge-registered">Registered</span>' : ''}
-        </div>
-      </div>`;
-    });
-    html += '</div>';
-    document.getElementById('home-upcoming').innerHTML = html;
-  } catch { /* ignore */ }
-
-  // Load recent events
-  try {
-    const data = await api('/events');
-    const recent = (data.events || []).slice(0, 3);
-    if (recent.length > 0) {
-      let html = '<div class="card" style="margin-top:12px"><h3 style="font-size:0.9rem;font-weight:700;margin-bottom:10px;">Recent Results</h3>';
-      recent.forEach(ev => {
-        html += `<div class="evt-card" onclick="openEventDetail(${ev.event_id})">
-          <div class="evt-name">${esc(ev.event_name)}</div>
-          <div class="evt-meta">
-            <span class="badge badge-${ev.status}">${ev.status}</span>
-            <span>${ev.wins}W-${ev.losses}L${ev.draws > 0 ? '-' + ev.draws + 'D' : ''}</span>
-            ${ev.result_position ? '<span>#' + ev.result_position + '</span>' : ''}
-          </div>
-        </div>`;
-      });
-      html += '</div>';
-      document.getElementById('home-recent').innerHTML = html;
-    }
+    convention = data.convention || null;
   } catch { /* ignore */ }
 }
 
@@ -204,6 +142,7 @@ async function renderEvents(el) {
     <div style="display:flex;gap:8px;margin-bottom:14px;">
       <button class="btn btn-sm ${eventsTab === 'upcoming' ? 'btn-accent' : 'btn-outline'}" onclick="eventsTab='upcoming';renderEvents(document.getElementById('page-content'))">Upcoming</button>
       <button class="btn btn-sm ${eventsTab === 'history' ? 'btn-accent' : 'btn-outline'}" onclick="eventsTab='history';renderEvents(document.getElementById('page-content'))">My History</button>
+      <button class="btn btn-sm ${eventsTab === 'recent' ? 'btn-accent' : 'btn-outline'}" onclick="eventsTab='recent';renderEvents(document.getElementById('page-content'))">Recent Results</button>
     </div>
     <div id="events-list"></div>
   `;
@@ -233,7 +172,7 @@ async function renderEvents(el) {
         </div>
       `).join('');
     } catch (err) { listEl.innerHTML = `<p style="color:var(--red);font-size:0.85rem;">${esc(err.message)}</p>`; }
-  } else {
+  } else if (eventsTab === 'history') {
     try {
       const data = await api('/events');
       const events = data.events || [];
@@ -247,6 +186,23 @@ async function renderEvents(el) {
             <span>${ev.wins}W-${ev.losses}L${ev.draws > 0 ? '-' + ev.draws + 'D' : ''}</span>
             <span>${ev.match_points} pts</span>
             ${ev.result_position ? `<span>#${ev.result_position}</span>` : ''}
+          </div>
+        </div>
+      `).join('');
+    } catch (err) { listEl.innerHTML = `<p style="color:var(--red);font-size:0.85rem;">${esc(err.message)}</p>`; }
+  } else if (eventsTab === 'recent') {
+    try {
+      const data = await api('/events');
+      const events = (data.events || []).slice(0, 10);
+      if (events.length === 0) { listEl.innerHTML = '<p style="color:var(--text3);font-size:0.85rem;">No recent events.</p>'; return; }
+      listEl.innerHTML = events.map(ev => `
+        <div class="evt-card" onclick="openEventDetail(${ev.event_id})">
+          <div class="evt-name">${esc(ev.event_name)}</div>
+          <div class="evt-meta">
+            <span class="badge badge-${ev.status}">${ev.status}</span>
+            <span class="badge ${ev.tournament_structure === 'single_elimination' ? 'badge-elim' : 'badge-swiss'}">${ev.tournament_structure === 'single_elimination' ? 'Single Elim' : 'Swiss'}</span>
+            <span>${ev.wins}W-${ev.losses}L${ev.draws > 0 ? '-' + ev.draws + 'D' : ''}</span>
+            ${ev.result_position ? '<span>#' + ev.result_position + '</span>' : ''}
           </div>
         </div>
       `).join('');
@@ -344,6 +300,8 @@ async function openEventDetail(eventId) {
 // ==========================================
 //  STORE PAGE
 // ==========================================
+let storeTab = 'items';
+
 async function renderStore(el) {
   await refreshPlayer();
   el.innerHTML = `
@@ -354,48 +312,65 @@ async function renderStore(el) {
         <div class="bal-value">${player.tix_balance}</div>
       </div>
     </div>
-    <div id="store-items"><p style="color:var(--text3)">Loading…</p></div>
-    <div id="store-orders" style="margin-top:20px"></div>
+    <div style="display:flex;gap:8px;margin-bottom:14px;">
+      <button class="btn btn-sm ${storeTab === 'items' ? 'btn-accent' : 'btn-outline'}" onclick="storeTab='items';renderStore(document.getElementById('page-content'))">Items</button>
+      <button class="btn btn-sm ${storeTab === 'transactions' ? 'btn-accent' : 'btn-outline'}" onclick="storeTab='transactions';renderStore(document.getElementById('page-content'))">Transactions</button>
+    </div>
+    <div id="store-content"></div>
   `;
-  try {
-    const data = await api('/store/items');
-    const items = data.items || [];
-    if (items.length === 0) {
-      document.getElementById('store-items').innerHTML = '<p style="color:var(--text3);font-size:0.85rem;">No items available right now.</p>';
-    } else {
-      document.getElementById('store-items').innerHTML = '<div class="store-grid">' + items.map(item => `
-        <div class="store-item">
-          <div class="store-item-name">${esc(item.name)}</div>
-          <div class="store-item-price">${item.price_tix} tix</div>
-          <div class="store-item-stock">${item.stock > 0 ? item.stock + ' in stock' : 'Out of stock'}</div>
-          ${item.description ? `<div class="store-item-desc">${esc(item.description)}</div>` : '<div class="store-item-desc"></div>'}
-          <button class="btn btn-accent btn-sm" ${item.stock <= 0 || player.tix_balance < item.price_tix ? 'disabled' : ''} onclick="purchaseItem(${item.id}, this)">
-            ${item.stock <= 0 ? 'Sold Out' : player.tix_balance < item.price_tix ? 'Not Enough Tix' : 'Buy'}
-          </button>
-        </div>
-      `).join('') + '</div>';
-    }
-  } catch (err) {
-    document.getElementById('store-items').innerHTML = `<p style="color:var(--red);font-size:0.85rem;">${esc(err.message)}</p>`;
-  }
 
-  // Load orders
-  try {
-    const data = await api('/store/orders');
-    const orders = data.orders || [];
-    if (orders.length > 0) {
-      let html = '<div class="card"><h3 style="font-size:0.85rem;font-weight:700;margin-bottom:8px;">My Orders</h3>';
-      orders.forEach(o => {
-        const statusColors = { pending: 'var(--yellow)', fulfilled: 'var(--green)', cancelled: 'var(--red)' };
-        html += `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--surface2);font-size:0.85rem;">
-          <span>${esc(o.item_name || 'Item #' + o.item_id)} x${o.quantity}</span>
-          <span style="color:${statusColors[o.status] || 'var(--text3)'};font-weight:600">${o.status}</span>
-        </div>`;
-      });
-      html += '</div>';
-      document.getElementById('store-orders').innerHTML = html;
+  const contentEl = document.getElementById('store-content');
+
+  if (storeTab === 'items') {
+    contentEl.innerHTML = '<p style="color:var(--text3)">Loading…</p>';
+    try {
+      const data = await api('/store/items');
+      const items = data.items || [];
+      if (items.length === 0) {
+        contentEl.innerHTML = '<p style="color:var(--text3);font-size:0.85rem;">No items available right now.</p>';
+      } else {
+        contentEl.innerHTML = '<div class="store-grid">' + items.map(item => `
+          <div class="store-item">
+            <div class="store-item-name">${esc(item.name)}</div>
+            <div class="store-item-price">${item.price_tix} tix</div>
+            <div class="store-item-stock">${item.stock > 0 ? item.stock + ' in stock' : 'Out of stock'}</div>
+            ${item.description ? `<div class="store-item-desc">${esc(item.description)}</div>` : '<div class="store-item-desc"></div>'}
+            <button class="btn btn-accent btn-sm" ${item.stock <= 0 || player.tix_balance < item.price_tix ? 'disabled' : ''} onclick="purchaseItem(${item.id}, this)">
+              ${item.stock <= 0 ? 'Sold Out' : player.tix_balance < item.price_tix ? 'Not Enough Tix' : 'Buy'}
+            </button>
+          </div>
+        `).join('') + '</div>';
+      }
+    } catch (err) {
+      contentEl.innerHTML = `<p style="color:var(--red);font-size:0.85rem;">${esc(err.message)}</p>`;
     }
-  } catch { /* ignore */ }
+  } else if (storeTab === 'transactions') {
+    contentEl.innerHTML = '<p style="color:var(--text3)">Loading…</p>';
+    try {
+      const data = await api('/store/orders');
+      const orders = data.orders || [];
+      if (orders.length === 0) {
+        contentEl.innerHTML = '<p style="color:var(--text3);font-size:0.85rem;">No transactions yet.</p>';
+      } else {
+        let html = '<div class="card">';
+        orders.forEach(o => {
+          const statusColors = { pending: 'var(--yellow)', fulfilled: 'var(--green)', cancelled: 'var(--red)', confirmed: 'var(--accent-light)', reserved: 'var(--yellow)' };
+          const statusLabels = { pending: 'Pending', fulfilled: 'Fulfilled', cancelled: 'Cancelled', confirmed: 'Confirmed', reserved: 'Reserved' };
+          html += `<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--surface2);font-size:0.85rem;">
+            <div>
+              <div style="font-weight:600">${esc(o.item_name || 'Item #' + o.item_id)} x${o.quantity}</div>
+              <div style="color:var(--text2);font-size:0.75rem;margin-top:2px;">${o.total_tix} tix · ${new Date(o.created_at).toLocaleString()}</div>
+            </div>
+            <span style="color:${statusColors[o.status] || 'var(--text3)'};font-weight:600;font-size:0.75rem;padding:4px 8px;background:rgba(${o.status === 'fulfilled' ? '34,197,94' : o.status === 'cancelled' ? '239,68,68' : '99,102,241'},0.1);border-radius:999px;">${statusLabels[o.status] || o.status}</span>
+          </div>`;
+        });
+        html += '</div>';
+        contentEl.innerHTML = html;
+      }
+    } catch (err) {
+      contentEl.innerHTML = `<p style="color:var(--red);font-size:0.85rem;">${esc(err.message)}</p>`;
+    }
+  }
 }
 
 async function purchaseItem(itemId, btn) {
@@ -420,6 +395,9 @@ async function purchaseItem(itemId, btn) {
 async function renderProfile(el) {
   await refreshPlayer();
   el.innerHTML = `
+    ${convention ? `<div style="margin-bottom:12px;padding:8px 12px;background:var(--surface);border-radius:8px;font-size:0.8rem;color:var(--text2);">
+      <span style="font-weight:600">${esc(convention.name)}</span>
+    </div>` : ''}
     <div class="page-hdr">Profile</div>
     <div class="balance-bar">
       <div class="bal-card bal-vouchers">
@@ -439,6 +417,22 @@ async function renderProfile(el) {
       <div class="profile-field"><span class="profile-key">Member Since</span><span class="profile-val">${new Date(player.created_at).toLocaleDateString()}</span></div>
     </div>
 
+    ${player.qr_code ? `
+    <div class="card" style="margin-top:12px">
+      <h3 style="font-size:0.85rem;font-weight:700;margin-bottom:10px;">Your QR Code</h3>
+      <div style="display:flex;justify-content:center;align-items:center;flex-direction:column;gap:12px;">
+        <img src="${player.qr_code}" alt="QR Code" style="width:150px;height:150px;border:4px solid #fff;border-radius:8px;">
+        <button class="btn btn-sm btn-outline" onclick="regenerateQrCode()">Regenerate QR Code</button>
+      </div>
+    </div>
+    ` : ''}
+
+    <div class="card" style="margin-top:12px">
+      <h3 style="font-size:0.85rem;font-weight:700;margin-bottom:10px;">Purchase Vouchers</h3>
+      <input class="login-input" id="purchase-amount" type="number" placeholder="Amount" min="1" style="margin-bottom:8px;">
+      <button class="btn btn-accent" onclick="purchaseVouchers()">Purchase</button>
+    </div>
+
     <div class="card" style="margin-top:12px">
       <h3 style="font-size:0.85rem;font-weight:700;margin-bottom:10px;">Set / Change Password</h3>
       <input class="login-input" id="new-pass" type="password" placeholder="New password (min 4 chars)">
@@ -447,6 +441,50 @@ async function renderProfile(el) {
 
     <button class="btn btn-outline" style="margin-top:16px;border-color:var(--red);color:var(--red);" onclick="logout()">Sign Out</button>
   `;
+}
+
+async function regenerateQrCode() {
+  if (!confirm('Regenerate your QR code? Your old QR code will no longer work.')) return;
+  try {
+    await api('/regenerate-qr', { method: 'POST' });
+    toast('QR code regenerated successfully!');
+    await refreshPlayer();
+    renderProfile(document.getElementById('page-content'));
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+}
+
+async function purchaseVouchers() {
+  const amountInput = document.getElementById('purchase-amount');
+  const amount = parseInt(amountInput?.value);
+  if (!amount || amount <= 0) {
+    toast('Please enter a valid amount', 'error');
+    return;
+  }
+
+  try {
+    const response = await fetch(`${API_BASE}/payments/create`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        'x-convention-id': localStorage.getItem('convention_id') || '',
+      },
+      body: JSON.stringify({ userId: player.id, amount }),
+    });
+
+    const data = await response.json();
+    if (data.success) {
+      toast(`Payment created! Complete payment at: ${data.paymentUrl}`);
+      // In real implementation, open paymentUrl in a new tab
+      window.open(data.paymentUrl, '_blank');
+    } else {
+      toast('Payment creation failed', 'error');
+    }
+  } catch (err) {
+    toast(err.message, 'error');
+  }
 }
 
 async function changePassword() {

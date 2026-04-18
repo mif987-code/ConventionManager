@@ -90,14 +90,25 @@ router.get('/me', playerAuth, async (req: Request, res: Response, next: NextFunc
     const user = await userService.getUserWithBalances(userId);
     if (!user) return res.status(404).json({ error: 'Player not found' });
 
+    // Get convention info
+    let convention = null;
+    if (user.convention_id) {
+      const convRes = await pool.query(`SELECT id, name FROM conventions WHERE id = $1`, [user.convention_id]);
+      if (convRes.rows.length > 0) {
+        convention = convRes.rows[0];
+      }
+    }
+
     res.json({
       success: true,
       player: {
         id: user.id, name: user.name, last_name: user.last_name, email: user.email,
         nfc_uid: user.nfc_uid, age: user.age, dob: user.dob, days_playing: user.days_playing,
         voucher_balance: user.voucher_balance, tix_balance: user.tix_balance,
+        qr_code: user.qr_code,
         created_at: user.created_at,
       },
+      convention,
     });
   } catch (err) { next(err); }
 });
@@ -112,6 +123,24 @@ router.put('/me/password', playerAuth, async (req: Request, res: Response, next:
     const hash = await bcrypt.hash(password, 10);
     await pool.query(`UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2`, [hash, userId]);
     res.json({ success: true, message: 'Password updated' });
+  } catch (err) { next(err); }
+});
+
+// POST /player/regenerate-qr - Regenerate QR code
+router.post('/regenerate-qr', playerAuth, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = (req as any).playerId;
+    
+    // Generate new QR code
+    const newQrCode = await userService.regenerateQRCode(userId);
+    
+    // Log the action
+    await pool.query(
+      `INSERT INTO admin_logs (action, details, user_id) VALUES ($1, $2, $3)`,
+      ['qr_regenerated', `User ${userId} regenerated their QR code via player app`, userId]
+    );
+    
+    res.json({ success: true, qr_code: newQrCode, message: 'QR code regenerated' });
   } catch (err) { next(err); }
 });
 

@@ -51,6 +51,19 @@ export async function getSpecialVouchersByEvent(eventId: number): Promise<Specia
   return result.rows;
 }
 
+// Get all special vouchers for a convention
+export async function getSpecialVouchersByConvention(conventionId: number): Promise<SpecialVoucher[]> {
+  const result = await pool.query(
+    `SELECT sv.*, e.name as event_name 
+     FROM special_vouchers sv
+     JOIN events e ON sv.event_id = e.id
+     WHERE e.convention_id = $1
+     ORDER BY sv.created_at DESC`,
+    [conventionId]
+  );
+  return result.rows;
+}
+
 // Get a special voucher by ID
 export async function getSpecialVoucherById(id: number): Promise<SpecialVoucher | null> {
   const result = await pool.query(

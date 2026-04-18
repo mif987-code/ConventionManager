@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { CreditCard, Search, X, Loader2, Wifi, Gift, Plus, Trash2, QrCode, ScanLine } from 'lucide-react';
+import { CreditCard, Search, X, Loader2, Wifi, Gift, Plus, Trash2, QrCode, ScanLine, DollarSign, ExternalLink } from 'lucide-react';
 import { vouchers, tix, users, scan, specialVouchers, events, conventions } from '../api';
 
 export default function VouchersPage() {
@@ -10,6 +10,7 @@ export default function VouchersPage() {
   const [voucherHistory, setVoucherHistory] = useState<any[]>([]);
   const [tixHistory, setTixHistory] = useState<any[]>([]);
   const [topupAmount, setTopupAmount] = useState('');
+  const [topupMode, setTopupMode] = useState<'manual' | 'purchase'>('manual');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [nfcListening, setNfcListening] = useState(false);
@@ -128,6 +129,36 @@ export default function VouchersPage() {
       setUser({ ...user, voucher_balance: res.new_balance });
       const vhRes = await vouchers.history(user.id);
       setVoucherHistory(vhRes.transactions || []);
+    } catch (err: any) {
+      setError(err.message);
+    }
+  }
+
+  async function handlePurchaseTopup(e: React.FormEvent) {
+    e.preventDefault();
+    if (!user || !topupAmount) return;
+    setError('');
+    try {
+      const response = await fetch('/api/payments/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': localStorage.getItem('cm_api_key') || '',
+          'x-convention-id': localStorage.getItem('cm_convention_id') || '',
+        },
+        body: JSON.stringify({ userId: user.id, amount: parseInt(topupAmount) }),
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        setSuccess(`Payment created: ${data.paymentId}. Please complete payment.`);
+        setTopupAmount('');
+        // In real implementation, open paymentUrl
+        console.log('Payment URL:', data.paymentUrl);
+        console.log('Payment Link:', data.paymentLink);
+      } else {
+        setError('Payment creation failed');
+      }
     } catch (err: any) {
       setError(err.message);
     }
@@ -399,7 +430,32 @@ export default function VouchersPage() {
 
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <h3 className="font-semibold text-gray-800 mb-4">Top Up Vouchers</h3>
-              <form onSubmit={handleTopup} className="space-y-3">
+              
+              {/* Mode Toggle */}
+              <div className="flex gap-2 mb-4">
+                <button
+                  onClick={() => setTopupMode('manual')}
+                  className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition ${
+                    topupMode === 'manual'
+                      ? 'bg-indigo-600 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  Manual
+                </button>
+                <button
+                  onClick={() => setTopupMode('purchase')}
+                  className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition ${
+                    topupMode === 'purchase'
+                      ? 'bg-indigo-600 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  Purchase
+                </button>
+              </div>
+
+              <form onSubmit={topupMode === 'manual' ? handleTopup : handlePurchaseTopup} className="space-y-3">
                 <input
                   type="number"
                   min="1"
@@ -418,8 +474,17 @@ export default function VouchersPage() {
                   ))}
                 </div>
                 <button type="submit"
-                  className="w-full flex items-center justify-center gap-2 bg-emerald-600 text-white py-2.5 rounded-lg hover:bg-emerald-700 transition font-medium">
-                  <CreditCard size={16} /> Add Vouchers
+                  className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg transition font-medium ${
+                    topupMode === 'manual'
+                      ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                      : 'bg-blue-600 text-white hover:bg-blue-700'
+                  }`}
+                >
+                  {topupMode === 'manual' ? (
+                    <><CreditCard size={16} /> Add Vouchers</>
+                  ) : (
+                    <><DollarSign size={16} /> Purchase Vouchers</>
+                  )}
                 </button>
               </form>
             </div>
@@ -435,9 +500,11 @@ export default function VouchersPage() {
                   <thead className="bg-gray-50 border-b border-gray-200 sticky top-0">
                     <tr>
                       <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase">Amount</th>
-                      <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase">Reason</th>
+                      <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase">Type</th>
+                      <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase">By</th>
                       <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase">Event</th>
                       <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase">Date</th>
+                      <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase">Proof</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
@@ -446,13 +513,23 @@ export default function VouchersPage() {
                         <td className={`px-4 py-2 text-sm font-medium ${t.amount > 0 ? 'text-green-600' : 'text-red-600'}`}>
                           {t.amount > 0 ? '+' : ''}{t.amount}
                         </td>
-                        <td className="px-4 py-2 text-sm text-gray-600">{t.reason}</td>
+                        <td className="px-4 py-2 text-sm text-gray-600 capitalize">{t.reason}</td>
+                        <td className="px-4 py-2 text-sm text-gray-600">{t.created_by || '—'}</td>
                         <td className="px-4 py-2 text-sm text-gray-600">{t.event_name || '—'}</td>
                         <td className="px-4 py-2 text-sm text-gray-400">{new Date(t.created_at).toLocaleString()}</td>
+                        <td className="px-4 py-2 text-sm">
+                          {t.payment_link ? (
+                            <a href={t.payment_link} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:text-indigo-700 flex items-center gap-1">
+                              <ExternalLink size={12} /> View
+                            </a>
+                          ) : (
+                            <span className="text-gray-400">—</span>
+                          )}
+                        </td>
                       </tr>
                     ))}
                     {voucherHistory.length === 0 && (
-                      <tr><td colSpan={4} className="px-4 py-6 text-center text-gray-400">No transactions</td></tr>
+                      <tr><td colSpan={6} className="px-4 py-6 text-center text-gray-400">No transactions</td></tr>
                     )}
                   </tbody>
                 </table>

@@ -114,15 +114,15 @@ export async function duplicateEventType(id: number): Promise<EventType> {
 
 // --- Events ---
 
-export async function createEvent(name: string, eventTypeId: number, conventionId?: number): Promise<Event> {
+export async function createEvent(name: string, eventTypeId: number, conventionId?: number, preregistrationEnabled?: boolean): Promise<Event> {
   const eventType = await getEventTypeById(eventTypeId);
   if (!eventType) throw new Error('Event type not found');
 
   const result = await pool.query(
-    `INSERT INTO events (name, event_type_id, convention_id)
-     VALUES ($1, $2, $3)
+    `INSERT INTO events (name, event_type_id, convention_id, preregistration_enabled)
+     VALUES ($1, $2, $3, $4)
      RETURNING *`,
-    [name, eventTypeId, conventionId || null]
+    [name, eventTypeId, conventionId || null, preregistrationEnabled || false]
   );
   return result.rows[0];
 }
@@ -231,8 +231,8 @@ export async function registerToEvent(userId: number, eventId: number, createdBy
 
     // 6. Add participant
     await client.query(
-      `INSERT INTO event_participants (event_id, user_id) VALUES ($1, $2)`,
-      [eventId, userId]
+      `INSERT INTO event_participants (event_id, user_id, convention_id) VALUES ($1, $2, $3)`,
+      [eventId, userId, event.convention_id]
     );
 
     await client.query('COMMIT');

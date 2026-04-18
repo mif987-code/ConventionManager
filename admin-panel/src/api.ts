@@ -33,13 +33,15 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 export const users = {
   list: () => request<any>('/users'),
   search: (query: string) => request<any>(`/users/search?q=${encodeURIComponent(query)}`),
-  register: (name: string, nfcUid?: string, email?: string, attendanceDates?: string[]) =>
-    request<any>('/users/register', { method: 'POST', body: JSON.stringify({ name, nfc_uid: nfcUid, email, attendance_dates: attendanceDates }) }),
+  register: (name: string, nfcUid?: string, email?: string, attendanceDates?: string[], packageId?: number) =>
+    request<any>('/users/register', { method: 'POST', body: JSON.stringify({ name, nfc_uid: nfcUid, email, attendance_dates: attendanceDates, package_id: packageId }) }),
   get: (id: number) => request<any>(`/users/${id}`),
   update: (id: number, fields: any) =>
     request<any>(`/users/${id}`, { method: 'PUT', body: JSON.stringify(fields) }),
   regenerateQR: (id: number) =>
     request<any>(`/users/${id}/regenerate-qr`, { method: 'POST' }),
+  getQRToken: (id: number) =>
+    request<any>(`/users/${id}/qr-token`),
 };
 
 // Vouchers
@@ -64,8 +66,8 @@ export const tix = {
 export const events = {
   list: (status?: string) => request<any>(`/events${status ? `?status=${status}` : ''}`),
   get: (id: number) => request<any>(`/events/${id}`),
-  create: (name: string, event_type_id: number) =>
-    request<any>('/events', { method: 'POST', body: JSON.stringify({ name, event_type_id }) }),
+  create: (name: string, event_type_id: number, preregistration_enabled?: boolean) =>
+    request<any>('/events', { method: 'POST', body: JSON.stringify({ name, event_type_id, preregistration_enabled }) }),
   register: (eventId: number, user_id: number) =>
     request<any>(`/events/${eventId}/register`, { method: 'POST', body: JSON.stringify({ user_id }) }),
   registerNfc: (eventId: number, nfc_uid: string) =>
@@ -173,6 +175,7 @@ export const conventions = {
 
 // Special Vouchers
 export const specialVouchers = {
+  list: (conventionId: number) => request<any>(`/special-vouchers?convention_id=${conventionId}`),
   create: (data: { event_id: number; name: string; amount: number; description?: string; icon?: string; color?: string; max_awards?: number }) =>
     request<any>('/special-vouchers', { method: 'POST', body: JSON.stringify(data) }),
   getByEvent: (eventId: number) => request<any>(`/special-vouchers/event/${eventId}`),
@@ -184,4 +187,19 @@ export const specialVouchers = {
   getAwards: (id: number) => request<any>(`/special-vouchers/${id}/awards`),
   getUserAwards: (userId: number, eventId: number) => request<any>(`/special-vouchers/user/${userId}/event/${eventId}`),
   deleteAward: (awardId: number) => request<any>(`/special-vouchers/awards/${awardId}`, { method: 'DELETE' }),
+};
+
+// Packages
+export const packages = {
+  list: () => request<any>('/packages'),
+  create: (name: string, description: string | null, days: number, cost: number, preregCost: number | null, regularVoucherAmount: number) =>
+    request<any>('/packages', { method: 'POST', body: JSON.stringify({ name, description, days, cost, prereg_cost: preregCost, regular_voucher_amount: regularVoucherAmount }) }),
+  update: (id: number, name: string, description: string | null, days: number, cost: number, preregCost: number | null, regularVoucherAmount: number, is_active: boolean) =>
+    request<any>(`/packages/${id}`, { method: 'PUT', body: JSON.stringify({ name, description, days, cost, prereg_cost: preregCost, regular_voucher_amount: regularVoucherAmount, is_active }) }),
+  delete: (id: number) => request<any>(`/packages/${id}`, { method: 'DELETE' }),
+  getSpecialVouchers: (id: number) => request<any>(`/packages/${id}/special-vouchers`),
+  addSpecialVoucher: (id: number, voucherId: number) =>
+    request<any>(`/packages/${id}/special-vouchers/${voucherId}`, { method: 'POST' }),
+  removeSpecialVoucher: (id: number, voucherId: number) =>
+    request<any>(`/packages/${id}/special-vouchers/${voucherId}`, { method: 'DELETE' }),
 };

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Routes, Route, NavLink } from 'react-router-dom';
+import { Routes, Route, NavLink, useLocation } from 'react-router-dom';
 import { Users, Calendar, CreditCard, ScanLine, Trophy, Settings as SettingsIcon, Ticket, ShoppingBag, BarChart3, Shield, LogOut } from 'lucide-react';
 import { getApiKey, setApiKey } from './api';
 import DashboardPage from './pages/DashboardPage';
@@ -15,8 +15,10 @@ import StatsPage from './pages/StatsPage';
 import PermissionsPage from './pages/PermissionsPage';
 import ConventionSelectPage from './pages/ConventionSelectPage';
 import SettingsPage from './pages/SettingsPage';
+import PackagesPage from './pages/PackagesPage';
 
 function App() {
+  const location = useLocation();
   const [authenticated, setAuthenticated] = useState(!!getApiKey());
   const [keyInput, setKeyInput] = useState('');
   const [conventionId, setConventionId] = useState<string | null>(localStorage.getItem('cm_convention_id'));
@@ -25,6 +27,14 @@ function App() {
   useEffect(() => {
     setAuthenticated(!!getApiKey());
   }, []);
+
+  // Reload convention from localStorage when route changes (after creating/selecting convention)
+  useEffect(() => {
+    const storedId = localStorage.getItem('cm_convention_id');
+    const storedName = localStorage.getItem('cm_convention_name');
+    setConventionId(storedId);
+    setConventionName(storedName);
+  }, [location.pathname]);
 
   function switchConvention() {
     setConventionId(null);
@@ -78,7 +88,8 @@ function App() {
     { to: '/events', icon: <Calendar size={20} />, label: 'Events' },
     { to: '/event-types', icon: <Trophy size={20} />, label: 'Event Types' },
     { to: '/prize-templates', icon: <Ticket size={20} />, label: 'Prize Templates' },
-    { to: '/vouchers', icon: <CreditCard size={20} />, label: 'Vouchers' },
+    { to: '/vouchers', icon: <CreditCard size={20} />, label: 'Vouchers and Tix' },
+    { to: '/packages', icon: <Ticket size={20} />, label: 'Packages' },
     { to: '/store', icon: <ShoppingBag size={20} />, label: 'Store' },
     { to: '/scan', icon: <ScanLine size={20} />, label: 'NFC Scan' },
     { to: '/stats', icon: <BarChart3 size={20} />, label: 'Statistics' },
@@ -145,6 +156,7 @@ function App() {
             <Route path="/event-types" element={<EventTypesPage />} />
             <Route path="/prize-templates" element={<PrizeTemplatesPage />} />
             <Route path="/vouchers" element={<VouchersPage />} />
+            <Route path="/packages" element={<PackagesPage />} />
             <Route path="/store" element={<StorePage />} />
             <Route path="/scan" element={<ScanPage />} />
             <Route path="/stats" element={<StatsPage />} />

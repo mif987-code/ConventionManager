@@ -18,6 +18,7 @@ export default function EventsPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [selectedType, setSelectedType] = useState<any>(null);
   const [eventName, setEventName] = useState('');
+  const [preregistrationEnabled, setPreregistrationEnabled] = useState(false);
   const [filter, setFilter] = useState('');
 
   async function loadEvents() {
@@ -42,8 +43,9 @@ export default function EventsPage() {
     e.preventDefault();
     if (!selectedType || !eventName.trim()) return;
     try {
-      await events.create(eventName.trim(), selectedType.id);
+      await events.create(eventName.trim(), selectedType.id, preregistrationEnabled);
       setEventName('');
+      setPreregistrationEnabled(false);
       setSelectedType(null);
       setShowCreate(false);
       loadEvents();
@@ -59,6 +61,7 @@ export default function EventsPage() {
   function handleCancelSelection() {
     setSelectedType(null);
     setEventName('');
+    setPreregistrationEnabled(false);
   }
 
   return (
@@ -175,6 +178,18 @@ export default function EventsPage() {
                 required
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
               />
+            </div>
+            <div className="mb-4">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={preregistrationEnabled}
+                  onChange={(e) => setPreregistrationEnabled(e.target.checked)}
+                  className="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
+                />
+                <span className="text-sm font-medium text-gray-700">Enable Pre-registration</span>
+              </label>
+              <p className="text-xs text-gray-500 mt-1 ml-6">Allow users to pre-register for this event from the registration page</p>
             </div>
             <div className="flex gap-3">
               <button

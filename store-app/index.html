@@ -16,59 +16,107 @@
 </head>
 <body class="bg-gray-50 min-h-screen">
 
-  <!-- ===== LOGIN ===== -->
-  <div id="login-gate" class="max-w-md mx-auto px-4 py-12">
-    <div class="text-center mb-6">
-      <div class="inline-flex items-center justify-center w-14 h-14 bg-emerald-600 rounded-2xl mb-3">
-        <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
-      </div>
-      <h1 class="text-xl font-bold text-gray-800">Convention Store</h1>
-      <p class="text-xs text-gray-500 mt-1">Browse items and spend your Tix</p>
-    </div>
-    <div class="bg-white rounded-xl border border-gray-200 p-5">
-      <label class="text-xs font-medium text-gray-500 block mb-1">Your NFC UID or Player ID</label>
-      <div class="flex gap-2">
-        <input type="text" id="login-uid" placeholder="Scan NFC or enter ID"
-          class="flex-1 px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" />
-        <button onclick="playerLogin()" class="bg-emerald-600 text-white px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-emerald-700 transition">Go</button>
-      </div>
-      <p id="login-error" class="text-xs text-red-500 mt-2 hidden"></p>
-    </div>
-  </div>
-
   <!-- ===== MAIN STORE ===== -->
-  <div id="store-main" class="hidden max-w-md mx-auto px-4 py-4">
-    <!-- Player header -->
-    <div class="bg-emerald-50 rounded-xl border border-emerald-200 p-4 mb-4 fade-in">
-      <div class="flex items-center justify-between">
-        <div>
-          <p id="player-name" class="font-bold text-gray-800"></p>
-          <p class="text-xs text-gray-500">Convention Store</p>
-        </div>
-        <div class="text-right">
-          <p class="text-2xl font-bold text-emerald-600"><span id="player-tix">0</span></p>
-          <p class="text-[10px] text-gray-500">Tix Balance</p>
-        </div>
-      </div>
-      <button onclick="playerLogout()" class="text-[10px] text-gray-400 hover:text-gray-600 mt-1">Switch Player</button>
+  <div id="store-main" class="max-w-md mx-auto px-4 py-4">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-4">
+      <h1 class="text-xl font-bold text-gray-800">Staff Store</h1>
+      <p class="text-xs text-gray-500">Add items to cart, then scan player</p>
     </div>
 
     <!-- Status -->
     <div id="store-status" class="hidden rounded-xl p-3 mb-3 text-sm font-medium"></div>
 
-    <!-- Items -->
-    <h2 class="text-lg font-bold text-gray-800 mb-3">Available Items</h2>
-    <div id="store-items" class="space-y-3 mb-6"><p class="text-gray-400 italic text-sm">Loading...</p></div>
+    <!-- View Toggle -->
+    <div class="flex gap-2 mb-4">
+      <button onclick="showView('items')" id="view-items-btn" class="flex-1 py-2 px-4 rounded-lg text-sm font-medium bg-emerald-600 text-white">Browse Items</button>
+      <button onclick="showView('transactions')" id="view-transactions-btn" class="flex-1 py-2 px-4 rounded-lg text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200">Transactions</button>
+    </div>
 
-    <!-- My Orders -->
-    <h2 class="text-lg font-bold text-gray-800 mb-3">My Orders</h2>
-    <div id="my-orders" class="space-y-2 mb-6"><p class="text-gray-400 italic text-sm">Loading...</p></div>
+    <!-- Items View -->
+    <div id="items-view">
+      <!-- Category Tabs -->
+      <div class="flex border-b border-gray-200 mb-4">
+        <button onclick="setCategory('cards')" id="tab-cards" class="flex-1 px-4 py-2.5 text-sm font-medium border-b-2 transition border-transparent text-gray-500 hover:text-gray-700">Cards</button>
+        <button onclick="setCategory('sealed')" id="tab-sealed" class="flex-1 px-4 py-2.5 text-sm font-medium border-b-2 transition border-transparent text-gray-500 hover:text-gray-700">Sealed Product</button>
+        <button onclick="setCategory('merchandise')" id="tab-merchandise" class="flex-1 px-4 py-2.5 text-sm font-medium border-b-2 transition border-transparent text-gray-500 hover:text-gray-700">Merchandise</button>
+      </div>
+
+      <!-- Items -->
+      <div id="store-items" class="space-y-3 mb-4"><p class="text-gray-400 italic text-sm">Loading...</p></div>
+
+      <!-- Cart -->
+      <div class="bg-white rounded-xl border border-gray-200 p-4 mb-4">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="font-semibold text-gray-800">Cart</h3>
+          <span id="cart-count" class="text-sm text-gray-500">0 items</span>
+        </div>
+        <div id="cart-items" class="space-y-2 mb-3"><p class="text-gray-400 italic text-sm">Cart is empty</p></div>
+        
+        <!-- Payment Mode Toggle -->
+        <div class="flex gap-2 mb-3 pt-3 border-t border-gray-100">
+          <button onclick="setPaymentMode('tix')" id="pay-tix-btn" class="flex-1 py-2 px-3 rounded-lg text-sm font-medium bg-emerald-600 text-white">Pay with Tix</button>
+          <button onclick="setPaymentMode('money')" id="pay-money-btn" class="flex-1 py-2 px-3 rounded-lg text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200">Pay with Money</button>
+        </div>
+        
+        <div class="flex items-center justify-between pt-3 border-t border-gray-100">
+          <div>
+            <span class="text-sm text-gray-500">Total:</span>
+            <span id="cart-total" class="text-lg font-bold text-emerald-600 ml-2">0 Tix</span>
+          </div>
+          <button onclick="clearCart()" id="clear-cart-btn" class="hidden text-xs text-red-500 hover:text-red-700">Clear</button>
+        </div>
+        <button onclick="showPlayerScan()" id="checkout-btn" disabled class="w-full mt-3 bg-emerald-600 text-white py-3 rounded-lg hover:bg-emerald-700 transition font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed">
+          Scan Player to Checkout
+        </button>
+      </div>
+    </div>
+
+    <!-- Transactions View -->
+    <div id="transactions-view" class="hidden">
+      <h2 class="text-lg font-bold text-gray-800 mb-3">Recent Transactions</h2>
+      <div id="transactions-list" class="space-y-2"><p class="text-gray-400 italic text-sm">Loading...</p></div>
+    </div>
+  </div>
+
+  <!-- ===== PLAYER SCAN MODAL ===== -->
+  <div id="player-scan-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-xl shadow-lg max-w-md w-full p-6">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-bold text-gray-800">Scan Player</h2>
+        <button onclick="closePlayerScan()" class="text-gray-400 hover:text-gray-600">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="bg-gray-50 rounded-lg p-4 mb-4">
+        <label class="text-xs font-medium text-gray-500 block mb-1">Search Player (Name, Email, or ID)</label>
+        <div class="flex gap-2">
+          <input type="text" id="scan-uid" placeholder="Enter player name, email, or ID"
+            class="flex-1 px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" />
+          <button onclick="scanPlayer()" class="bg-emerald-600 text-white px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-emerald-700 transition">Search</button>
+        </div>
+        <p id="scan-error" class="text-xs text-red-500 mt-2 hidden"></p>
+        <div id="scan-results" class="mt-3 space-y-2 hidden"></div>
+      </div>
+      <div id="selected-player" class="hidden bg-emerald-50 rounded-lg p-4 mb-4">
+        <p class="text-sm text-gray-500">Selected Player:</p>
+        <p id="selected-player-name" class="font-bold text-gray-800"></p>
+        <p id="selected-player-tix" class="text-sm text-emerald-600 font-semibold"></p>
+      </div>
+      <button onclick="processCheckout()" id="process-checkout-btn" disabled class="w-full bg-emerald-600 text-white py-3 rounded-lg hover:bg-emerald-700 transition font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed">
+        Process Checkout
+      </button>
+    </div>
   </div>
 
   <script>
     const API = '/api';
     let apiKey = localStorage.getItem('nfc_api_key') || '';
     let currentPlayer = null;
+    let cart = [];
+    let currentCategory = 'cards';
+    let allItems = [];
+    let paymentMode = 'tix'; // 'tix' or 'money'
 
     async function apiFetch(path, opts = {}) {
       const res = await fetch(`${API}${path}`, {
@@ -92,133 +140,278 @@
 
     function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 
-    // Check if returning player
-    const savedPlayerId = localStorage.getItem('store_player_id');
-    if (savedPlayerId) { loadPlayer(savedPlayerId); }
+    // Load items on page load
+    loadStoreItems();
 
-    async function playerLogin() {
-      const uid = document.getElementById('login-uid').value.trim();
-      if (!uid) return;
+    function showPlayerScan() {
+      if (cart.length === 0) return;
+      document.getElementById('player-scan-modal').classList.remove('hidden');
+      document.getElementById('selected-player').classList.add('hidden');
+      document.getElementById('process-checkout-btn').disabled = true;
+      currentPlayer = null;
+    }
+
+    function closePlayerScan() {
+      document.getElementById('player-scan-modal').classList.add('hidden');
+      document.getElementById('scan-uid').value = '';
+      document.getElementById('scan-error').classList.add('hidden');
+      document.getElementById('scan-results').classList.add('hidden');
+    }
+
+    async function scanPlayer() {
+      const query = document.getElementById('scan-uid').value.trim();
+      if (!query) return;
+
+      document.getElementById('scan-error').classList.add('hidden');
+      const searchResultsEl = document.getElementById('scan-results');
+      searchResultsEl.classList.add('hidden');
+
       try {
-        // Try NFC lookup first
-        const res = await apiFetch('/scan', { method: 'POST', body: JSON.stringify({ nfc_uid: uid }) });
-        if (res.user) {
-          localStorage.setItem('store_player_id', res.user.id);
-          await loadPlayer(res.user.id);
+        // Try as numeric ID first
+        const id = parseInt(query);
+        if (!isNaN(id)) {
+          try {
+            await selectPlayerForCheckout(id);
+            return;
+          } catch (e) { /* Not found by ID, continue to search */ }
+        }
+
+        // Search for players by name/email
+        const res = await apiFetch(`/users/search?q=${encodeURIComponent(query)}`);
+        const users = res.users || [];
+
+        if (users.length === 0) {
+          document.getElementById('scan-error').textContent = 'No players found matching your search.';
+          document.getElementById('scan-error').classList.remove('hidden');
           return;
         }
-      } catch (e) { /* try as ID */ }
-      // Try as player ID
-      try {
-        await loadPlayer(parseInt(uid));
-        localStorage.setItem('store_player_id', uid);
+
+        if (users.length === 1) {
+          // Direct load if only one result
+          await selectPlayerForCheckout(users[0].id);
+          return;
+        }
+
+        // Show multiple results
+        searchResultsEl.innerHTML = users.map(u => `
+          <div class="p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition" onclick="selectPlayerForCheckout(${u.id})">
+            <p class="font-medium text-gray-800 text-sm">${esc(u.name)} ${esc(u.last_name || '')}</p>
+            <p class="text-xs text-gray-500">${esc(u.email || '')} · ID: ${u.id}</p>
+          </div>
+        `).join('');
+        searchResultsEl.classList.remove('hidden');
       } catch (err) {
-        document.getElementById('login-error').textContent = 'Player not found. Try your NFC UID or ask an admin.';
-        document.getElementById('login-error').classList.remove('hidden');
+        document.getElementById('scan-error').textContent = err.message || 'Search failed. Please try again.';
+        document.getElementById('scan-error').classList.remove('hidden');
       }
     }
 
-    async function loadPlayer(id) {
+    async function selectPlayerForCheckout(id) {
       const [userRes, tixRes] = await Promise.all([
         apiFetch(`/users/${id}`),
         apiFetch(`/tix/balance/${id}`)
       ]);
       const user = userRes.user || userRes;
       currentPlayer = { ...user, tix: tixRes.balance || 0 };
-      localStorage.setItem('store_player_id', currentPlayer.id);
-      document.getElementById('player-name').textContent = currentPlayer.name + (currentPlayer.last_name ? ' ' + currentPlayer.last_name : '');
-      document.getElementById('player-tix').textContent = currentPlayer.tix;
-      document.getElementById('login-gate').classList.add('hidden');
-      document.getElementById('store-main').classList.remove('hidden');
-      loadStoreItems();
-      loadMyOrders();
+
+      document.getElementById('selected-player').classList.remove('hidden');
+      document.getElementById('selected-player-name').textContent = currentPlayer.name + (currentPlayer.last_name ? ' ' + currentPlayer.last_name : '');
+      document.getElementById('selected-player-tix').textContent = `${currentPlayer.tix} Tix`;
+      document.getElementById('scan-results').classList.add('hidden');
+      document.getElementById('process-checkout-btn').disabled = false;
     }
 
-    function playerLogout() {
-      localStorage.removeItem('store_player_id');
-      currentPlayer = null;
-      document.getElementById('login-gate').classList.remove('hidden');
-      document.getElementById('store-main').classList.add('hidden');
+    function showView(view) {
+      document.getElementById('items-view').classList.toggle('hidden', view !== 'items');
+      document.getElementById('transactions-view').classList.toggle('hidden', view !== 'transactions');
+      document.getElementById('view-items-btn').className = `flex-1 py-2 px-4 rounded-lg text-sm font-medium ${view === 'items' ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`;
+      document.getElementById('view-transactions-btn').className = `flex-1 py-2 px-4 rounded-lg text-sm font-medium ${view === 'transactions' ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`;
+      if (view === 'transactions') {
+        loadTransactions();
+      }
     }
 
-    async function refreshTix() {
-      if (!currentPlayer) return;
-      try {
-        const res = await apiFetch(`/tix/balance/${currentPlayer.id}`);
-        currentPlayer.tix = res.balance || 0;
-        document.getElementById('player-tix').textContent = currentPlayer.tix;
-      } catch (e) {}
+    function setCategory(category) {
+      currentCategory = category;
+      document.getElementById('tab-cards').className = `flex-1 px-4 py-2.5 text-sm font-medium border-b-2 transition ${category === 'cards' ? 'border-emerald-600 text-emerald-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`;
+      document.getElementById('tab-sealed').className = `flex-1 px-4 py-2.5 text-sm font-medium border-b-2 transition ${category === 'sealed' ? 'border-emerald-600 text-emerald-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`;
+      document.getElementById('tab-merchandise').className = `flex-1 px-4 py-2.5 text-sm font-medium border-b-2 transition ${category === 'merchandise' ? 'border-emerald-600 text-emerald-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`;
+      renderStoreItems();
     }
+
+    // Initialize category on load
+    setCategory('cards');
 
     async function loadStoreItems() {
       try {
         const res = await apiFetch('/store/items?active=true');
-        const items = res.items || [];
-        const el = document.getElementById('store-items');
-        if (!items.length) { el.innerHTML = '<p class="text-gray-400 italic text-sm">No items available</p>'; return; }
-        el.innerHTML = items.filter(it => it.active).map(it => {
-          const canAfford = currentPlayer && currentPlayer.tix >= it.price_tix;
-          const inStock = it.stock > 0;
-          return `<div class="bg-white rounded-xl border border-gray-200 p-4 fade-in">
-            <div class="flex items-start justify-between">
-              <div class="flex-1 min-w-0">
-                <h3 class="font-semibold text-gray-800 text-sm">${esc(it.name)}</h3>
-                ${it.description ? `<p class="text-xs text-gray-500 mt-0.5">${esc(it.description)}</p>` : ''}
-                <div class="flex items-center gap-3 mt-2">
-                  <span class="text-sm font-bold text-emerald-600">${it.price_tix} Tix</span>
-                  <span class="text-[10px] ${inStock ? 'text-green-600' : 'text-red-500'}">${inStock ? `${it.stock} in stock` : 'Out of stock'}</span>
-                </div>
+        allItems = res.items || [];
+        renderStoreItems();
+      } catch (err) { storeMsg(err.message, 'error'); }
+    }
+
+    function renderStoreItems() {
+      const el = document.getElementById('store-items');
+      const filteredItems = allItems.filter(it => it.active && it.category === currentCategory);
+      if (!filteredItems.length) { el.innerHTML = '<p class="text-gray-400 italic text-sm">No items in this category</p>'; return; }
+      el.innerHTML = filteredItems.map(it => {
+        const inStock = it.stock > 0;
+        const inCart = cart.find(c => c.id === it.id);
+        const cartQty = inCart ? inCart.quantity : 0;
+        return `<div class="bg-white rounded-xl border border-gray-200 p-4 fade-in">
+          <div class="flex items-start gap-3">
+            ${it.image_url ? `<img src="${esc(it.image_url)}" class="w-16 h-16 rounded-lg object-cover" />` : ''}
+            <div class="flex-1 min-w-0">
+              <h3 class="font-semibold text-gray-800 text-sm">${esc(it.name)}</h3>
+              ${it.description ? `<p class="text-xs text-gray-500 mt-0.5">${esc(it.description)}</p>` : ''}
+              ${it.category === 'cards' ? `<p class="text-[10px] text-gray-400 mt-0.5">${it.set_name || ''} ${it.card_number || ''}</p>` : ''}
+              <div class="flex items-center gap-3 mt-2">
+                <span class="text-sm font-bold text-emerald-600">${it.price_tix} Tix</span>
+                <span class="text-[10px] ${inStock ? 'text-green-600' : 'text-red-500'}">${inStock ? `${it.stock} in stock` : 'Out of stock'}</span>
               </div>
             </div>
-            ${inStock ? `<div class="flex gap-2 mt-3">
-              <button onclick="purchaseItem(${it.id}, '${esc(it.name)}')" ${!canAfford ? 'disabled' : ''}
-                class="flex-1 py-2.5 rounded-lg text-xs font-semibold transition ${canAfford ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}">
-                Purchase (${it.price_tix} Tix)
-              </button>
-              <button onclick="reserveItem(${it.id}, '${esc(it.name)}')"
-                class="flex-1 py-2.5 rounded-lg text-xs font-semibold bg-yellow-500 text-white hover:bg-yellow-600 transition">
-                Reserve
-              </button>
-            </div>` : '<p class="text-xs text-red-400 mt-2 italic">Currently unavailable</p>'}
-          </div>`;
-        }).join('');
-      } catch (err) { storeMsg(err.message, 'error'); }
+          </div>
+          ${inStock ? `<div class="flex gap-2 mt-3">
+            <button onclick="addToCart(${it.id})" class="flex-1 py-2.5 rounded-lg text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700 transition">
+              Add to Cart
+            </button>
+            ${cartQty > 0 ? `<button onclick="removeFromCart(${it.id})" class="px-3 py-2.5 rounded-lg text-xs font-semibold bg-red-100 text-red-700 hover:bg-red-200 transition">
+              -
+            </button>
+            <span class="px-3 py-2.5 text-sm font-medium">${cartQty}</span>
+            <button onclick="addToCart(${it.id})" class="px-3 py-2.5 rounded-lg text-xs font-semibold bg-green-100 text-green-700 hover:bg-green-200 transition">
+              +
+            </button>` : ''}
+          </div>` : '<p class="text-xs text-red-400 mt-2 italic">Currently unavailable</p>'}
+        </div>`;
+      }).join('');
     }
 
-    async function purchaseItem(itemId, itemName) {
-      if (!currentPlayer) return;
-      try {
-        await apiFetch('/store/purchase', {
-          method: 'POST',
-          body: JSON.stringify({ user_id: currentPlayer.id, item_id: itemId, quantity: 1 })
-        });
-        storeMsg(`Purchased ${itemName}!`, 'success');
-        await refreshTix();
-        loadStoreItems();
-        loadMyOrders();
-      } catch (err) { storeMsg(err.message, 'error'); }
+    function addToCart(itemId) {
+      const item = allItems.find(it => it.id === itemId);
+      if (!item) return;
+      const existing = cart.find(c => c.id === itemId);
+      if (existing) {
+        existing.quantity++;
+      } else {
+        cart.push({ id: itemId, name: item.name, price_tix: item.price_tix, quantity: 1 });
+      }
+      renderCart();
+      renderStoreItems();
     }
 
-    async function reserveItem(itemId, itemName) {
-      if (!currentPlayer) return;
-      try {
-        await apiFetch('/store/reserve', {
-          method: 'POST',
-          body: JSON.stringify({ user_id: currentPlayer.id, item_id: itemId, quantity: 1 })
-        });
-        storeMsg(`Reserved ${itemName}!`, 'success');
-        loadStoreItems();
-        loadMyOrders();
-      } catch (err) { storeMsg(err.message, 'error'); }
+    function removeFromCart(itemId) {
+      const existing = cart.find(c => c.id === itemId);
+      if (existing) {
+        existing.quantity--;
+        if (existing.quantity <= 0) {
+          cart = cart.filter(c => c.id !== itemId);
+        }
+      }
+      renderCart();
+      renderStoreItems();
     }
 
-    async function loadMyOrders() {
-      if (!currentPlayer) return;
+    function clearCart() {
+      cart = [];
+      renderCart();
+      renderStoreItems();
+    }
+
+    function setPaymentMode(mode) {
+      paymentMode = mode;
+      document.getElementById('pay-tix-btn').className = `flex-1 py-2 px-3 rounded-lg text-sm font-medium ${mode === 'tix' ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`;
+      document.getElementById('pay-money-btn').className = `flex-1 py-2 px-3 rounded-lg text-sm font-medium ${mode === 'money' ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`;
+      renderCart();
+    }
+
+    function renderCart() {
+      const cartItemsEl = document.getElementById('cart-items');
+      const cartCountEl = document.getElementById('cart-count');
+      const cartTotalEl = document.getElementById('cart-total');
+      const checkoutBtn = document.getElementById('checkout-btn');
+      const clearCartBtn = document.getElementById('clear-cart-btn');
+
+      const totalQty = cart.reduce((sum, c) => sum + c.quantity, 0);
+      const totalTix = cart.reduce((sum, c) => sum + (c.price_tix * c.quantity), 0);
+
+      cartCountEl.textContent = `${totalQty} item${totalQty !== 1 ? 's' : ''}`;
+      cartTotalEl.textContent = paymentMode === 'tix' ? `${totalTix} Tix` : `$${totalTix}`;
+      checkoutBtn.disabled = cart.length === 0;
+      clearCartBtn.classList.toggle('hidden', cart.length === 0);
+
+      if (!cart.length) {
+        cartItemsEl.innerHTML = '<p class="text-gray-400 italic text-sm">Cart is empty</p>';
+        return;
+      }
+
+      cartItemsEl.innerHTML = cart.map(c => `
+        <div class="flex items-center justify-between text-sm">
+          <span class="text-gray-700">${esc(c.name)} x${c.quantity}</span>
+          <span class="font-medium text-emerald-600">${paymentMode === 'tix' ? c.price_tix * c.quantity + ' Tix' : '$' + (c.price_tix * c.quantity)}</span>
+        </div>
+      `).join('');
+    }
+
+    async function processCheckout() {
+      if (!currentPlayer || cart.length === 0) return;
+
+      const totalTix = cart.reduce((sum, c) => sum + (c.price_tix * c.quantity), 0);
+
+      if (paymentMode === 'tix') {
+        if (currentPlayer.tix < totalTix) {
+          storeMsg(`Player has insufficient Tix. Needs ${totalTix}, has ${currentPlayer.tix}`, 'error');
+          return;
+        }
+
+        try {
+          // Process each item in cart
+          for (const cartItem of cart) {
+            await apiFetch('/store/purchase', {
+              method: 'POST',
+              body: JSON.stringify({ user_id: currentPlayer.id, item_id: cartItem.id, quantity: cartItem.quantity })
+            });
+          }
+
+          storeMsg(`Checkout successful! Charged ${totalTix} Tix from ${currentPlayer.name}`, 'success');
+          cart = [];
+          renderCart();
+          renderStoreItems();
+          closePlayerScan();
+          loadTransactions();
+        } catch (err) { storeMsg(err.message, 'error'); }
+      } else {
+        // Money payment - create payment intent
+        try {
+          const response = await fetch(`${API}/payments/create`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-api-key': apiKey,
+              'x-convention-id': localStorage.getItem('nfc_convention_id') || '',
+            },
+            body: JSON.stringify({ userId: currentPlayer.id, amount: totalTix }),
+          });
+
+          const data = await response.json();
+          if (data.success) {
+            storeMsg(`Payment created! Complete payment at: ${data.paymentUrl}`, 'success');
+            // Open payment URL in new tab
+            window.open(data.paymentUrl, '_blank');
+            // Note: Items will be fulfilled after payment webhook confirms
+          } else {
+            storeMsg('Payment creation failed', 'error');
+          }
+        } catch (err) { storeMsg(err.message, 'error'); }
+      }
+    }
+
+    async function loadTransactions() {
       try {
-        const res = await apiFetch(`/store/orders/user/${currentPlayer.id}`);
+        const res = await apiFetch('/store/orders');
         const orders = res.orders || [];
-        const el = document.getElementById('my-orders');
-        if (!orders.length) { el.innerHTML = '<p class="text-gray-400 italic text-sm">No orders yet</p>'; return; }
+        const el = document.getElementById('transactions-list');
+        if (!orders.length) { el.innerHTML = '<p class="text-gray-400 italic text-sm">No transactions yet</p>'; return; }
         el.innerHTML = orders.map(o => {
           const statusColor = o.status === 'confirmed' ? 'bg-blue-100 text-blue-700' :
             o.status === 'reserved' ? 'bg-yellow-100 text-yellow-700' :
@@ -233,7 +426,7 @@
               </div>
               <span class="text-[10px] px-2 py-0.5 rounded-full font-medium ${statusColor} shrink-0">${o.status}</span>
             </div>
-            <div class="text-[10px] text-gray-400 mt-1">${typeIcon} · ${o.total_tix} Tix · ${new Date(o.created_at).toLocaleString()}</div>
+            <div class="text-[10px] text-gray-400 mt-1">${typeIcon} · ${o.total_tix} Tix · ${esc(o.user_name || 'User #' + o.user_id)} · ${new Date(o.created_at).toLocaleString()}</div>
           </div>`;
         }).join('');
       } catch (err) { storeMsg(err.message, 'error'); }

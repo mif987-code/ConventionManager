@@ -13,6 +13,7 @@ export default function DashboardPage() {
   const [deleting, setDeleting] = useState(false);
   const [scanMode, setScanMode] = useState<'nfc' | 'qr'>('qr');
   const [updatingMode, setUpdatingMode] = useState(false);
+  const [scanModeLocked, setScanModeLocked] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -25,16 +26,20 @@ export default function DashboardPage() {
             setScanMode(convRes.convention.scan_mode);
           }
         }
-        
+
         const [usersRes, eventsRes] = await Promise.all([
           users.list(),
           events.list(),
         ]);
+        const userCount = usersRes.users?.length || 0;
+        const eventCount = eventsRes.events?.length || 0;
         setStats({
-          userCount: usersRes.users?.length || 0,
+          userCount,
           openEvents: eventsRes.events?.filter((e: any) => e.status === 'open').length || 0,
-          totalEvents: eventsRes.events?.length || 0,
+          totalEvents: eventCount,
         });
+        // Lock scan mode if convention has users or events
+        setScanModeLocked(userCount > 0 || eventCount > 0);
       } catch (err: any) {
         setError(err.message);
       } finally {
@@ -181,14 +186,14 @@ export default function DashboardPage() {
           <div className="mt-8 bg-white border border-gray-200 rounded-xl p-6">
             <h3 className="text-lg font-semibold text-gray-800 mb-4">Convention Management</h3>
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Default Scan Mode</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Default Scan Mode {scanModeLocked && <Lock size={14} className="inline text-gray-400 ml-1" />}</label>
               <div className="flex gap-2">
                 <button
                   onClick={() => handleUpdateScanMode('nfc')}
-                  disabled={updatingMode}
+                  disabled={updatingMode || scanModeLocked}
                   className={`flex items-center gap-2 px-4 py-2 rounded-lg transition text-sm font-medium ${
-                    scanMode === 'nfc' 
-                      ? 'bg-indigo-600 text-white' 
+                    scanMode === 'nfc'
+                      ? 'bg-indigo-600 text-white'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   } disabled:opacity-50`}
                 >
@@ -196,16 +201,21 @@ export default function DashboardPage() {
                 </button>
                 <button
                   onClick={() => handleUpdateScanMode('qr')}
-                  disabled={updatingMode}
+                  disabled={updatingMode || scanModeLocked}
                   className={`flex items-center gap-2 px-4 py-2 rounded-lg transition text-sm font-medium ${
-                    scanMode === 'qr' 
-                      ? 'bg-indigo-600 text-white' 
+                    scanMode === 'qr'
+                      ? 'bg-indigo-600 text-white'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   } disabled:opacity-50`}
                 >
                   <QrCode size={16} /> QR Code
                 </button>
               </div>
+              {scanModeLocked && (
+                <p className="text-xs text-gray-500 mt-2">
+                  Scan mode is locked because the convention already has users or events.
+                </p>
+              )}
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <button

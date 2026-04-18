@@ -16,13 +16,13 @@ export default function StorePage() {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [tab, setTab] = useState<'items' | 'orders'>('items');
+  const [tab, setTab] = useState<'items' | 'orders' | 'transactions'>('items');
   const [orderFilter, setOrderFilter] = useState('');
 
   // Add/Edit item form
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [formData, setFormData] = useState({ name: '', description: '', price_tix: 0, stock: 0, set_name: '', card_number: '', language: 'English', condition: 'NM', foil: false, cost: 0 });
+  const [formData, setFormData] = useState({ name: '', description: '', price_tix: 0, stock: 0, set_name: '', card_number: '', language: 'English', condition: 'NM', foil: false, cost: 0, category: 'cards', image_url: '' });
   const [saving, setSaving] = useState(false);
   
   // Bulk import
@@ -66,16 +66,16 @@ export default function StorePage() {
 
   function openAddForm() {
     setEditingId(null);
-    setFormData({ name: '', description: '', price_tix: 0, stock: 0, set_name: '', card_number: '', language: 'English', condition: 'NM', foil: false, cost: 0 });
+    setFormData({ name: '', description: '', price_tix: 0, stock: 0, set_name: '', card_number: '', language: 'English', condition: 'NM', foil: false, cost: 0, category: 'cards', image_url: '' });
     setShowForm(true);
   }
 
   function openEditForm(item: any) {
     setEditingId(item.id);
-    setFormData({ 
-      name: item.name, 
-      description: item.description || '', 
-      price_tix: item.price_tix, 
+    setFormData({
+      name: item.name,
+      description: item.description || '',
+      price_tix: item.price_tix,
       stock: item.stock,
       set_name: item.set_name || '',
       card_number: item.card_number || '',
@@ -83,6 +83,8 @@ export default function StorePage() {
       condition: item.condition || 'NM',
       foil: item.foil || false,
       cost: item.cost || 0,
+      category: item.category || 'cards',
+      image_url: item.image_url || '',
     });
     setShowForm(true);
   }
@@ -243,6 +245,10 @@ export default function StorePage() {
           className={`px-4 py-2.5 text-sm font-medium border-b-2 transition ${tab === 'orders' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
           Orders ({orders.length})
         </button>
+        <button onClick={() => setTab('transactions')}
+          className={`px-4 py-2.5 text-sm font-medium border-b-2 transition ${tab === 'transactions' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+          Transactions
+        </button>
       </div>
 
       {/* Add/Edit Form */}
@@ -251,55 +257,80 @@ export default function StorePage() {
           <h2 className="font-semibold text-gray-800 mb-4">{editingId ? 'Edit Item' : 'Add New Item'}</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="md:col-span-3">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+              <select value={formData.category} onChange={e => setFormData({ ...formData, category: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm">
+                <option value="cards">Cards</option>
+                <option value="sealed">Sealed Product</option>
+                <option value="merchandise">Merchandise</option>
+              </select>
+            </div>
+            <div className="md:col-span-3">
               <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
               <input value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Set Name</label>
-              <input value={formData.set_name} onChange={e => setFormData({ ...formData, set_name: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Card Number</label>
-              <input value={formData.card_number} onChange={e => setFormData({ ...formData, card_number: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Language</label>
-              <select value={formData.language} onChange={e => setFormData({ ...formData, language: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm">
-                <option value="English">English</option>
-                <option value="Japanese">Japanese</option>
-                <option value="French">French</option>
-                <option value="German">German</option>
-                <option value="Spanish">Spanish</option>
-                <option value="Italian">Italian</option>
-                <option value="Portuguese">Portuguese</option>
-                <option value="Chinese">Chinese</option>
-                <option value="Korean">Korean</option>
-                <option value="Russian">Russian</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Condition</label>
-              <select value={formData.condition} onChange={e => setFormData({ ...formData, condition: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm">
-                <option value="NM">Near Mint (NM)</option>
-                <option value="LP">Lightly Played (LP)</option>
-                <option value="MP">Moderately Played (MP)</option>
-                <option value="HP">Heavily Played (HP)</option>
-                <option value="Damaged">Damaged</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Foil</label>
-              <label className="flex items-center gap-2 mt-2">
-                <input type="checkbox" checked={formData.foil} onChange={e => setFormData({ ...formData, foil: e.target.checked })}
-                  className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500" />
-                <span className="text-sm text-gray-700">Yes</span>
-              </label>
-            </div>
+
+            {/* Card-specific fields */}
+            {formData.category === 'cards' && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Set Name</label>
+                  <input value={formData.set_name} onChange={e => setFormData({ ...formData, set_name: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Card Number</label>
+                  <input value={formData.card_number} onChange={e => setFormData({ ...formData, card_number: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Language</label>
+                  <select value={formData.language} onChange={e => setFormData({ ...formData, language: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm">
+                    <option value="English">English</option>
+                    <option value="Japanese">Japanese</option>
+                    <option value="French">French</option>
+                    <option value="German">German</option>
+                    <option value="Spanish">Spanish</option>
+                    <option value="Italian">Italian</option>
+                    <option value="Portuguese">Portuguese</option>
+                    <option value="Chinese">Chinese</option>
+                    <option value="Korean">Korean</option>
+                    <option value="Russian">Russian</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Condition</label>
+                  <select value={formData.condition} onChange={e => setFormData({ ...formData, condition: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm">
+                    <option value="NM">Near Mint (NM)</option>
+                    <option value="LP">Lightly Played (LP)</option>
+                    <option value="MP">Moderately Played (MP)</option>
+                    <option value="HP">Heavily Played (HP)</option>
+                    <option value="Damaged">Damaged</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Foil</label>
+                  <label className="flex items-center gap-2 mt-2">
+                    <input type="checkbox" checked={formData.foil} onChange={e => setFormData({ ...formData, foil: e.target.checked })}
+                      className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500" />
+                    <span className="text-sm text-gray-700">Yes</span>
+                  </label>
+                </div>
+              </>
+            )}
+
+            {/* Image upload for Sealed and Merchandise */}
+            {formData.category !== 'cards' && (
+              <div className="md:col-span-3">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Image URL</label>
+                <input value={formData.image_url} onChange={e => setFormData({ ...formData, image_url: e.target.value })}
+                  placeholder="https://..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
+              </div>
+            )}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Cost ($)</label>
               <input type="number" min="0" step="0.01" value={formData.cost} onChange={e => setFormData({ ...formData, cost: parseFloat(e.target.value) || 0 })}
@@ -528,6 +559,47 @@ export default function StorePage() {
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+
+      {/* Transactions Tab */}
+      {tab === 'transactions' && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          <table className="w-full">
+            <thead className="bg-gray-50 border-b border-gray-200">
+              <tr>
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Date</th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Player</th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Item</th>
+                <th className="text-center px-6 py-3 text-xs font-medium text-gray-500 uppercase">Qty</th>
+                <th className="text-center px-6 py-3 text-xs font-medium text-gray-500 uppercase">Total Tix</th>
+                <th className="text-center px-6 py-3 text-xs font-medium text-gray-500 uppercase">Status</th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Type</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {orders.map((order: any) => (
+                <tr key={order.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-3 text-sm text-gray-600">{new Date(order.created_at).toLocaleString()}</td>
+                  <td className="px-6 py-3 text-sm text-gray-700">{order.user_name || `User #${order.user_id}`}</td>
+                  <td className="px-6 py-3">
+                    <div className="text-sm font-medium text-gray-800">{order.item_name || `Item #${order.item_id}`}</div>
+                  </td>
+                  <td className="px-6 py-3 text-sm text-center">{order.quantity}</td>
+                  <td className="px-6 py-3 text-sm text-center font-semibold text-indigo-600">{order.total_tix} tix</td>
+                  <td className="px-6 py-3 text-center">
+                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${STATUS_COLORS[order.status] || ''}`}>
+                      {order.status}
+                    </span>
+                  </td>
+                  <td className="px-6 py-3 text-sm text-gray-600 capitalize">{order.order_type}</td>
+                </tr>
+              ))}
+              {orders.length === 0 && (
+                <tr><td colSpan={7} className="px-6 py-8 text-center text-gray-400">No transactions found</td></tr>
+              )}
+            </tbody>
+          </table>
         </div>
       )}
     </div>

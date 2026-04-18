@@ -73,14 +73,14 @@ router.get('/types', async (req: Request, res: Response, next: NextFunction) => 
 // POST /api/events - Create a new event
 router.post('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { name, event_type_id } = req.body;
+    const { name, event_type_id, preregistration_enabled } = req.body;
     const conventionId = (req as any).conventionId;
 
     if (!name || !event_type_id) {
       return res.status(400).json({ error: 'name and event_type_id are required' });
     }
 
-    const event = await eventService.createEvent(name, event_type_id, conventionId);
+    const event = await eventService.createEvent(name, event_type_id, conventionId, preregistration_enabled);
     res.status(201).json({ success: true, event });
   } catch (err) {
     next(err);

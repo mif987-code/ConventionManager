@@ -107,6 +107,22 @@
       </div>
     </div>
 
+    <!-- Payment Modal -->
+    <div id="payment-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div class="bg-white rounded-2xl shadow-lg max-w-md w-full p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-lg font-bold text-gray-800">Complete Payment</h2>
+          <button onclick="closePaymentModal()" class="text-gray-400 hover:text-gray-600">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <div id="payment-details" class="bg-gray-50 rounded-lg p-4 mb-4"></div>
+        <button onclick="completePayment()" id="complete-payment-btn" class="w-full bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-700 transition font-semibold text-sm">
+          Proceed to Payment
+        </button>
+      </div>
+    </div>
+
     <p class="text-center text-xs text-gray-400 mt-6">Your information will be used for event management only.</p>
   </div>
 
@@ -128,11 +144,16 @@
     const packagesContainer = document.getElementById('packages-container');
     const eventsSection = document.getElementById('events-section');
     const eventsContainer = document.getElementById('events-container');
+    const paymentModal = document.getElementById('payment-modal');
+    const paymentDetails = document.getElementById('payment-details');
+    const completePaymentBtn = document.getElementById('complete-payment-btn');
 
     let availableDates = [];
     let packages = [];
     let events = [];
     let scanMode = 'nfc'; // Default to NFC
+    let paymentMode = 'direct'; // 'direct' (no payment) or 'payment' (requires payment)
+    let pendingPayment = null;
 
     // Load convention info on page load
     async function loadConventionInfo() {
@@ -264,6 +285,12 @@
         event_prereg_ids: selectedEvents,
       };
 
+      // Calculate total cost
+      const selectedPackage = packages.find(p => p.id === selectedPackageId);
+      const selectedEventObjs = events.filter(e => selectedEvents.includes(e.id));
+      const packageCost = selectedPackage ? (selectedPackage.prereg_cost || selectedPackage.cost) : 0;
+      const totalCost = packageCost; // Events currently don't have a cost for preregistration
+
       try {
         const res = await fetch(`${API_BASE}/preregister`, {
           method: 'POST',
@@ -276,30 +303,21 @@
           throw new Error(json.error || 'Registration failed');
         }
 
-        // Set success message based on scan mode
-        const successMessageEl = document.getElementById('success-message');
-        if (scanMode === 'qr') {
-          successMessageEl.textContent = 'A personal and private QR code will be sent to you the day before the event to your email, it will also be available on the Event Application.';
+        // Check if payment is required
+        if (totalCost > 0) {
+          // Show payment modal
+          showPaymentModal(totalCost, {
+            userId: json.user.id,
+            userData: { ...data, id: json.user.id, attendanceDates: selectedDates },
+            selectedPackage,
+            selectedEventNames: selectedEventObjs.map(e => e.name),
+            packageName: selectedPackage?.name,
+            eventNames: selectedEventObjs.map(e => e.name),
+          });
         } else {
-          successMessageEl.textContent = 'Show up at the convention desk to get your NFC wristband linked to your account.';
+          // Direct success, no payment needed
+          showSuccess({ ...data, id: json.user.id, attendanceDates: selectedDates }, selectedPackage, selectedEventObjs.map(e => e.name), null);
         }
-
-        // Show success
-        const selectedPackage = packages.find(p => p.id === selectedPackageId);
-        const selectedEventNames = events.filter(e => selectedEvents.includes(e.id)).map(e => e.name);
-
-        successDetails.innerHTML = `
-          <p><span class="font-medium text-gray-700">Name:</span> ${data.name} ${data.last_name}</p>
-          <p><span class="font-medium text-gray-700">Email:</span> ${data.email}</p>
-          ${data.dob ? `<p><span class="font-medium text-gray-700">Date of Birth:</span> ${data.dob}</p>` : ''}
-          ${data.age ? `<p><span class="font-medium text-gray-700">Age:</span> ${data.age}</p>` : ''}
-          ${selectedDates.length > 0 ? `<p><span class="font-medium text-gray-700">Attending:</span> ${selectedDates.length} day(s)</p>` : ''}
-          ${selectedPackage ? `<p><span class="font-medium text-gray-700">Package:</span> ${selectedPackage.name} ($${selectedPackage.cost})</p>` : ''}
-          ${selectedEventNames.length > 0 ? `<p><span class="font-medium text-gray-700">Pre-registered Events:</span> ${selectedEventNames.join(', ')}</p>` : ''}
-          <p class="mt-2 text-indigo-600 font-medium">Registration ID: #${json.user.id}</p>
-        `;
-        formSection.classList.add('hidden');
-        successSection.classList.remove('hidden');
       } catch (err) {
         errorMsg.textContent = err.message;
         errorMsg.classList.remove('hidden');
@@ -313,6 +331,77 @@
       form.reset();
       formSection.classList.remove('hidden');
       successSection.classList.add('hidden');
+    }
+
+    function showPaymentModal(amount, details) {
+      paymentDetails.innerHTML = `
+        <p class="text-sm text-gray-700"><span class="font-medium">Amount:</span> $${amount}</p>
+        <p class="text-sm text-gray-700"><span class="font-medium">Package:</span> ${details.packageName || 'None'}</p>
+        ${details.eventNames ? `<p class="text-sm text-gray-700"><span class="font-medium">Events:</span> ${details.eventNames.join(', ')}</p>` : ''}
+      `;
+      paymentModal.classList.remove('hidden');
+      pendingPayment = { amount, details };
+    }
+
+    function closePaymentModal() {
+      paymentModal.classList.add('hidden');
+      pendingPayment = null;
+    }
+
+    async function completePayment() {
+      if (!pendingPayment) return;
+
+      completePaymentBtn.disabled = true;
+      completePaymentBtn.textContent = 'Creating payment...';
+
+      try {
+        const response = await fetch('/api/payments/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: pendingPayment.details.userId, amount: pendingPayment.amount }),
+        });
+
+        const data = await response.json();
+        if (data.success) {
+          // Open payment URL
+          window.open(data.paymentUrl, '_blank');
+          closePaymentModal();
+          // Show success message
+          showSuccess(pendingPayment.details.userData, pendingPayment.details.selectedPackage, pendingPayment.details.selectedEventNames, data.paymentLink);
+        } else {
+          errorMsg.textContent = 'Payment creation failed';
+          errorMsg.classList.remove('hidden');
+        }
+      } catch (err) {
+        errorMsg.textContent = err.message;
+        errorMsg.classList.remove('hidden');
+      } finally {
+        completePaymentBtn.disabled = false;
+        completePaymentBtn.textContent = 'Proceed to Payment';
+      }
+    }
+
+    function showSuccess(userData, selectedPackage, selectedEventNames, paymentLink) {
+      const successMessageEl = document.getElementById('success-message');
+      if (scanMode === 'qr') {
+        successMessageEl.textContent = 'A personal and private QR code will be sent to you the day before the event to your email, it will also be available on the Event Application.';
+      } else {
+        successMessageEl.textContent = 'Show up at the convention desk to get your NFC wristband linked to your account.';
+      }
+
+      successDetails.innerHTML = `
+        <p><span class="font-medium text-gray-700">Name:</span> ${userData.name} ${userData.last_name}</p>
+        <p><span class="font-medium text-gray-700">Email:</span> ${userData.email}</p>
+        ${userData.dob ? `<p><span class="font-medium text-gray-700">Date of Birth:</span> ${userData.dob}</p>` : ''}
+        ${userData.age ? `<p><span class="font-medium text-gray-700">Age:</span> ${userData.age}</p>` : ''}
+        ${userData.attendanceDates?.length > 0 ? `<p><span class="font-medium text-gray-700">Attending:</span> ${userData.attendanceDates.length} day(s)</p>` : ''}
+        ${selectedPackage ? `<p><span class="font-medium text-gray-700">Package:</span> ${selectedPackage.name} ($${selectedPackage.cost})</p>` : ''}
+        ${selectedEventNames?.length > 0 ? `<p><span class="font-medium text-gray-700">Pre-registered Events:</span> ${selectedEventNames.join(', ')}</p>` : ''}
+        ${paymentLink ? `<p><span class="font-medium text-gray-700">Payment:</span> <a href="${paymentLink}" target="_blank" class="text-indigo-600 hover:underline">View Transaction</a></p>` : ''}
+        <p class="mt-2 text-indigo-600 font-medium">Registration ID: #${userData.id}</p>
+      `;
+      formSection.classList.add('hidden');
+      successSection.classList.remove('hidden');
     }
 
     // Load convention info on page load
