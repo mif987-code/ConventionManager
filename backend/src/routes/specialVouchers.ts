@@ -3,6 +3,21 @@ import * as specialVoucherService from '../services/specialVoucherService';
 
 const router = Router();
 
+// GET /api/special-vouchers?convention_id=X - Get all special vouchers for a convention
+router.get('/', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const conventionId = req.query.convention_id ? parseInt(req.query.convention_id as string) : undefined;
+    if (conventionId) {
+      const vouchers = await specialVoucherService.getSpecialVouchersByConvention(conventionId);
+      res.json({ success: true, special_vouchers: vouchers });
+    } else {
+      res.status(400).json({ error: 'convention_id query parameter is required' });
+    }
+  } catch (err) {
+    next(err);
+  }
+});
+
 // POST /api/special-vouchers - Create a special voucher
 router.post('/', async (req: Request, res: Response, next: NextFunction) => {
   try {

@@ -88,17 +88,18 @@ router.post('/preregister', rateLimit, async (req: Request, res: Response, next:
         [userId, conventionId, package_id]
       );
 
-      // Get package details to award vouchers
+      // Get package details to check if payment is required
       const packageRes = await pool.query(
-        `SELECT regular_voucher_amount FROM packages WHERE id = $1`,
+        `SELECT regular_voucher_amount, prereg_cost, cost FROM packages WHERE id = $1`,
         [package_id]
       );
 
       if (packageRes.rows.length > 0) {
         const pkg = packageRes.rows[0];
+        const packageCost = pkg.prereg_cost || pkg.cost;
 
-        // Award regular vouchers
-        if (pkg.regular_voucher_amount > 0) {
+        // Only award vouchers if package has no cost (free package)
+        if (packageCost === 0 && pkg.regular_voucher_amount > 0) {
           await pool.query(
             `INSERT INTO voucher_transactions (user_id, amount, description)
              VALUES ($1, $2, $3)`,
@@ -115,13 +116,15 @@ router.post('/preregister', rateLimit, async (req: Request, res: Response, next:
           [package_id]
         );
 
-        // Award special vouchers
-        for (const sv of specialVouchersRes.rows) {
-          await pool.query(
-            `INSERT INTO special_voucher_awards (user_id, special_voucher_id, event_id, awarded_by)
-             VALUES ($1, $2, NULL, 'package_registration')`,
-            [userId, sv.id]
-          );
+        // Award special vouchers only if package is free
+        if (packageCost === 0) {
+          for (const sv of specialVouchersRes.rows) {
+            await pool.query(
+              `INSERT INTO special_voucher_awards (user_id, special_voucher_id, event_id, awarded_by)
+               VALUES ($1, $2, NULL, 'package_registration')`,
+              [userId, sv.id]
+            );
+          }
         }
       }
     }

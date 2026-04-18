@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Play, Trophy, XCircle, UserPlus, ChevronRight, Wifi, Search, Check, X, Loader2, QrCode, ScanLine, Gift, Plus, Trash2 } from 'lucide-react';
-import { events, users, conventions, specialVouchers } from '../api';
+import { ArrowLeft, Play, Trophy, XCircle, UserPlus, ChevronRight, Wifi, Search, Check, X, Loader2, QrCode, ScanLine } from 'lucide-react';
+import { events, users, conventions } from '../api';
 
 const STATUS_COLORS: Record<string, string> = {
   open: 'bg-green-100 text-green-700',
@@ -10,7 +10,7 @@ const STATUS_COLORS: Record<string, string> = {
   cancelled: 'bg-red-100 text-red-700',
 };
 
-type Tab = 'standings' | 'rounds' | 'registration' | 'bracket' | 'special_vouchers';
+type Tab = 'standings' | 'rounds' | 'registration' | 'bracket';
 
 export default function EventDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -34,14 +34,6 @@ export default function EventDetailPage() {
   const [convention, setConvention] = useState<any>(null);
   const [scanMode, setScanMode] = useState<'nfc' | 'qr'>('nfc');
   const [qrInput, setQrInput] = useState('');
-  const [specialVouchersList, setSpecialVouchersList] = useState<any[]>([]);
-  const [showCreateVoucher, setShowCreateVoucher] = useState(false);
-  const [newVoucher, setNewVoucher] = useState({ name: '', amount: 5, description: '', icon: 'star', color: '#6366f1', max_awards: 1 });
-  const [creatingVoucher, setCreatingVoucher] = useState(false);
-  const [showAwardVoucher, setShowAwardVoucher] = useState(false);
-  const [selectedVoucher, setSelectedVoucher] = useState<any>(null);
-  const [awardUserId, setAwardUserId] = useState('');
-  const [awarding, setAwarding] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [matchOutcomes, setMatchOutcomes] = useState<Record<number, 'p1' | 'p2' | 'draw'>>({});
@@ -78,72 +70,6 @@ export default function EventDetailPage() {
   }
 
   useEffect(() => { loadEvent(); loadConvention(); }, [id]);
-
-  async function loadSpecialVouchers() {
-    try {
-      const res = await specialVouchers.getByEvent(parseInt(id!));
-      setSpecialVouchersList(res.special_vouchers || []);
-    } catch (err: any) {
-      console.error('Failed to load special vouchers:', err);
-    }
-  }
-
-  useEffect(() => { loadSpecialVouchers(); }, [id]);
-
-  async function handleCreateVoucher(e: React.FormEvent) {
-    e.preventDefault();
-    if (!newVoucher.name || newVoucher.amount <= 0) return;
-    setCreatingVoucher(true);
-    try {
-      await specialVouchers.create({
-        event_id: parseInt(id!),
-        name: newVoucher.name,
-        amount: newVoucher.amount,
-        description: newVoucher.description,
-        icon: newVoucher.icon,
-        color: newVoucher.color,
-        max_awards: newVoucher.max_awards,
-      });
-      setNewVoucher({ name: '', amount: 5, description: '', icon: 'star', color: '#6366f1', max_awards: 1 });
-      setShowCreateVoucher(false);
-      loadSpecialVouchers();
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setCreatingVoucher(false);
-    }
-  }
-
-  async function handleDeleteVoucher(voucherId: number) {
-    if (!confirm('Delete this special voucher?')) return;
-    try {
-      await specialVouchers.delete(voucherId);
-      loadSpecialVouchers();
-    } catch (err: any) {
-      setError(err.message);
-    }
-  }
-
-  async function handleAwardVoucher(e: React.FormEvent) {
-    e.preventDefault();
-    if (!selectedVoucher || !awardUserId) return;
-    setAwarding(true);
-    try {
-      await specialVouchers.award(selectedVoucher.id, {
-        user_id: parseInt(awardUserId),
-        event_id: parseInt(id!),
-      });
-      setShowAwardVoucher(false);
-      setAwardUserId('');
-      setSelectedVoucher(null);
-      loadSpecialVouchers();
-      setError(''); // Clear any previous errors
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setAwarding(false);
-    }
-  }
 
   const doSearch = useCallback(async (query: string) => {
     if (query.trim().length < 1) { setSearchResults([]); return; }
@@ -401,14 +327,14 @@ export default function EventDetailPage() {
 
       {/* Tabs */}
       <div className="flex border-b border-gray-200 mb-6">
-        {((['standings', 'rounds', 'registration', 'special_vouchers'] as Tab[]).concat(
+        {((['standings', 'rounds', 'registration'] as Tab[]).concat(
           event.tournament_structure === 'single_elimination' ? ['bracket' as Tab] : []
         )).map((t) => (
           <button key={t} onClick={() => setTab(t)}
             className={`px-4 py-2.5 text-sm font-medium border-b-2 transition ${
               tab === t ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'
             }`}>
-            {t === 'standings' ? `Standings (${participants.length})` : t === 'rounds' ? `Rounds (${event.current_round}/${event.total_rounds})` : t === 'bracket' ? 'Bracket' : t === 'special_vouchers' ? `Special Vouchers (${specialVouchersList.length})` : 'Registration'}
+            {t === 'standings' ? `Standings (${participants.length})` : t === 'rounds' ? `Rounds (${event.current_round}/${event.total_rounds})` : t === 'bracket' ? 'Bracket' : 'Registration'}
           </button>
         ))}
       </div>
@@ -747,170 +673,6 @@ export default function EventDetailPage() {
             <p className="text-gray-400 italic">No rounds yet. Start the event first.</p>
           ) : (
             <BracketSVG rounds={rounds} matches={matches} participants={participants} />
-          )}
-        </div>
-      )}
-
-      {/* Special Vouchers Tab */}
-      {tab === 'special_vouchers' && (
-        <div>
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-semibold text-gray-800">Special Vouchers</h2>
-              <button onClick={() => setShowCreateVoucher(true)}
-                className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition text-sm font-medium">
-                <Plus size={16} /> Create Special Voucher
-              </button>
-            </div>
-            <p className="text-sm text-gray-500 mb-4">
-              Special vouchers are event-specific prizes that can be awarded to players. They award regular vouchers when claimed.
-            </p>
-
-            {specialVouchersList.length === 0 ? (
-              <div className="text-center py-8 text-gray-400">
-                <Gift size={48} className="mx-auto mb-3 opacity-50" />
-                <p>No special vouchers created for this event yet.</p>
-              </div>
-            ) : (
-              <div className="grid gap-4">
-                {specialVouchersList.map((voucher: any) => (
-                  <div key={voucher.id} className="border border-gray-200 rounded-lg p-4 flex items-start justify-between">
-                    <div className="flex items-start gap-3">
-                      <div className="w-12 h-12 rounded-lg flex items-center justify-center" style={{ backgroundColor: voucher.color + '20', color: voucher.color }}>
-                        <Gift size={24} />
-                      </div>
-                      <div>
-                        <h3 className="font-semibold text-gray-800">{voucher.name}</h3>
-                        {voucher.description && <p className="text-sm text-gray-500 mt-1">{voucher.description}</p>}
-                        <div className="flex items-center gap-4 mt-2 text-sm">
-                          <span className="text-indigo-600 font-semibold">{voucher.amount} vouchers</span>
-                          <span className="text-gray-500">{voucher.awarded_count}/{voucher.max_awards} awarded</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <button onClick={() => { setSelectedVoucher(voucher); setShowAwardVoucher(true); }}
-                        disabled={voucher.awarded_count >= voucher.max_awards}
-                        className="flex items-center gap-1 bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-lg hover:bg-emerald-200 transition text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed">
-                        <Gift size={14} /> Award
-                      </button>
-                      <button onClick={() => handleDeleteVoucher(voucher.id)}
-                        className="flex items-center gap-1 bg-red-100 text-red-700 px-3 py-1.5 rounded-lg hover:bg-red-200 transition text-sm font-medium">
-                        <Trash2 size={14} /> Delete
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Create Voucher Modal */}
-          {showCreateVoucher && (
-            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-              <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md">
-                <h3 className="text-lg font-semibold text-gray-800 mb-4">Create Special Voucher</h3>
-                <form onSubmit={handleCreateVoucher}>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-                      <input
-                        type="text"
-                        value={newVoucher.name}
-                        onChange={(e) => setNewVoucher({ ...newVoucher, name: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
-                        placeholder="e.g., First Place Bonus"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Amount (vouchers)</label>
-                      <input
-                        type="number"
-                        value={newVoucher.amount}
-                        onChange={(e) => setNewVoucher({ ...newVoucher, amount: parseInt(e.target.value) || 0 })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
-                        min="1"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Description (optional)</label>
-                      <textarea
-                        value={newVoucher.description}
-                        onChange={(e) => setNewVoucher({ ...newVoucher, description: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
-                        rows={2}
-                        placeholder="e.g., Bonus for winning the first round"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Max Awards</label>
-                      <input
-                        type="number"
-                        value={newVoucher.max_awards}
-                        onChange={(e) => setNewVoucher({ ...newVoucher, max_awards: parseInt(e.target.value) || 1 })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
-                        min="1"
-                        required
-                      />
-                    </div>
-                  </div>
-                  <div className="flex gap-3 mt-6">
-                    <button type="button" onClick={() => setShowCreateVoucher(false)}
-                      className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition text-sm font-medium">
-                      Cancel
-                    </button>
-                    <button type="submit" disabled={creatingVoucher}
-                      className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition text-sm font-medium disabled:opacity-50">
-                      {creatingVoucher ? 'Creating...' : 'Create'}
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          )}
-
-          {/* Award Voucher Modal */}
-          {showAwardVoucher && selectedVoucher && (
-            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-              <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md">
-                <h3 className="text-lg font-semibold text-gray-800 mb-4">Award {selectedVoucher.name}</h3>
-                <form onSubmit={handleAwardVoucher}>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">User ID</label>
-                      <input
-                        type="number"
-                        value={awardUserId}
-                        onChange={(e) => setAwardUserId(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
-                        placeholder="Enter user ID"
-                        required
-                      />
-                    </div>
-                    <div className="bg-gray-50 rounded-lg p-3">
-                      <p className="text-sm text-gray-600">
-                        This will award <strong>{selectedVoucher.amount} vouchers</strong> to the user.
-                      </p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {selectedVoucher.awarded_count}/{selectedVoucher.max_awards} awards remaining
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex gap-3 mt-6">
-                    <button type="button" onClick={() => setShowAwardVoucher(false)}
-                      className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition text-sm font-medium">
-                      Cancel
-                    </button>
-                    <button type="submit" disabled={awarding}
-                      className="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition text-sm font-medium disabled:opacity-50">
-                      {awarding ? 'Awarding...' : 'Award'}
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
           )}
         </div>
       )}

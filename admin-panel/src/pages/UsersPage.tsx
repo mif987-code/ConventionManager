@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
-import { UserPlus, Search, Link, X, Wifi, QrCode, X as CloseIcon, RefreshCw, Calendar, ScanLine } from 'lucide-react';
-import { users, conventions, scan } from '../api';
+import { useState, useRef, useCallback, useEffect } from 'react';
+import { UserPlus, Search, Link, X, Wifi, QrCode, X as CloseIcon, RefreshCw, Calendar, ScanLine, Copy, Package } from 'lucide-react';
+import { users, conventions, scan, packages } from '../api';
 
 export default function UsersPage() {
   const [userList, setUserList] = useState<any[]>([]);
@@ -20,6 +20,9 @@ export default function UsersPage() {
   const [nfcListening, setNfcListening] = useState(false);
   const [nfcStatus, setNfcStatus] = useState('');
   const [qrInput, setQrInput] = useState('');
+  const [copiedUserId, setCopiedUserId] = useState<number | null>(null);
+  const [availablePackages, setAvailablePackages] = useState<any[]>([]);
+  const [selectedPackageId, setSelectedPackageId] = useState<number | null>(null);
 
   async function loadUsers() {
     try {
@@ -44,9 +47,20 @@ export default function UsersPage() {
         if (res.convention?.scan_mode) {
           setScanMode(res.convention.scan_mode);
         }
+        await loadPackages(parseInt(conventionId));
       }
     } catch (err: any) {
       console.error('Failed to load convention:', err);
+    }
+  }
+
+  async function loadPackages(conventionId: number) {
+    try {
+      const res = await packages.list();
+      const conventionPackages = (res.packages || []).filter((p: any) => p.convention_id === conventionId && p.is_active);
+      setAvailablePackages(conventionPackages);
+    } catch (err: any) {
+      console.error('Failed to load packages:', err);
     }
   }
 
@@ -130,9 +144,41 @@ export default function UsersPage() {
         setError('NFC UID is required when scan mode is NFC');
         return;
       }
-      await users.register(form.name, nfcUid || '', form.email || undefined, selectedAttendanceDates);
+
+      // Check if package requires payment
+      const selectedPackage = availablePackages.find(p => p.id === selectedPackageId);
+      const packageCost = selectedPackage ? (selectedPackage.prereg_cost || selectedPackage.cost) : 0;
+
+      const res = await users.register(form.name, nfcUid || '', form.email || undefined, selectedAttendanceDates, selectedPackageId || undefined);
+      const user = res.user;
+
+      if (packageCost > 0) {
+        // Create payment for package
+        const paymentRes = await fetch('/api/payments/create', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': localStorage.getItem('cm_api_key') || '',
+            'x-convention-id': localStorage.getItem('cm_convention_id') || '',
+          },
+          body: JSON.stringify({ userId: user.id, amount: packageCost }),
+        });
+
+        const paymentData = await paymentRes.json();
+        if (paymentData.success) {
+          setSuccess(`User created. Payment created: ${paymentData.paymentId}. Please complete payment at: ${paymentData.paymentUrl}`);
+          // Open payment URL in new tab
+          window.open(paymentData.paymentUrl, '_blank');
+        } else {
+          setError('User created but payment creation failed');
+        }
+      } else {
+        setSuccess('User created successfully');
+      }
+
       setForm({ name: '', nfc_uid: '', email: '' });
       setSelectedAttendanceDates([]);
+      setSelectedPackageId(null);
       setShowRegister(false);
       loadUsers();
     } catch (err: any) {
@@ -169,6 +215,18 @@ export default function UsersPage() {
       setError(err.message);
     } finally {
       setRegeneratingQR(false);
+    }
+  }
+
+  async function handleCopyQRToken(userId: number) {
+    try {
+      const res = await users.getQRToken(userId);
+      await navigator.clipboard.writeText(res.token);
+      setCopiedUserId(userId);
+      setSuccess('QR token copied to clipboard!');
+      setTimeout(() => setCopiedUserId(null), 3000);
+    } catch (err: any) {
+      setError(err.message);
     }
   }
 
@@ -257,8 +315,8 @@ export default function UsersPage() {
                         }
                       }}
                       className={`px-3 py-1 rounded-full text-sm font-medium transition ${
-                        isSelected 
-                          ? 'bg-indigo-600 text-white' 
+                        isSelected
+                          ? 'bg-indigo-600 text-white'
                           : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                       }`}
                     >
@@ -267,6 +325,26 @@ export default function UsersPage() {
                   );
                 })}
               </div>
+            </div>
+          )}
+
+          {availablePackages.length > 0 && (
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                <Package size={16} /> Package (Optional)
+              </label>
+              <select
+                value={selectedPackageId || ''}
+                onChange={(e) => setSelectedPackageId(e.target.value ? parseInt(e.target.value) : null)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+              >
+                <option value="">No package</option>
+                {availablePackages.map((pkg: any) => (
+                  <option key={pkg.id} value={pkg.id}>
+                    {pkg.name} - ${pkg.prereg_cost || pkg.cost} ({pkg.days} day{pkg.days !== 1 ? 's' : ''})
+                  </option>
+                ))}
+              </select>
             </div>
           )}
         </div>
@@ -406,6 +484,10 @@ export default function UsersPage() {
                         <button onClick={() => setShowingQrUser(u)}
                           className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-700 font-medium">
                           <QrCode size={12} /> View
+                        </button>
+                        <button onClick={() => handleCopyQRToken(u.id)}
+                          className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 font-medium">
+                          <Copy size={12} /> {copiedUserId === u.id ? 'Copied!' : 'Copy Token'}
                         </button>
                         <button onClick={() => handleRegenerateQR(u.id)} disabled={regeneratingQR}
                           className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 font-medium disabled:opacity-50">

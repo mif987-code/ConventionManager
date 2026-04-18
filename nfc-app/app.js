@@ -244,6 +244,16 @@ async function doTopup(type) {
   } catch (err) { gMsg(err.message, 'error'); }
 }
 
+async function regenerateQr() {
+  if (!topupUser) return;
+  if (!confirm(`Regenerate QR code for ${topupUser.name}? Their old QR code will no longer work.`)) return;
+  try {
+    await api(`/users/${topupUser.id}/regenerate-qr`, { method: 'POST' });
+    gMsg('QR code regenerated successfully', 'success');
+    addRecent(`Regenerated QR → ${topupUser.name}`);
+  } catch (err) { gMsg(err.message, 'error'); }
+}
+
 /* ================================================================
    TAB 3: EVENTS
    ================================================================ */

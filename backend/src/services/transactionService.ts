@@ -13,18 +13,19 @@ interface AddTransactionParams {
   createdBy: string;
   client?: PoolClient;
   conventionId?: number;
+  paymentLink?: string | null;
 }
 
 // Core ledger function — all balance changes go through here
 export async function addTransaction(params: AddTransactionParams): Promise<number> {
-  const { userId, type, amount, reason, eventId, createdBy, client, conventionId } = params;
+  const { userId, type, amount, reason, eventId, createdBy, client, conventionId, paymentLink } = params;
   const executor = client || pool;
 
   const result = await executor.query(
-    `INSERT INTO transactions (user_id, type, amount, reason, event_id, created_by, convention_id)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
+    `INSERT INTO transactions (user_id, type, amount, reason, event_id, created_by, convention_id, payment_link)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
      RETURNING id`,
-    [userId, type, amount, reason, eventId || null, createdBy, conventionId || null]
+    [userId, type, amount, reason, eventId || null, createdBy, conventionId || null, paymentLink || null]
   );
 
   return result.rows[0].id;
