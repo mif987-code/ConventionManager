@@ -9,7 +9,7 @@ const router = Router();
 router.post('/types', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { name, category, format, entry_cost_vouchers, max_players, prize_structure, prize_structure_ties, tournament_structure } = req.body;
-    const conventionId = (req as any).conventionId;
+    const { conventionId } = req;
 
     if (!name || !category || entry_cost_vouchers === undefined || !prize_structure) {
       return res.status(400).json({ error: 'name, category, entry_cost_vouchers, and prize_structure are required' });
@@ -59,7 +59,7 @@ router.post('/types/:id/duplicate', async (req: Request, res: Response, next: Ne
 
 // GET /api/events/types - List all event types
 router.get('/types', async (req: Request, res: Response, next: NextFunction) => {
-  const conventionId = (req as any).conventionId;
+  const { conventionId } = req;
   try {
     const eventTypes = await eventService.getAllEventTypes(conventionId);
     res.json({ success: true, event_types: eventTypes });
@@ -74,7 +74,7 @@ router.get('/types', async (req: Request, res: Response, next: NextFunction) => 
 router.post('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { name, event_type_id, preregistration_enabled } = req.body;
-    const conventionId = (req as any).conventionId;
+    const { conventionId } = req;
 
     if (!name || !event_type_id) {
       return res.status(400).json({ error: 'name and event_type_id are required' });
@@ -91,7 +91,7 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
 router.get('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const status = req.query.status as string | undefined;
-    const conventionId = (req as any).conventionId;
+    const { conventionId } = req;
     const events = await eventService.getAllEvents(status, conventionId);
     res.json({ success: true, events });
   } catch (err) {

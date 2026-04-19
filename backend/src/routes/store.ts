@@ -13,7 +13,7 @@ const router = Router();
 router.get('/items', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const activeOnly = req.query.active === 'true';
-    const conventionId = (req as any).conventionId;
+    const { conventionId } = req;
     const items = await storeService.getAllItems(activeOnly, conventionId);
     res.json({ success: true, items });
   } catch (err) {
@@ -36,7 +36,7 @@ router.get('/items/:id', async (req: Request, res: Response, next: NextFunction)
 router.post('/items', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { name, description, price_tix, stock, image_url, set_name, card_number, language, condition, foil, cost } = req.body;
-    const conventionId = (req as any).conventionId;
+    const { conventionId } = req;
     if (!name || price_tix === undefined) {
       return res.status(400).json({ error: 'name and price_tix are required' });
     }
@@ -82,8 +82,7 @@ router.post('/bulk-import', upload.single('file'), async (req: Request, res: Res
     if (req.body.items && Array.isArray(req.body.items)) {
       const { items, validate_scryfall } = req.body;
       const validateWithScryfall = validate_scryfall === 'true' || validate_scryfall === true;
-      const conventionId = (req as any).conventionId;
-      console.log('[Store Route] Bulk import from JSON - items:', items.length, 'conventionId:', conventionId);
+      const { conventionId } = req;
       
       const result = await bulkImportService.bulkImportItems(items, validateWithScryfall, conventionId);
       res.json(result);
@@ -98,8 +97,7 @@ router.post('/bulk-import', upload.single('file'), async (req: Request, res: Res
     const { validate_scryfall, dry_run } = req.body;
     const validateWithScryfall = validate_scryfall === 'true' || validate_scryfall === true;
     const dryRun = dry_run === 'true' || dry_run === true;
-    const conventionId = (req as any).conventionId;
-    console.log('[Store Route] Bulk import - conventionId from request:', conventionId);
+    const { conventionId } = req;
     
     const items = await bulkImportService.parseImportFile(req.file.buffer, req.file.originalname);
     

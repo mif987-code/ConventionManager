@@ -1,7 +1,6 @@
 import { pool } from '../config/db';
 
-export async function getStats() {
-  const conventionId = 1; // TODO: Get from request context
+export async function getStats(conventionId: number) {
 
   // 1. Amount of players registered & Names of the players
   const totalPlayers = await pool.query(
@@ -118,7 +117,6 @@ export async function getStats() {
 
   const vouchersUnused = vouchersSold.rows[0].total - vouchersUsed.rows[0].total;
 
-  // Existing stats for backward compatibility
   const eventsPlayed = await pool.query(
     `SELECT COUNT(*)::int AS count FROM events WHERE status = 'finished' AND convention_id = $1`,
     [conventionId]
@@ -176,16 +174,5 @@ export async function getStats() {
       used: vouchersUsed.rows[0].total,
       unused: vouchersUnused,
     },
-
-    // Legacy stats for backward compatibility
-    total_users: totalPlayers.rows[0].count,
-    total_events: totalEvents.rows[0].count,
-    active_events: eventsOngoing.rows[0].count + eventsOpen.rows[0].count,
-    total_vouchers_in: vouchersSold.rows[0].total,
-    total_vouchers_out: vouchersUsed.rows[0].total,
-    total_tix_in: tixAwarded.rows[0].total,
-    total_tix_out: tixUsed.rows[0].total,
-    store_items: 0, // TODO: Add this
-    store_orders: tixPurchases.rows[0].count,
   };
 }

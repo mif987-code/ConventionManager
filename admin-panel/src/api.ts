@@ -13,7 +13,6 @@ export function getApiKey(): string {
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const conventionId = localStorage.getItem('cm_convention_id');
-  console.log('[API] Requesting', path, 'with convention_id:', conventionId);
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
     headers: {
