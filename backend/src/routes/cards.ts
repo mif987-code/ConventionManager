@@ -86,7 +86,6 @@ router.get('/sets-by-card', async (req: Request, res: Response) => {
     if (printsSearchUriCache.has(name)) {
       const cachedData = printsSearchUriCache.get(name)!;
       printsSearchUri = cachedData;
-      console.log('[Cards API] Using cached prints_search_uri for:', name);
     } else {
       try {
         const namedRes = await axios.get(
@@ -101,17 +100,14 @@ router.get('/sets-by-card', async (req: Request, res: Response) => {
         printsSearchUri = namedRes.data.prints_search_uri;
         if (printsSearchUri) {
           printsSearchUriCache.set(name, printsSearchUri);
-          console.log('[Cards API] Fetched and cached prints_search_uri for:', name);
         }
       } catch (err) {
-        console.log('[Cards API] Failed to fetch card data for:', name, 'will use name search only');
       }
     }
     
     // Step 2: Search using prints_search_uri if available
     if (printsSearchUri) {
       try {
-        console.log('[Cards API] Using prints_search_uri:', printsSearchUri);
         let next = printsSearchUri;
         
         while (next) {
@@ -122,7 +118,6 @@ router.get('/sets-by-card', async (req: Request, res: Response) => {
             },
           });
           const data = response.data;
-          console.log('[Cards API] Prints search page - cards:', data.data?.length || 0, 'has_more:', data.has_more);
           
           if (data.data) {
             for (const card of data.data) {
@@ -146,12 +141,10 @@ router.get('/sets-by-card', async (req: Request, res: Response) => {
           next = data.has_more ? data.next_page : null;
         }
       } catch (err) {
-        console.log('[Cards API] Prints search failed, falling back to name search');
       }
     }
     
     // Step 3: Fallback/Supplement with name search
-    console.log('[Cards API] Supplementing with name search');
     const nameUrl = `https://api.scryfall.com/cards/search?q=!"${encodeURIComponent(name)}"+game:paper`;
     let next = nameUrl;
     
@@ -186,7 +179,6 @@ router.get('/sets-by-card', async (req: Request, res: Response) => {
       (b.released_at || '').localeCompare(a.released_at || '')
     );
     
-    console.log('[Cards API] Sets returned for card:', name, 'count:', result.length);
     res.json(result);
   } catch (err: any) {
     console.error('[Cards API] Error fetching card sets:', err.message);

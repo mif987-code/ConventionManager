@@ -2,7 +2,15 @@ import { pool } from '../config/db';
 import { PoolClient } from 'pg';
 
 export type TransactionType = 'voucher' | 'tix';
-export type TransactionReason = 'topup' | 'event_entry' | 'prize' | 'refund' | 'admin_adjust' | 'purchase' | 'special_voucher' | 'special_voucher_refund';
+export type TransactionReason =
+  | 'topup'
+  | 'event_entry'
+  | 'prize'
+  | 'refund'
+  | 'admin_adjust'
+  | 'purchase'
+  | 'special_voucher'
+  | 'special_voucher_refund';
 
 interface AddTransactionParams {
   userId: number;
@@ -16,50 +24,53 @@ interface AddTransactionParams {
   paymentLink?: string | null;
 }
 
-// Core ledger function — all balance changes go through here
+// All balance changes go through this single ledger insert.
 export async function addTransaction(params: AddTransactionParams): Promise<number> {
   const { userId, type, amount, reason, eventId, createdBy, client, conventionId, paymentLink } = params;
-  const executor = client || pool;
+  const executor = client ?? pool;
 
   const result = await executor.query(
     `INSERT INTO transactions (user_id, type, amount, reason, event_id, created_by, convention_id, payment_link)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
      RETURNING id`,
-    [userId, type, amount, reason, eventId || null, createdBy, conventionId || null, paymentLink || null]
+    [userId, type, amount, reason, eventId ?? null, createdBy, conventionId ?? null, paymentLink ?? null]
   );
 
-  return result.rows[0].id;
+  return result.rows[0].id as number;
 }
 
-// Balance is ALWAYS computed from the ledger, never stored
-export async function getBalance(userId: number, type: TransactionType, client?: PoolClient, conventionId?: number): Promise<number> {
-  const executor = client || pool;
+// Balance is always computed from the ledger — never stored.
+export async function getBalance(
+  userId: number,
+  type: TransactionType,
+  client?: PoolClient,
+  conventionId?: number
+): Promise<number> {
+  const executor = client ?? pool;
 
   const query = conventionId
-    ? `SELECT COALESCE(SUM(amount), 0)::int AS balance
-       FROM transactions
-       WHERE user_id = $1 AND type = $2 AND convention_id = $3`
-    : `SELECT COALESCE(SUM(amount), 0)::int AS balance
-       FROM transactions
-       WHERE user_id = $1 AND type = $2`;
-  const params = conventionId ? [userId, type, conventionId] : [userId, type];
+    ? `SELECT COALESCE(SUM(amount), 0)::int AS balance FROM transactions WHERE user_id = $1 AND type = $2 AND convention_id = $3`
+    : `SELECT COALESCE(SUM(amount), 0)::int AS balance FROM transactions WHERE user_id = $1 AND type = $2`;
+
+  const params: (number | string)[] = conventionId
+    ? [userId, type, conventionId]
+    : [userId, type];
 
   const result = await executor.query(query, params);
-
-  return result.rows[0].balance;
+  return result.rows[0].balance as number;
 }
 
 export async function getTransactionHistory(
   userId: number,
   type?: TransactionType,
-  limit: number = 50,
-  offset: number = 0
+  limit = 50,
+  offset = 0
 ) {
+  const params: (number | string)[] = [userId];
   let query = `SELECT t.*, e.name AS event_name
                FROM transactions t
                LEFT JOIN events e ON t.event_id = e.id
                WHERE t.user_id = $1`;
-  const params: any[] = [userId];
 
   if (type) {
     query += ` AND t.type = $2`;

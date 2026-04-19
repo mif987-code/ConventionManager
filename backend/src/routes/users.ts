@@ -10,7 +10,7 @@ const router = Router();
 router.post('/register', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { name, nfc_uid, email, is_admin, attendance_dates, package_id } = req.body;
-    const conventionId = (req as any).conventionId;
+    const { conventionId } = req;
 
     if (!name) {
       return res.status(400).json({ error: 'name is required' });
@@ -87,7 +87,7 @@ router.post('/register', async (req: Request, res: Response, next: NextFunction)
 // GET /api/users - List all users
 router.get('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const conventionId = (req as any).conventionId;
+    const { conventionId } = req;
     const users = await userService.getAllUsers(conventionId);
     res.json({ success: true, users });
   } catch (err) {
@@ -139,7 +139,7 @@ router.put('/:id', async (req: Request, res: Response, next: NextFunction) => {
 router.post('/:id/regenerate-qr', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = parseInt(req.params.id);
-    const adminId = (req as any).adminId; // From admin auth middleware
+    const { adminId } = req;
 
     const user = await userService.regenerateQRCode(userId);
 

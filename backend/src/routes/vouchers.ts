@@ -3,26 +3,17 @@ import { addTransaction, getBalance, getTransactionHistory } from '../services/t
 
 const router = Router();
 
-// POST /api/vouchers/topup - Admin adds vouchers to a user
 router.post('/topup', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { user_id, amount } = req.body;
-    const conventionId = (req as any).conventionId;
+    const { user_id, amount } = req.body as { user_id: number; amount: number };
+    const { conventionId } = req;
 
     if (!user_id || !amount || amount <= 0) {
-      return res.status(400).json({ error: 'user_id and positive amount are required' });
+      res.status(400).json({ error: 'user_id and positive amount are required' });
+      return;
     }
 
-    // Server-defined value — never trust client for transaction amounts in real flows
-    await addTransaction({
-      userId: user_id,
-      type: 'voucher',
-      amount: amount,
-      reason: 'topup',
-      createdBy: 'admin',
-      conventionId,
-    });
-
+    await addTransaction({ userId: user_id, type: 'voucher', amount, reason: 'topup', createdBy: 'admin', conventionId });
     const newBalance = await getBalance(user_id, 'voucher', undefined, conventionId);
     res.json({ success: true, new_balance: newBalance });
   } catch (err) {
@@ -30,25 +21,17 @@ router.post('/topup', async (req: Request, res: Response, next: NextFunction) =>
   }
 });
 
-// POST /api/vouchers/adjust - Admin adjustment (can be negative)
 router.post('/adjust', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { user_id, amount, reason } = req.body;
-    const conventionId = (req as any).conventionId;
+    const { user_id, amount } = req.body as { user_id: number; amount: number };
+    const { conventionId } = req;
 
     if (!user_id || amount === undefined) {
-      return res.status(400).json({ error: 'user_id and amount are required' });
+      res.status(400).json({ error: 'user_id and amount are required' });
+      return;
     }
 
-    await addTransaction({
-      userId: user_id,
-      type: 'voucher',
-      amount: amount,
-      reason: 'admin_adjust',
-      createdBy: 'admin',
-      conventionId,
-    });
-
+    await addTransaction({ userId: user_id, type: 'voucher', amount, reason: 'admin_adjust', createdBy: 'admin', conventionId });
     const newBalance = await getBalance(user_id, 'voucher', undefined, conventionId);
     res.json({ success: true, new_balance: newBalance });
   } catch (err) {
@@ -56,25 +39,21 @@ router.post('/adjust', async (req: Request, res: Response, next: NextFunction) =
   }
 });
 
-// GET /api/vouchers/balance/:userId - Get voucher balance
 router.get('/balance/:userId', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const userId = parseInt(req.params.userId);
-    const conventionId = (req as any).conventionId;
-    const balance = await getBalance(userId, 'voucher', undefined, conventionId);
+    const userId = parseInt(req.params.userId, 10);
+    const balance = await getBalance(userId, 'voucher', undefined, req.conventionId);
     res.json({ success: true, user_id: userId, balance });
   } catch (err) {
     next(err);
   }
 });
 
-// GET /api/vouchers/history/:userId - Get voucher transaction history
 router.get('/history/:userId', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const userId = parseInt(req.params.userId);
-    const limit = parseInt(req.query.limit as string) || 50;
-    const offset = parseInt(req.query.offset as string) || 0;
-
+    const userId = parseInt(req.params.userId, 10);
+    const limit = parseInt(req.query.limit as string, 10) || 50;
+    const offset = parseInt(req.query.offset as string, 10) || 0;
     const transactions = await getTransactionHistory(userId, 'voucher', limit, offset);
     res.json({ success: true, transactions });
   } catch (err) {

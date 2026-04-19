@@ -9,12 +9,11 @@ export interface PaymentIntent {
   amount: number;
 }
 
-// Mock payment provider - replace with real provider (Stripe, PayPal, etc.)
+// Stub payment provider. Swap createPayment() body with a real Stripe/PayPal call
+// when a payment integration is added. The rest of the service (webhook handling,
+// voucher award on success) does not need to change.
 export async function createPayment(amount: number): Promise<PaymentIntent> {
-  // TODO: Replace with actual payment provider integration
-  // For now, return a mock payment intent
   const paymentId = 'mock_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-
   return {
     id: paymentId,
     status: 'pending',

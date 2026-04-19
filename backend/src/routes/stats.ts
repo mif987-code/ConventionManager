@@ -6,7 +6,7 @@ const router = Router();
 // GET /api/stats - Get convention statistics
 router.get('/', async (_req: Request, res: Response, next: NextFunction) => {
   try {
-    const stats = await getStats();
+    const stats = await getStats(req.conventionId ?? 0);
     res.json({ success: true, stats });
   } catch (err) {
     next(err);

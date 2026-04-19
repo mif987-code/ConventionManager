@@ -163,14 +163,12 @@ router.get('/preregister/check', async (req: Request, res: Response, next: NextF
 // GET /public/convention - Get active convention info
 router.get('/convention', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    console.log('Fetching convention info...');
     let convRes = await pool.query(
       `SELECT id, name, start_date, end_date, scan_mode FROM conventions WHERE status = 'active' ORDER BY created_at DESC LIMIT 1`
     );
 
     // If no active convention, try to get the most recent convention
     if (convRes.rows.length === 0) {
-      console.log('No active convention, fetching most recent...');
       convRes = await pool.query(
         `SELECT id, name, start_date, end_date, scan_mode FROM conventions ORDER BY created_at DESC LIMIT 1`
       );
@@ -181,7 +179,6 @@ router.get('/convention', async (req: Request, res: Response, next: NextFunction
     }
 
     const convention = convRes.rows[0];
-    console.log('Convention found:', convention.id, convention.name);
 
     // Calculate available dates
     const dates: string[] = [];
@@ -193,18 +190,14 @@ router.get('/convention', async (req: Request, res: Response, next: NextFunction
         current.setDate(current.getDate() + 1);
       }
     }
-    console.log('Available dates:', dates.length);
 
     // Get packages for this convention
-    console.log('Fetching packages for convention:', convention.id);
     const packagesRes = await pool.query(
       `SELECT * FROM packages WHERE convention_id = $1 AND is_active = TRUE ORDER BY days ASC, cost ASC`,
       [convention.id]
     );
-    console.log('Packages found:', packagesRes.rows.length);
 
     // Get events with preregistration enabled (handle if column doesn't exist)
-    console.log('Fetching events for convention:', convention.id);
     let eventsRes;
     try {
       eventsRes = await pool.query(
@@ -214,7 +207,6 @@ router.get('/convention', async (req: Request, res: Response, next: NextFunction
          ORDER BY e.created_at ASC`,
         [convention.id]
       );
-      console.log('Events found:', eventsRes.rows.length);
     } catch (err) {
       // If preregistration_enabled column doesn't exist, return empty events
       console.error('Error querying events (preregistration_enabled column may not exist):', err);

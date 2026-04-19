@@ -133,15 +133,3 @@ export function checkRateLimit(identifier: string, maxScans: number = 5, windowM
   return true;
 }
 
-// Risk score calculation for fraud detection
-export function calculateRiskScore(
-  multiDevice: boolean,
-  highFrequency: boolean,
-  tokenReuse: boolean
-): number {
-  let risk = 0;
-  if (multiDevice) risk += 3;
-  if (highFrequency) risk += 2;
-  if (tokenReuse) risk += 5;
-  return risk;
-}

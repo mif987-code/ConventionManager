@@ -1,52 +1,46 @@
 import { Request, Response, NextFunction } from 'express';
 
-// Convention ID middleware - extracts convention_id from header and attaches to request
-export function conventionMiddleware(req: Request, res: Response, next: NextFunction) {
-  const conventionId = req.headers['x-convention-id'] as string;
-  console.log('[Convention Middleware] Received x-convention-id header:', conventionId);
-  if (conventionId) {
-    (req as any).conventionId = parseInt(conventionId);
-    console.log('[Convention Middleware] Parsed convention_id:', (req as any).conventionId);
-  } else {
-    console.log('[Convention Middleware] No convention_id in request');
+// Attaches convention_id from the x-convention-id header to the request object.
+export function conventionMiddleware(req: Request, res: Response, next: NextFunction): void {
+  const raw = req.headers['x-convention-id'] as string | undefined;
+  if (raw) {
+    const parsed = parseInt(raw, 10);
+    if (!isNaN(parsed)) {
+      req.conventionId = parsed;
+    }
   }
   next();
 }
 
-// API Key authentication middleware
-export function apiKeyAuth(req: Request, res: Response, next: NextFunction) {
-  const apiKey = req.headers['x-api-key'] as string;
+// Validates the x-api-key header against the API_KEY environment variable.
+export function apiKeyAuth(req: Request, res: Response, next: NextFunction): void {
+  const apiKey = req.headers['x-api-key'] as string | undefined;
   const validKey = process.env.API_KEY;
 
   if (!validKey) {
-    console.warn('[Auth] API_KEY not configured in environment');
-    return res.status(500).json({ error: 'Server authentication not configured' });
+    res.status(500).json({ error: 'Server authentication not configured' });
+    return;
   }
 
   if (!apiKey || apiKey !== validKey) {
-    return res.status(403).json({ error: 'Unauthorized: Invalid API key' });
+    res.status(403).json({ error: 'Unauthorized: Invalid API key' });
+    return;
   }
 
   next();
 }
 
-// Admin-only middleware (checks x-admin-id header against DB)
-// For simplicity, this checks a header. In production, use JWT tokens.
-export function adminOnly(req: Request, res: Response, next: NextFunction) {
-  const isAdmin = (req as any).isAdmin;
-
-  if (!isAdmin) {
-    return res.status(403).json({ error: 'Admin access required' });
+// Rejects requests from non-admin callers.
+export function adminOnly(req: Request, res: Response, next: NextFunction): void {
+  if (!req.isAdmin) {
+    res.status(403).json({ error: 'Admin access required' });
+    return;
   }
-
   next();
 }
 
-// Error handling middleware
-export function errorHandler(err: Error, req: Request, res: Response, _next: NextFunction) {
+// Express error-handling middleware — must have 4 params.
+export function errorHandler(err: Error, _req: Request, res: Response, _next: NextFunction): void {
   console.error('[Error]', err.message);
-
-  res.status(400).json({
-    error: err.message || 'An unexpected error occurred',
-  });
+  res.status(400).json({ error: err.message || 'An unexpected error occurred' });
 }

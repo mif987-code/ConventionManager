@@ -23,8 +23,8 @@ router.get('/admins', async (_req: Request, res: Response) => {
   try {
     const admins = await getAllAdmins();
     res.json({ admins });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
+  } catch (err) {
+    res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
   }
 });
 
@@ -33,8 +33,8 @@ router.get('/:userId', async (req: Request, res: Response) => {
   try {
     const permissions = await getPermissions(parseInt(req.params.userId));
     res.json({ permissions });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
+  } catch (err) {
+    res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
   }
 });
 
@@ -56,8 +56,8 @@ router.put('/:userId', async (req: Request, res: Response) => {
 
     const updated = await setPermissions(targetId, permissions as PermissionCategory[]);
     res.json({ permissions: updated });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
+  } catch (err) {
+    res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
   }
 });
 
@@ -68,8 +68,8 @@ router.post('/:userId/add', async (req: Request, res: Response) => {
     if (!permission) return res.status(400).json({ error: 'permission required' });
     const updated = await addPermission(parseInt(req.params.userId), permission);
     res.json({ permissions: updated });
-  } catch (err: any) {
-    res.status(400).json({ error: err.message });
+  } catch (err) {
+    res.status(400).json({ error: err instanceof Error ? err.message : String(err) });
   }
 });
 
@@ -80,8 +80,8 @@ router.post('/:userId/remove', async (req: Request, res: Response) => {
     if (!permission) return res.status(400).json({ error: 'permission required' });
     const updated = await removePermission(parseInt(req.params.userId), permission);
     res.json({ permissions: updated });
-  } catch (err: any) {
-    res.status(400).json({ error: err.message });
+  } catch (err) {
+    res.status(400).json({ error: err instanceof Error ? err.message : String(err) });
   }
 });
 
@@ -92,8 +92,8 @@ router.post('/:userId/promote', async (req: Request, res: Response) => {
     const result = await setAdminStatus(parseInt(req.params.userId), true, permissions || []);
     if (!result) return res.status(404).json({ error: 'User not found' });
     res.json({ admin: result });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
+  } catch (err) {
+    res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
   }
 });
 
@@ -103,8 +103,8 @@ router.post('/:userId/demote', async (req: Request, res: Response) => {
     const result = await setAdminStatus(parseInt(req.params.userId), false, []);
     if (!result) return res.status(404).json({ error: 'User not found' });
     res.json({ admin: result });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
+  } catch (err) {
+    res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
   }
 });
 

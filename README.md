@@ -2,6 +2,29 @@
 
 A full-stack convention management system with NFC/RFID integration for managing players, vouchers, tix (earned currency), and events.
 
+
+## MTG Scanner Module
+
+A standalone card scanning and pricing tool, also embeddable in the admin panel.
+
+```
+ConventionManager/
+└── mtg-scanner/            # Self-contained MTG card scanner
+    ├── packages/core/      # Shared npm package (@mtg-scanner/core)
+    ├── apps/web/           # Standalone web app
+    ├── apps/expo/          # Mobile app (Expo)
+    └── integration/        # Drop-in components for admin-panel
+```
+
+See [`mtg-scanner/INTEGRATION.md`](mtg-scanner/INTEGRATION.md) for setup instructions.
+
+Features:
+- **Camera scanning** — detects cards via edge detection + OCR, matches via Scryfall
+- **Manual add** — Scryfall autocomplete by name or set
+- **Excel import** — flexible column matching (.xlsx / .csv)
+- **Pricing engine** — configurable buylist/trade percentages by price range, condition, language, and finish
+- **Price results** — per-card and total adjusted prices, CSV export
+
 ## Architecture
 
 ```

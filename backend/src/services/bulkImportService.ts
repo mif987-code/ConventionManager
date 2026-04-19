@@ -100,7 +100,6 @@ export function parseImportFile(buffer: Buffer, filename: string): BulkImportIte
   } else if (filename.endsWith('.csv')) {
     // CSV file
     const csvText = buffer.toString('utf-8');
-    console.log('[Bulk Import] CSV content preview:', csvText.substring(0, 500));
     
     const records = parse(csvText, {
       columns: true,
@@ -108,16 +107,13 @@ export function parseImportFile(buffer: Buffer, filename: string): BulkImportIte
       trim: true,
     }) as any[];
     
-    console.log('[Bulk Import] Parsed records:', records.length);
     
     for (let i = 0; i < records.length; i++) {
       const row = records[i];
-      console.log(`[Bulk Import] Row ${i}:`, JSON.stringify(row));
       
       // Skip header row if name column contains "Card Name" (case-insensitive)
       const nameValue = row.name || row['Card Name'] || row['card name'];
       if (nameValue && nameValue.toLowerCase().includes('card name')) {
-        console.log('[Bulk Import] Skipping header row');
         continue;
       }
       
@@ -132,7 +128,6 @@ export function parseImportFile(buffer: Buffer, filename: string): BulkImportIte
         cost: parseFloat(row.cost || row.Cost) || 0,
         price_tix: parseFloat(row.price_tix || row['tix price'] || row['Tix Price'] || row.tix) || 0,
       };
-      console.log(`[Bulk Import] Extracted item ${i}:`, JSON.stringify(extractedItem));
       items.push(extractedItem);
     }
   }
@@ -204,8 +199,6 @@ export async function validateItems(items: BulkImportItem[], validateWithScryfal
 
 // Bulk import items into database
 export async function bulkImportItems(items: BulkImportItem[], validateWithScryfall: boolean = true, conventionId?: number): Promise<ImportResult> {
-  console.log('[Bulk Import] Received items for import:', JSON.stringify(items));
-  console.log('[Bulk Import] conventionId parameter:', conventionId);
   
   const result: ImportResult = {
     success: true,
@@ -243,9 +236,7 @@ export async function bulkImportItems(items: BulkImportItem[], validateWithScryf
       
       if (normalizedSet) {
         setCode = normalizedSet.code;
-        console.log(`[Bulk Import] Normalized set "${item.set_name}" to code "${setCode}"`);
       } else {
-        console.log(`[Bulk Import] Could not normalize set "${item.set_name}"`);
       }
       
       // Validate with Scryfall if enabled
