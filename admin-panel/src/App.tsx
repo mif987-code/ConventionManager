@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Routes, Route, NavLink, useLocation } from 'react-router-dom';
-import { Users, Calendar, CreditCard, ScanLine, Trophy, Settings as SettingsIcon, Ticket, ShoppingBag, BarChart3, Shield, LogOut, Sparkles } from 'lucide-react';
+import { Users, Calendar, CreditCard, ScanLine, Trophy, Settings as SettingsIcon, Ticket, ShoppingBag, BarChart3, Shield, LogOut, Map } from 'lucide-react';
 import { getApiKey, setApiKey } from './api';
 import DashboardPage from './pages/DashboardPage';
 import UsersPage from './pages/UsersPage';
@@ -16,7 +16,7 @@ import PermissionsPage from './pages/PermissionsPage';
 import ConventionSelectPage from './pages/ConventionSelectPage';
 import SettingsPage from './pages/SettingsPage';
 import PackagesPage from './pages/PackagesPage';
-import MtgScannerPage from './pages/MtgScannerPage';
+import FloorPlanPage from './pages/FloorPlanPage';
 
 function App() {
   const location = useLocation();
@@ -93,7 +93,6 @@ function App() {
     { to: '/packages', icon: <Ticket size={20} />, label: 'Packages' },
     { to: '/store', icon: <ShoppingBag size={20} />, label: 'Store' },
     { to: '/scan', icon: <ScanLine size={20} />, label: 'NFC Scan' },
-    { to: '/mtg-scanner', icon: <Sparkles size={20} />, label: 'MTG Scanner' },
     { to: '/stats', icon: <BarChart3 size={20} />, label: 'Statistics' },
     { to: '/permissions', icon: <Shield size={20} />, label: 'Permissions' },
     { to: '/settings', icon: <SettingsIcon size={20} />, label: 'Settings' },
@@ -161,11 +160,11 @@ function App() {
             <Route path="/packages" element={<PackagesPage />} />
             <Route path="/store" element={<StorePage />} />
             <Route path="/scan" element={<ScanPage />} />
-            <Route path="/mtg-scanner" element={<MtgScannerPage />} />
             <Route path="/stats" element={<StatsPage />} />
             <Route path="/permissions" element={<PermissionsPage />} />
             <Route path="/settings" element={<SettingsPage />} />
-          </Routes>
+            <Route path="/floor-plan" element={<FloorPlanPage />} />
+        </Routes>
         </div>
       </main>
     </div>

@@ -24,6 +24,7 @@ import attendanceRouter from './routes/attendance';
 import specialVouchersRouter from './routes/specialVouchers';
 import packagesRouter from './routes/packages';
 import paymentsRouter from './routes/payments';
+import floorPlanRouter from './routes/floorPlan';
 
 dotenv.config();
 
@@ -60,6 +61,7 @@ app.use('/api/attendance', attendanceRouter);
 app.use('/api/special-vouchers', specialVouchersRouter);
 app.use('/api/packages', packagesRouter);
 app.use('/api/payments', paymentsRouter);
+app.use('/api/floor-plan', floorPlanRouter);
 
 // Serve registration site static files
 app.use('/register', express.static(path.join(__dirname, '../../registration-site')));

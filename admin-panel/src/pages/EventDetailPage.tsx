@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Play, Trophy, XCircle, UserPlus, ChevronRight, Wifi, Search, Check, X, Loader2, QrCode, ScanLine } from 'lucide-react';
-import { events, users, conventions } from '../api';
+import { events, users, conventions, floorPlan } from '../api';
+import FloorPlanPicker from '../components/FloorPlanPicker';
 
 const STATUS_COLORS: Record<string, string> = {
   open: 'bg-green-100 text-green-700',
@@ -37,6 +38,7 @@ export default function EventDetailPage() {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [matchOutcomes, setMatchOutcomes] = useState<Record<number, 'p1' | 'p2' | 'draw'>>({});
+  const [showTablePicker, setShowTablePicker] = useState(false);
 
   async function loadEvent() {
     try {
@@ -215,6 +217,7 @@ export default function EventDetailPage() {
   async function handleFinish() {
     try {
       await events.finish(parseInt(id!));
+      if (event.table_id) await floorPlan.release(parseInt(id!)).catch(() => {});
       loadEvent();
     } catch (err: any) { setError(err.message); }
   }
@@ -223,6 +226,7 @@ export default function EventDetailPage() {
     if (!confirm('Cancel this event and refund all participants?')) return;
     try {
       await events.cancel(parseInt(id!));
+      if (event.table_id) await floorPlan.release(parseInt(id!)).catch(() => {});
       loadEvent();
     } catch (err: any) { setError(err.message); }
   }
@@ -270,6 +274,34 @@ export default function EventDetailPage() {
           <span className={`text-sm px-3 py-1.5 rounded-full font-medium ${STATUS_COLORS[event.status] || ''}`}>
             {event.status}
           </span>
+        </div>
+
+        {/* Table reservation */}
+        <div style={{display:'flex',alignItems:'center',gap:10,marginTop:8}}>
+          {event.table_number ? (
+            <span style={{fontFamily:'DM Mono,monospace',fontSize:12,background:'rgba(74,158,110,0.15)',
+              border:'1px solid #4a9e6e',color:'#4a9e6e',padding:'3px 10px',borderRadius:4}}>
+              Table {event.table_number}
+            </span>
+          ) : (
+            <span style={{fontFamily:'DM Mono,monospace',fontSize:11,color:'#8a8880'}}>No table assigned</span>
+          )}
+          {(event.status === 'open' || event.status === 'ongoing') && (
+            <button onClick={() => setShowTablePicker(true)} style={{
+              fontFamily:'DM Mono,monospace',fontSize:11,padding:'3px 10px',borderRadius:4,
+              border:'1px solid #c8a84b',background:'rgba(200,168,75,0.1)',color:'#c8a84b',cursor:'pointer'
+            }}>
+              {event.table_number ? 'Change table' : 'Reserve table'}
+            </button>
+          )}
+          {event.table_number && (event.status === 'open' || event.status === 'ongoing') && (
+            <button onClick={async()=>{await floorPlan.release(parseInt(id!));loadEvent();}} style={{
+              fontFamily:'DM Mono,monospace',fontSize:11,padding:'3px 10px',borderRadius:4,
+              border:'1px solid #555450',background:'transparent',color:'#8a8880',cursor:'pointer'
+            }}>
+              Release
+            </button>
+          )}
         </div>
 
         {event.prize_structure && (
@@ -675,6 +707,14 @@ export default function EventDetailPage() {
             <BracketSVG rounds={rounds} matches={matches} participants={participants} />
           )}
         </div>
+      )}
+      {showTablePicker && (
+        <FloorPlanPicker
+          eventId={parseInt(id!)}
+          currentTableNumber={event.table_number}
+          onReserved={() => loadEvent()}
+          onClose={() => setShowTablePicker(false)}
+        />
       )}
     </div>
   );

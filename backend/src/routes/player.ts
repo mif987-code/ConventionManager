@@ -151,7 +151,7 @@ router.get('/events', playerAuth, async (req: Request, res: Response, next: Next
     const result = await pool.query(
       `SELECT ep.*, e.name AS event_name, e.status, e.created_at AS event_date,
               et.name AS event_type_name, et.category, et.tournament_structure,
-              e.current_round, e.total_rounds
+              e.current_round, e.total_rounds, e.table_number
        FROM event_participants ep
        JOIN events e ON ep.event_id = e.id
        JOIN event_types et ON e.event_type_id = et.id

@@ -186,6 +186,7 @@ async function renderEvents(el) {
             <span>${ev.wins}W-${ev.losses}L${ev.draws > 0 ? '-' + ev.draws + 'D' : ''}</span>
             <span>${ev.match_points} pts</span>
             ${ev.result_position ? `<span>#${ev.result_position}</span>` : ''}
+            ${ev.table_number ? `<span style="background:rgba(74,158,110,0.2);color:#4ade80;padding:1px 6px;border-radius:4px;font-weight:600;">Table ${esc(ev.table_number)}</span>` : ''}
           </div>
         </div>
       `).join('');

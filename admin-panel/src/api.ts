@@ -202,3 +202,14 @@ export const packages = {
   removeSpecialVoucher: (id: number, voucherId: number) =>
     request<any>(`/packages/${id}/special-vouchers/${voucherId}`, { method: 'DELETE' }),
 };
+
+// Floor Plan
+export const floorPlan = {
+  get: () => request<any>('/floor-plan'),
+  save: (data: any) => request<any>('/floor-plan', { method: 'POST', body: JSON.stringify(data) }),
+  getTables: () => request<any>('/floor-plan/tables'),
+  reserve: (tableId: number, eventId: number) =>
+    request<any>(`/floor-plan/tables/${tableId}/reserve`, { method: 'POST', body: JSON.stringify({ eventId }) }),
+  release: (eventId: number) =>
+    request<any>(`/floor-plan/tables/release/${eventId}`, { method: 'POST' }),
+};
