@@ -5,8 +5,9 @@ const router = Router();
 
 // GET /api/packages - List packages for current convention
 router.get('/', async (req: Request, res: Response, next: NextFunction) => {
+  const { conventionId } = req;
+  if (!conventionId) return res.status(400).json({ error: 'Convention ID required' });
   try {
-    const { conventionId } = req;
     const packages = await packageService.getPackagesByConvention(conventionId);
     res.json({ success: true, packages });
   } catch (err) {
@@ -16,8 +17,9 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
 
 // POST /api/packages - Create package
 router.post('/', async (req: Request, res: Response, next: NextFunction) => {
+  const { conventionId } = req;
+  if (!conventionId) return res.status(400).json({ error: 'Convention ID required' });
   try {
-    const { conventionId } = req;
     const { name, description, days, cost, prereg_cost, regular_voucher_amount } = req.body;
 
     if (!name || !days || cost === undefined) {

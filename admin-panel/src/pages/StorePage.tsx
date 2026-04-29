@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Package, Plus, Edit2, Trash2, Check, X, ShoppingCart, Loader2, Upload, Download } from 'lucide-react';
 import { store } from '../api';
 import BulkImportVerification from '../components/BulkImportVerification';
@@ -35,6 +35,19 @@ export default function StorePage() {
   const [showVerification, setShowVerification] = useState(false);
   const [parsedImportItems, setParsedImportItems] = useState<any[]>([]);
 
+  // Autocomplete state
+  const [cardSuggestions, setCardSuggestions] = useState<string[]>([]);
+  const [setSuggestions, setSetSuggestions] = useState<{name:string;code:string}[]>([]);
+  const [showCardDrop, setShowCardDrop] = useState(false);
+  const [showSetDrop, setShowSetDrop] = useState(false);
+  const cardDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const setDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Image upload state
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>('');
+  const imageInputRef = useRef<HTMLInputElement>(null);
+
   async function loadItems() {
     try {
       const res = await store.listItems();
@@ -67,6 +80,7 @@ export default function StorePage() {
   function openAddForm() {
     setEditingId(null);
     setFormData({ name: '', description: '', price_tix: 0, stock: 0, set_name: '', card_number: '', language: 'English', condition: 'NM', foil: false, cost: 0, category: 'cards', image_url: '' });
+    setImageFile(null); setImagePreview('');
     setShowForm(true);
   }
 
@@ -86,24 +100,72 @@ export default function StorePage() {
       category: item.category || 'cards',
       image_url: item.image_url || '',
     });
+    setImageFile(null); setImagePreview(item.image_url ? item.image_url : '');
     setShowForm(true);
   }
 
   async function handleSave() {
     setSaving(true);
     try {
+      let finalImageUrl = formData.image_url;
+      if (imageFile) {
+        finalImageUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(imageFile);
+        });
+      }
+      const payload = { ...formData, image_url: finalImageUrl };
       if (editingId) {
-        await store.updateItem(editingId, formData);
+        await store.updateItem(editingId, payload);
       } else {
-        await store.createItem(formData);
+        await store.createItem(payload);
       }
       setShowForm(false);
+      setImageFile(null); setImagePreview('');
       loadItems();
     } catch (err: any) {
       setError(err.message);
     } finally {
       setSaving(false);
     }
+  }
+
+  function handleCardNameChange(val: string) {
+    setFormData(f => ({ ...f, name: val }));
+    setShowCardDrop(true);
+    if (cardDebounce.current) clearTimeout(cardDebounce.current);
+    if (val.trim().length < 2) { setCardSuggestions([]); return; }
+    cardDebounce.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/cards/search?q=${encodeURIComponent(val)}`);
+        const data = await res.json();
+        const names = Array.from(new Set((data.cards || []).map((c: any) => c.name))) as string[];
+        setCardSuggestions(names.slice(0, 8));
+      } catch { setCardSuggestions([]); }
+    }, 300);
+  }
+
+  function handleSetNameChange(val: string) {
+    setFormData(f => ({ ...f, set_name: val }));
+    setShowSetDrop(true);
+    if (setDebounce.current) clearTimeout(setDebounce.current);
+    if (val.trim().length < 2) { setSetSuggestions([]); return; }
+    setDebounce.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/sets?q=${encodeURIComponent(val)}`);
+        const data = await res.json();
+        setSetSuggestions((data.sets || []).slice(0, 8));
+      } catch { setSetSuggestions([]); }
+    }, 300);
+  }
+
+  function handleImageFile(file: File | null) {
+    if (!file) return;
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
+    setFormData(f => ({ ...f, image_url: '' }));
   }
 
   async function handleDelete(id: number) {
@@ -265,19 +327,45 @@ export default function StorePage() {
                 <option value="merchandise">Merchandise</option>
               </select>
             </div>
-            <div className="md:col-span-3">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-              <input value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })}
+            <div className="md:col-span-3 relative">
+              <label className="block text-sm font-medium text-gray-700 mb-1">{formData.category === 'cards' ? 'Card Name' : 'Name'}</label>
+              <input value={formData.name}
+                onChange={e => formData.category === 'cards' ? handleCardNameChange(e.target.value) : setFormData(f => ({ ...f, name: e.target.value }))}
+                onBlur={() => setTimeout(() => setShowCardDrop(false), 150)}
+                placeholder={formData.category === 'cards' ? 'Type card name...' : ''}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
+              {formData.category === 'cards' && showCardDrop && cardSuggestions.length > 0 && (
+                <ul className="absolute z-20 bg-white border border-gray-200 rounded-lg shadow-lg mt-1 w-full max-h-48 overflow-y-auto">
+                  {cardSuggestions.map((name: string) => (
+                    <li key={name} className="px-3 py-2 text-sm hover:bg-indigo-50 cursor-pointer"
+                      onMouseDown={() => { setFormData(f => ({ ...f, name })); setShowCardDrop(false); setCardSuggestions([]); }}>
+                      {name}
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
 
             {/* Card-specific fields */}
             {formData.category === 'cards' && (
               <>
-                <div>
+                <div className="relative">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Set Name</label>
-                  <input value={formData.set_name} onChange={e => setFormData({ ...formData, set_name: e.target.value })}
+                  <input value={formData.set_name} onChange={e => handleSetNameChange(e.target.value)}
+                    onBlur={() => setTimeout(() => setShowSetDrop(false), 150)}
+                    onFocus={() => setSuggestions.length > 0 && setShowSetDrop(true)}
+                    placeholder="Type to search sets..."
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
+                  {showSetDrop && setSuggestions.length > 0 && (
+                    <ul className="absolute z-20 bg-white border border-gray-200 rounded-lg shadow-lg mt-1 w-full max-h-48 overflow-y-auto">
+                      {setSuggestions.map((s: any) => (
+                        <li key={s.code} className="px-3 py-2 text-sm hover:bg-indigo-50 cursor-pointer"
+                          onMouseDown={() => { setFormData(f => ({ ...f, set_name: s.name })); setShowSetDrop(false); setSetSuggestions([]); }}>
+                          {s.name} <span className="text-gray-400 text-xs ml-1">{s.code}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Card Number</label>
@@ -325,10 +413,23 @@ export default function StorePage() {
             {/* Image upload for Sealed and Merchandise */}
             {formData.category !== 'cards' && (
               <div className="md:col-span-3">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Image URL</label>
-                <input value={formData.image_url} onChange={e => setFormData({ ...formData, image_url: e.target.value })}
-                  placeholder="https://..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
+                <label className="block text-sm font-medium text-gray-700 mb-1">Image</label>
+                <div className="flex items-start gap-3">
+                  <div className="flex-1 space-y-2">
+                    <button type="button" onClick={() => imageInputRef.current?.click()}
+                      className="flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition">
+                      <Upload size={14} /> Upload file (JPEG/PNG/TIFF/WEBP)
+                    </button>
+                    <input ref={imageInputRef} type="file" accept="image/jpeg,image/png,image/tiff,image/webp,.jpg,.jpeg,.tif,.tiff,.png,.webp"
+                      className="hidden" onChange={e => handleImageFile(e.target.files?.[0] || null)} />
+                    <input value={imageFile ? '' : formData.image_url} onChange={e => { setFormData(f => ({ ...f, image_url: e.target.value })); setImageFile(null); setImagePreview(''); }}
+                      placeholder="Or paste image URL..."
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
+                  </div>
+                  {(imagePreview || formData.image_url) && (
+                    <img src={imagePreview || formData.image_url} alt="preview" className="w-16 h-16 object-cover rounded-lg border border-gray-200" onError={e => (e.currentTarget.style.display='none')} />
+                  )}
+                </div>
               </div>
             )}
             <div>
@@ -437,7 +538,8 @@ export default function StorePage() {
       {/* Items Tab */}
       {tab === 'items' && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-          <table className="w-full">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[640px]">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
                 <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Card</th>
@@ -496,6 +598,7 @@ export default function StorePage() {
               )}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 
@@ -511,7 +614,8 @@ export default function StorePage() {
             ))}
           </div>
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <table className="w-full">
+            <div className="overflow-x-auto">
+            <table className="w-full min-w-[560px]">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
                   <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Order</th>
@@ -558,6 +662,7 @@ export default function StorePage() {
                 )}
               </tbody>
             </table>
+            </div>
           </div>
         </div>
       )}
@@ -565,7 +670,8 @@ export default function StorePage() {
       {/* Transactions Tab */}
       {tab === 'transactions' && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-          <table className="w-full">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[560px]">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
                 <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Date</th>
@@ -600,6 +706,7 @@ export default function StorePage() {
               )}
             </tbody>
           </table>
+          </div>
         </div>
       )}
     </div>

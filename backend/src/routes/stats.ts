@@ -4,7 +4,7 @@ import { getStats } from '../services/statsService';
 const router = Router();
 
 // GET /api/stats - Get convention statistics
-router.get('/', async (_req: Request, res: Response, next: NextFunction) => {
+router.get('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const stats = await getStats(req.conventionId ?? 0);
     res.json({ success: true, stats });

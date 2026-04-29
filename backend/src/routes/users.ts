@@ -101,7 +101,7 @@ router.get('/search', async (req: Request, res: Response, next: NextFunction) =>
     const q = req.query.q as string;
     if (!q) return res.status(400).json({ error: 'Query parameter q is required' });
 
-    const users = await userService.searchUsers(q);
+    const users = await userService.searchUsers(q, req.conventionId);
     res.json({ success: true, users });
   } catch (err) {
     next(err);

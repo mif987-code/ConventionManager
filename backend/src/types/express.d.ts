@@ -1,6 +1,6 @@
-import 'express';
+import { ParsedQs } from 'qs';
 
-declare module 'express' {
+declare module 'express-serve-static-core' {
   interface Request {
     /** Parsed from x-convention-id header by conventionMiddleware */
     conventionId?: number;

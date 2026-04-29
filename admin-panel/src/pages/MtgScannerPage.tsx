@@ -25,16 +25,16 @@ import { PricingSettingsPanel } from '../lib/mtg-scanner/components';
 type Tab = 'scanner' | 'list' | 'manual' | 'excel' | 'pricing' | 'results';
 
 const TABS: { key: Tab; label: string }[] = [
+  { key: 'pricing',  label: 'Pricing Rules' },
   { key: 'scanner',  label: 'Scanner' },
-  { key: 'list',     label: 'Card list' },
-  { key: 'manual',   label: 'Add manually' },
+  { key: 'manual',   label: 'Add Manually' },
   { key: 'excel',    label: 'Import Excel' },
-  { key: 'pricing',  label: 'Pricing rules' },
-  { key: 'results',  label: 'Price results' },
+  { key: 'list',     label: 'Card List' },
+  { key: 'results',  label: 'Price Results' },
 ];
 
 export default function MtgScannerPage() {
-  const [tab, setTab] = useState<Tab>('list');
+  const [tab, setTab] = useState<Tab>('pricing');
   const [entries, setEntries] = useState<CardEntry[]>([]);
   const [presets, setPresets] = useState<PricingSettings[]>(loadPricingPresets);
   const [activePresetId, setActivePresetId] = useState<string>(presets[0]?.id ?? '');
@@ -72,12 +72,12 @@ export default function MtgScannerPage() {
       <h1 className="text-2xl font-bold text-gray-800 mb-6">MTG Card Scanner</h1>
 
       {/* Tab bar */}
-      <div className="flex gap-2 mb-6 border-b border-gray-200">
+      <div className="flex gap-2 mb-6 border-b border-gray-200 overflow-x-auto pb-0 scrollbar-hide">
         {TABS.map((t) => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            className={`px-4 py-2 font-medium transition ${
+            className={`px-4 py-2 font-medium transition whitespace-nowrap flex-shrink-0 ${
               tab === t.key
                 ? 'text-indigo-600 border-b-2 border-indigo-600'
                 : 'text-gray-500 hover:text-gray-700'

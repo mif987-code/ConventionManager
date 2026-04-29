@@ -124,11 +124,17 @@ export async function updateUser(
   return result.rows[0] ?? null;
 }
 
-export async function searchUsers(query: string): Promise<User[]> {
-  const result = await pool.query(
-    `SELECT * FROM users WHERE name ILIKE $1 OR last_name ILIKE $1 OR nfc_uid ILIKE $1 OR email ILIKE $1 ORDER BY name`,
-    [`%${query}%`]
-  );
+export async function searchUsers(query: string, conventionId?: number): Promise<User[]> {
+  const q = `%${query}%`;
+  const result = conventionId
+    ? await pool.query(
+        `SELECT * FROM users WHERE convention_id = $1 AND (name ILIKE $2 OR last_name ILIKE $2 OR nfc_uid ILIKE $2 OR email ILIKE $2) ORDER BY name`,
+        [conventionId, q]
+      )
+    : await pool.query(
+        `SELECT * FROM users WHERE name ILIKE $1 OR last_name ILIKE $1 OR nfc_uid ILIKE $1 OR email ILIKE $1 ORDER BY name`,
+        [q]
+      );
   return result.rows;
 }
 

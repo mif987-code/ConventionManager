@@ -361,10 +361,7 @@ export function CardListTable({ entries, onChange, adjustedPrices, className }: 
       </div>
 
       {/* Footer */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, padding: '0 4px' }}>
-        <button onClick={addEmptyRow} style={addBtnStyle}>
-          + Add row
-        </button>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginTop: 12, padding: '0 4px' }}>
         <div style={{ fontSize: 12, color: '#888' }}>
           {entries.length} card{entries.length !== 1 ? 's' : ''}
           {entries.some((e) => e.needsConfirmation) && (

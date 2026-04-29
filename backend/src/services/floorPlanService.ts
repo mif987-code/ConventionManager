@@ -1,5 +1,4 @@
-import { Pool, PoolClient } from 'pg';
-import pool from '../config/db';
+import { pool } from '../config/db';
 
 export interface FloorPlanTable {
   id: number;
@@ -106,7 +105,7 @@ export async function reserveTable(
   conventionId: number,
   tableId: number,
   eventId: number,
-  reservedBy: number
+  reservedBy: number | undefined
 ): Promise<void> {
   const client = await pool.connect();
   try {

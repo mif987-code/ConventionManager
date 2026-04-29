@@ -23,7 +23,8 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     },
   });
 
-  const data = await res.json();
+  const text = await res.text();
+  const data = text ? JSON.parse(text) : {};
   if (!res.ok) throw new Error(data.error || `Request failed: ${res.status}`);
   return data;
 }
@@ -201,6 +202,18 @@ export const packages = {
     request<any>(`/packages/${id}/special-vouchers/${voucherId}`, { method: 'POST' }),
   removeSpecialVoucher: (id: number, voucherId: number) =>
     request<any>(`/packages/${id}/special-vouchers/${voucherId}`, { method: 'DELETE' }),
+};
+
+// Axios-compatible api object used by FloorPlan components
+export const api = {
+  get: async (path: string) => {
+    const data = await request<any>(path);
+    return { data };
+  },
+  post: async (path: string, body?: any) => {
+    const data = await request<any>(path, { method: 'POST', body: body ? JSON.stringify(body) : undefined });
+    return { data };
+  },
 };
 
 // Floor Plan

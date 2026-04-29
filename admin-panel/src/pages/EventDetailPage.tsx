@@ -374,7 +374,8 @@ export default function EventDetailPage() {
       {/* Standings Tab */}
       {tab === 'standings' && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-          <table className="w-full">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[420px]">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
                 <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase w-10">#</th>
@@ -418,6 +419,7 @@ export default function EventDetailPage() {
               )}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 
@@ -496,7 +498,7 @@ export default function EventDetailPage() {
                         ) : isBye ? (
                           <span className="text-xs text-gray-400 italic">Auto-win (BYE)</span>
                         ) : (
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
                             <button onClick={() => setMatchOutcomes(prev => ({ ...prev, [m.id]: 'p1' }))}
                               className={`px-3 py-1.5 rounded-lg text-sm font-medium transition truncate max-w-[120px] ${
                                 outcome === 'p1' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
@@ -672,7 +674,8 @@ export default function EventDetailPage() {
             <div className="px-6 py-4 border-b border-gray-200">
               <h2 className="font-semibold text-gray-800">Registered Players ({participants.length})</h2>
             </div>
-            <table className="w-full">
+            <div className="overflow-x-auto">
+            <table className="w-full min-w-[380px]">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
                   <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Player</th>
@@ -693,6 +696,7 @@ export default function EventDetailPage() {
                 )}
               </tbody>
             </table>
+            </div>
           </div>
         </div>
       )}

@@ -340,7 +340,7 @@ export default function VouchersPage() {
       )}
 
       {/* Search bar */}
-      <div className="flex gap-2 mb-6 items-start">
+      <div className="flex flex-col sm:flex-row gap-2 mb-6 items-start">
         <div className="relative flex-1">
           <Search size={18} className="absolute left-3 top-3.5 text-gray-400" />
           <input
@@ -496,7 +496,8 @@ export default function VouchersPage() {
                 <h3 className="font-semibold text-gray-800">Voucher History</h3>
               </div>
               <div className="max-h-64 overflow-auto">
-                <table className="w-full">
+                <div className="overflow-x-auto">
+                <table className="w-full min-w-[480px]">
                   <thead className="bg-gray-50 border-b border-gray-200 sticky top-0">
                     <tr>
                       <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase">Amount</th>
@@ -533,6 +534,7 @@ export default function VouchersPage() {
                     )}
                   </tbody>
                 </table>
+                </div>
               </div>
             </div>
 
@@ -541,7 +543,8 @@ export default function VouchersPage() {
                 <h3 className="font-semibold text-gray-800">Tix History</h3>
               </div>
               <div className="max-h-64 overflow-auto">
-                <table className="w-full">
+                <div className="overflow-x-auto">
+                <table className="w-full min-w-[360px]">
                   <thead className="bg-gray-50 border-b border-gray-200 sticky top-0">
                     <tr>
                       <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase">Amount</th>
@@ -566,6 +569,7 @@ export default function VouchersPage() {
                     )}
                   </tbody>
                 </table>
+                </div>
               </div>
             </div>
           </div>
