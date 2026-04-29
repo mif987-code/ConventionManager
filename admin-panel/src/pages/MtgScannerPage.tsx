@@ -157,6 +157,10 @@ function ScannerTab({ entries, onAddEntry, onGoToList }: {
   const scanInterval = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const startCamera = useCallback(async () => {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setScanStatus('Camera not available. Open via HTTPS (https://YOUR_IP:5173).');
+      return;
+    }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
@@ -207,7 +211,7 @@ function ScannerTab({ entries, onAddEntry, onGoToList }: {
           tcgPrice: price,
           scryfallId: card.id,
           imageUrl: getCardImageUrl(card, 'normal') ?? undefined,
-          needsConfirmation: result.confidence < 0.85,
+          needsConfirmation: true, // always confirm — OCR detection is heuristic
           source: 'scan',
         };
         setLastResult(entry);

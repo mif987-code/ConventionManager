@@ -38,11 +38,26 @@ export async function getCardByName(
   setCode?: string
 ): Promise<ScryfallCard | null> {
   try {
-    const params: Record<string, string> = { fuzzy: name };
-    if (setCode) params.set = setCode;
-    return await sfetch<ScryfallCard>('/cards/named', params);
+    // Use search with -is:digital to avoid digital-only results
+    const q = `!"${name}" -is:digital` + (setCode ? ` e:${setCode}` : '');
+    const data = await sfetch<{ data: ScryfallCard[] }>('/cards/search', {
+      q,
+      order: 'released',
+      dir: 'desc',
+      unique: 'prints',
+    });
+    return data.data?.[0] ?? null;
   } catch {
-    return null;
+    // Fallback to fuzzy named (may include digital) if search finds nothing
+    try {
+      const params: Record<string, string> = { fuzzy: name };
+      if (setCode) params.set = setCode;
+      const card = await sfetch<ScryfallCard>('/cards/named', params);
+      if (card.digital) return null;
+      return card;
+    } catch {
+      return null;
+    }
   }
 }
 

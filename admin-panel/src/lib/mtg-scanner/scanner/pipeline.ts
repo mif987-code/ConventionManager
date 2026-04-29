@@ -158,14 +158,15 @@ export async function matchCard(
     const byName = await getCardByName(ocrText);
     if (byName) {
       bestMatch = byName;
-      confidence = 0.85;
+      // Never auto-confirm from OCR alone — detection is heuristic, always needs human review
+      confidence = 0.7;
       candidates = [byName];
     } else {
-      // Fuzzy: search with OCR text
+      // Fuzzy: search with OCR text (paper only via searchCards)
       candidates = await searchCards(ocrText.substring(0, 20));
       if (candidates.length > 0) {
         bestMatch = candidates[0];
-        confidence = 0.6;
+        confidence = 0.5;
       }
     }
   }
@@ -203,7 +204,8 @@ export async function runScanPipeline(
 
     const { candidates, bestMatch, confidence } = await matchCard(ocrText, artHash);
 
-    const status = confidence > 0.8 ? 'confirmed' : confidence > 0.5 ? 'confirming' : 'matching';
+    // Max confidence is 0.7 (OCR-only heuristic) — always 'confirming', never auto-confirmed
+    const status = confidence >= 0.7 ? 'confirming' : confidence > 0.4 ? 'matching' : 'detecting';
 
     return { status, candidates, bestMatch, confidence, ocrText };
   } catch (error) {
