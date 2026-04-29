@@ -8,6 +8,9 @@ export async function handleNfcScan(nfcUid: string) {
   if (!user) {
     return { found: false, message: `No user found for NFC tag: ${nfcUid}` };
   }
+  if (!user.is_active) {
+    return { found: false, message: 'Account not activated. Please visit an admin to activate your account.' };
+  }
   return { found: true, user };
 }
 
@@ -15,6 +18,9 @@ export async function handleQrScan(qrCode: string) {
   const user = await getUserByQrCode(qrCode);
   if (!user) {
     return { found: false, message: 'No user found for QR code' };
+  }
+  if (!user.is_active) {
+    return { found: false, message: 'Account not activated. Please visit an admin to activate your account.' };
   }
 
   const [voucherBalance, tixBalance] = await Promise.all([
@@ -47,6 +53,9 @@ export async function handleQrTokenScan(token: string, deviceIdentifier?: string
   const user = await getUserById(payload.user_id);
   if (!user) {
     return { found: false, message: 'User not found' };
+  }
+  if (!user.is_active) {
+    return { found: false, message: 'Account not activated. Please visit an admin to activate your account.' };
   }
 
   // If the convention tracks attendance, enforce that the user attends today.

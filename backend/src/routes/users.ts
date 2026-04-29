@@ -167,4 +167,46 @@ router.get('/:id/qr-token', async (req: Request, res: Response, next: NextFuncti
   }
 });
 
+// POST /api/users/:id/activate - Admin activates a user by scanning their QR
+router.post('/:id/activate', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = parseInt(req.params.id);
+    const adminId = req.adminId;
+    if (!adminId) return res.status(403).json({ error: 'Admin authentication required' });
+
+    const user = await userService.activateUser(userId, adminId);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    await pool.query(
+      `INSERT INTO admin_logs (action, details, user_id, admin_id) VALUES ($1, $2, $3, $4)`,
+      ['user_activated', `Admin activated user ${userId}`, userId, adminId]
+    );
+
+    res.json({ success: true, user });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/users/:id/deactivate - Admin deactivates a user
+router.post('/:id/deactivate', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = parseInt(req.params.id);
+    const adminId = req.adminId;
+    if (!adminId) return res.status(403).json({ error: 'Admin authentication required' });
+
+    const user = await userService.deactivateUser(userId);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    await pool.query(
+      `INSERT INTO admin_logs (action, details, user_id, admin_id) VALUES ($1, $2, $3, $4)`,
+      ['user_deactivated', `Admin deactivated user ${userId}`, userId, adminId]
+    );
+
+    res.json({ success: true, user });
+  } catch (err) {
+    next(err);
+  }
+});
+
 export default router;

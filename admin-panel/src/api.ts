@@ -42,6 +42,10 @@ export const users = {
     request<any>(`/users/${id}/regenerate-qr`, { method: 'POST' }),
   getQRToken: (id: number) =>
     request<any>(`/users/${id}/qr-token`),
+  activate: (id: number) =>
+    request<any>(`/users/${id}/activate`, { method: 'POST' }),
+  deactivate: (id: number) =>
+    request<any>(`/users/${id}/deactivate`, { method: 'POST' }),
 };
 
 // Vouchers

@@ -15,6 +15,9 @@ export interface User {
   is_admin: boolean;
   admin_permissions: string[];
   is_preregistered: boolean;
+  is_active: boolean;
+  activated_at: Date | null;
+  activated_by: number | null;
   days_playing: number;
   convention_id: number | null;
   created_at: Date;
@@ -143,4 +146,22 @@ export async function regenerateQRCode(userId: number): Promise<User> {
   if (!user) throw new Error('User not found');
   user.qr_code = await issueQRCode(userId);
   return user;
+}
+
+export async function activateUser(userId: number, adminId: number): Promise<User | null> {
+  const result = await pool.query(
+    `UPDATE users SET is_active = TRUE, activated_at = NOW(), activated_by = $1, updated_at = NOW()
+     WHERE id = $2 RETURNING *`,
+    [adminId, userId]
+  );
+  return result.rows[0] ?? null;
+}
+
+export async function deactivateUser(userId: number): Promise<User | null> {
+  const result = await pool.query(
+    `UPDATE users SET is_active = FALSE, activated_at = NULL, activated_by = NULL, updated_at = NOW()
+     WHERE id = $1 RETURNING *`,
+    [userId]
+  );
+  return result.rows[0] ?? null;
 }

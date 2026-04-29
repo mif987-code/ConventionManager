@@ -218,6 +218,26 @@ export default function UsersPage() {
     }
   }
 
+  async function handleActivate(userId: number) {
+    try {
+      await users.activate(userId);
+      setSuccess('User activated successfully!');
+      loadUsers();
+    } catch (err: any) {
+      setError(err.message);
+    }
+  }
+
+  async function handleDeactivate(userId: number) {
+    try {
+      await users.deactivate(userId);
+      setSuccess('User deactivated.');
+      loadUsers();
+    } catch (err: any) {
+      setError(err.message);
+    }
+  }
+
   async function handleCopyQRToken(userId: number) {
     try {
       const res = await users.getQRToken(userId);
@@ -468,13 +488,12 @@ export default function UsersPage() {
                         <span className="bg-purple-100 text-purple-700 text-xs px-2 py-0.5 rounded-full font-medium">Admin</span>
                       )}
                       {u.is_preregistered && (
-                        <span className="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full font-medium">Pre-registered</span>
+                        <span className="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full font-medium">Pre-reg</span>
                       )}
-                      {!u.nfc_uid && !u.is_preregistered && !u.is_admin && (
-                        <span className="text-gray-400">—</span>
-                      )}
-                      {u.nfc_uid && !u.is_admin && !u.is_preregistered && (
+                      {u.is_active ? (
                         <span className="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-full font-medium">Active</span>
+                      ) : (
+                        <span className="bg-red-100 text-red-600 text-xs px-2 py-0.5 rounded-full font-medium">Inactive</span>
                       )}
                     </div>
                   </td>
@@ -499,21 +518,34 @@ export default function UsersPage() {
                     )}
                   </td>
                   <td className="px-6 py-3 text-sm">
-                    {scanMode === 'qr' ? (
-                      !u.qr_code && (
-                        <button onClick={() => handleRegenerateQR(u.id)} disabled={regeneratingQR}
-                          className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-700 font-medium disabled:opacity-50">
-                          <QrCode size={12} /> Generate QR
+                    <div className="flex flex-wrap gap-2">
+                      {scanMode === 'qr' ? (
+                        !u.qr_code && (
+                          <button onClick={() => handleRegenerateQR(u.id)} disabled={regeneratingQR}
+                            className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-700 font-medium disabled:opacity-50">
+                            <QrCode size={12} /> Generate QR
+                          </button>
+                        )
+                      ) : (
+                        !u.nfc_uid && linkingUserId !== u.id && (
+                          <button onClick={() => { setLinkingUserId(u.id); setLinkNfcUid(''); }}
+                            className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-700 font-medium">
+                            <Link size={12} /> Link NFC
+                          </button>
+                        )
+                      )}
+                      {u.is_active ? (
+                        <button onClick={() => handleDeactivate(u.id)}
+                          className="flex items-center gap-1 text-xs text-red-600 hover:text-red-700 font-medium">
+                          <X size={12} /> Deactivate
                         </button>
-                      )
-                    ) : (
-                      !u.nfc_uid && linkingUserId !== u.id && (
-                        <button onClick={() => { setLinkingUserId(u.id); setLinkNfcUid(''); }}
-                          className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-700 font-medium">
-                          <Link size={12} /> Link NFC
+                      ) : (
+                        <button onClick={() => handleActivate(u.id)}
+                          className="flex items-center gap-1 text-xs text-green-600 hover:text-green-700 font-medium">
+                          <ScanLine size={12} /> Activate
                         </button>
-                      )
-                    )}
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
