@@ -135,6 +135,7 @@ export interface ScanResult {
   confidence: number;
   ocrText: string | null;
   error?: string;
+  debugInfo?: { method: string; bottomOcrText: string | null; parsed: { setCode: string; collectorNumber: string } | null };
 }
 
 export interface ExcelRow {

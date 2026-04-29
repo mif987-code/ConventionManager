@@ -186,7 +186,7 @@ function ScannerTab({ entries, onAddEntry, onGoToList }: {
   const startScan = useCallback(() => {
     if (!videoRef.current || !canvasRef.current) return;
     setScanning(true);
-    setScanStatus('Detecting card...');
+    setScanStatus('Scanning — hold card steady...');
 
     scanInterval.current = setInterval(async () => {
       const result = await runScanPipeline(videoRef.current!, canvasRef.current!);
@@ -194,10 +194,11 @@ function ScannerTab({ entries, onAddEntry, onGoToList }: {
         setScanStatus(`Error: ${result.error}`);
         return;
       }
-      if (result.status === 'confirmed' && result.bestMatch) {
-        setScanStatus(`✓ Found: ${result.bestMatch.name}`);
+      // 'confirming' = set+number hit (high confidence) — add and stop
+      if ((result.status === 'confirming' || result.status === 'confirmed') && result.bestMatch) {
         const card = result.bestMatch;
         const price = getTcgPrice(card, 'nonfoil');
+        const method = result.debugInfo?.method ?? 'ocr';
         const entry: CardEntry = {
           id: crypto.randomUUID(),
           name: card.name,
@@ -211,19 +212,22 @@ function ScannerTab({ entries, onAddEntry, onGoToList }: {
           tcgPrice: price,
           scryfallId: card.id,
           imageUrl: getCardImageUrl(card, 'normal') ?? undefined,
-          needsConfirmation: true, // always confirm — OCR detection is heuristic
+          needsConfirmation: true,
           source: 'scan',
         };
+        setScanStatus(`✓ ${card.name} · ${card.set.toUpperCase()} #${card.collector_number} [${method}]`);
         setLastResult(entry);
         onAddEntry(entry);
         if (scanInterval.current) clearInterval(scanInterval.current);
         setScanning(false);
-      } else if (result.status === 'confirming' && result.bestMatch) {
-        setScanStatus(`? Possible: ${result.bestMatch.name} (${Math.round(result.confidence * 100)}% confidence)`);
+      } else if (result.status === 'matching' && result.bestMatch) {
+        const d = result.debugInfo;
+        setScanStatus(`~ ${result.bestMatch.name} · bottom: "${d?.bottomOcrText ?? '—'}" (${Math.round(result.confidence * 100)}%)`);
       } else {
-        setScanStatus('Scanning...');
+        const d = result.debugInfo;
+        setScanStatus(d?.bottomOcrText ? `Reading... "${d.bottomOcrText}"` : 'Scanning — hold card steady...');
       }
-    }, 800);
+    }, 1200);
   }, [onAddEntry]);
 
   useEffect(() => () => { if (scanInterval.current) clearInterval(scanInterval.current); }, []);
