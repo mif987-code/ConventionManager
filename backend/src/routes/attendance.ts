@@ -25,7 +25,14 @@ router.put('/user/:userId/convention/:conventionId', async (req: Request, res: R
       return res.status(400).json({ error: 'attendance_dates array is required' });
     }
 
-    const dates = attendance_dates.map((d: string) => new Date(d));
+    const dates = attendance_dates.map((d: unknown) => {
+      if (typeof d !== 'string' || !/^\d{4}-\d{2}-\d{2}/.test(d)) {
+        throw Object.assign(new Error(`Invalid date format: ${d}`), { status: 400 });
+      }
+      const date = new Date(d);
+      if (isNaN(date.getTime())) throw Object.assign(new Error(`Invalid date: ${d}`), { status: 400 });
+      return date;
+    });
     await attendanceService.setUserAttendance(
       parseInt(req.params.userId),
       parseInt(req.params.conventionId),
@@ -41,9 +48,17 @@ router.put('/user/:userId/convention/:conventionId', async (req: Request, res: R
 // GET /api/attendance/convention/:conventionId/date/:date - Get users attending on a specific date
 router.get('/convention/:conventionId/date/:date', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const dateStr = req.params.date;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      return res.status(400).json({ error: 'date must be in YYYY-MM-DD format' });
+    }
+    const parsedDate = new Date(dateStr);
+    if (isNaN(parsedDate.getTime())) {
+      return res.status(400).json({ error: `Invalid date: ${dateStr}` });
+    }
     const users = await attendanceService.getUsersAttendingOnDate(
       parseInt(req.params.conventionId),
-      new Date(req.params.date)
+      parsedDate
     );
     res.json({ success: true, user_ids: users });
   } catch (err) {

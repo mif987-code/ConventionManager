@@ -98,6 +98,12 @@ router.post('/:id/award', async (req: Request, res: Response, next: NextFunction
     if (!user_id || !event_id) {
       return res.status(400).json({ error: 'user_id and event_id are required' });
     }
+    if (!Number.isInteger(user_id) || user_id < 1) {
+      return res.status(400).json({ error: 'user_id must be a positive integer' });
+    }
+    if (!Number.isInteger(event_id) || event_id < 1) {
+      return res.status(400).json({ error: 'event_id must be a positive integer' });
+    }
 
     const award = await specialVoucherService.awardSpecialVoucher(
       id,

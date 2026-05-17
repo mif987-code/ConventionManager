@@ -12,8 +12,14 @@ router.post('/register', async (req: Request, res: Response, next: NextFunction)
     const { name, nfc_uid, email, is_admin, attendance_dates, package_id } = req.body;
     const { conventionId } = req;
 
-    if (!name) {
+    if (!name || typeof name !== 'string' || name.trim().length === 0) {
       return res.status(400).json({ error: 'name is required' });
+    }
+
+    if (email !== undefined && email !== null && email !== '') {
+      if (typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        return res.status(400).json({ error: 'Invalid email format' });
+      }
     }
 
     if (nfc_uid) {
@@ -23,8 +29,16 @@ router.post('/register', async (req: Request, res: Response, next: NextFunction)
       }
     }
 
-    // Convert attendance dates strings to Date objects
-    const dates = attendance_dates ? attendance_dates.map((d: string) => new Date(d)) : undefined;
+    const dates = attendance_dates
+      ? attendance_dates.map((d: unknown) => {
+          if (typeof d !== 'string' || !/^\d{4}-\d{2}-\d{2}/.test(d)) {
+            throw Object.assign(new Error(`Invalid date format: ${d}`), { status: 400 });
+          }
+          const date = new Date(d);
+          if (isNaN(date.getTime())) throw Object.assign(new Error(`Invalid date: ${d}`), { status: 400 });
+          return date;
+        })
+      : undefined;
 
     const user = await userService.createUser(name, nfc_uid, email, is_admin, conventionId, dates);
 
@@ -100,6 +114,7 @@ router.get('/search', async (req: Request, res: Response, next: NextFunction) =>
   try {
     const q = req.query.q as string;
     if (!q) return res.status(400).json({ error: 'Query parameter q is required' });
+    if (q.length > 100) return res.status(400).json({ error: 'Query too long (max 100 characters)' });
 
     const users = await userService.searchUsers(q, req.conventionId);
     res.json({ success: true, users });

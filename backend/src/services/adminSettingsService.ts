@@ -40,8 +40,8 @@ export async function getQRSecretKey(): Promise<string> {
 }
 
 // Set QR secret key
-export async function setQRSecretKey(value: string, updatedBy: number): Promise<void> {
-  await setSetting('qr_secret_key', value, updatedBy);
+export async function setQRSecretKey(value: string, updatedBy?: number): Promise<void> {
+  await setSetting('qr_secret_key', value, updatedBy ?? null);
 }
 
 // Get all settings (admin only)

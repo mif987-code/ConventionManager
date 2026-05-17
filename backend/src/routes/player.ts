@@ -8,7 +8,12 @@ import * as eventService from '../services/eventService';
 import { getBalance } from '../services/transactionService';
 
 const router = Router();
-const JWT_SECRET = process.env.JWT_SECRET || 'YOUR_JWT_SECRET_HERE';
+
+if (!process.env.JWT_SECRET) {
+  console.error('[Auth] JWT_SECRET environment variable is required');
+  process.exit(1);
+}
+const JWT_SECRET = process.env.JWT_SECRET;
 
 // --- JWT helper ---
 function signToken(userId: number) {
@@ -118,7 +123,7 @@ router.put('/me/password', playerAuth, async (req: Request, res: Response, next:
   try {
     const userId = (req as any).playerId;
     const { password } = req.body;
-    if (!password || password.length < 4) return res.status(400).json({ error: 'Password must be at least 4 characters' });
+    if (!password || password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters' });
 
     const hash = await bcrypt.hash(password, 10);
     await pool.query(`UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2`, [hash, userId]);

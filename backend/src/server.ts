@@ -32,8 +32,16 @@ const app = express();
 const PORT = parseInt(process.env.PORT || '3000');
 
 // Middleware
-app.use(cors());
-app.use(express.json());
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',').map((s) => s.trim())
+  : [];
+app.use(cors({
+  origin: allowedOrigins.length > 0
+    ? allowedOrigins
+    : (process.env.NODE_ENV === 'development' ? true : false),
+  credentials: false,
+}));
+app.use(express.json({ limit: '1mb' }));
 
 // Public routes (no API key required)
 app.use('/public', publicRegistrationRouter);

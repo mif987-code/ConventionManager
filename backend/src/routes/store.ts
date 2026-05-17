@@ -4,7 +4,24 @@ import * as bulkImportService from '../services/bulkImportService';
 import { pool } from '../config/db';
 import multer from 'multer';
 
-const upload = multer({ storage: multer.memoryStorage() });
+const ALLOWED_MIME_TYPES = new Set([
+  'text/csv',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'text/plain',
+]);
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (ALLOWED_MIME_TYPES.has(file.mimetype) || file.originalname.match(/\.(csv|xlsx|xls)$/i)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only CSV and Excel files are allowed'));
+    }
+  },
+});
 const router = Router();
 
 // --- Items ---
