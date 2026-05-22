@@ -9,6 +9,7 @@ const path_1 = __importDefault(require("path"));
 const dotenv_1 = __importDefault(require("dotenv"));
 const db_1 = require("./config/db");
 const auth_1 = require("./middleware/auth");
+const backupService_1 = require("./services/backupService");
 const users_1 = __importDefault(require("./routes/users"));
 const vouchers_1 = __importDefault(require("./routes/vouchers"));
 const events_1 = __importDefault(require("./routes/events"));
@@ -25,12 +26,24 @@ const sets_1 = __importDefault(require("./routes/sets"));
 const cards_1 = __importDefault(require("./routes/cards"));
 const adminSettings_1 = __importDefault(require("./routes/adminSettings"));
 const attendance_1 = __importDefault(require("./routes/attendance"));
+const specialVouchers_1 = __importDefault(require("./routes/specialVouchers"));
+const packages_1 = __importDefault(require("./routes/packages"));
+const payments_1 = __importDefault(require("./routes/payments"));
+const floorPlan_1 = __importDefault(require("./routes/floorPlan"));
 dotenv_1.default.config();
 const app = (0, express_1.default)();
 const PORT = parseInt(process.env.PORT || '3000');
 // Middleware
-app.use((0, cors_1.default)());
-app.use(express_1.default.json());
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+    ? process.env.ALLOWED_ORIGINS.split(',').map((s) => s.trim())
+    : [];
+app.use((0, cors_1.default)({
+    origin: allowedOrigins.length > 0
+        ? allowedOrigins
+        : (process.env.NODE_ENV === 'development' ? true : false),
+    credentials: false,
+}));
+app.use(express_1.default.json({ limit: '1mb' }));
 // Public routes (no API key required)
 app.use('/public', publicRegistration_1.default);
 app.use('/player', player_1.default);
@@ -52,13 +65,17 @@ app.use('/api/permissions', permissions_1.default);
 app.use('/api/conventions', conventions_1.default);
 app.use('/api/admin/settings', adminSettings_1.default);
 app.use('/api/attendance', attendance_1.default);
+app.use('/api/special-vouchers', specialVouchers_1.default);
+app.use('/api/packages', packages_1.default);
+app.use('/api/payments', payments_1.default);
+app.use('/api/floor-plan', floorPlan_1.default);
 // Serve registration site static files
 app.use('/register', express_1.default.static(path_1.default.join(__dirname, '../../registration-site')));
 // Serve NFC registration PWA
 app.use('/nfc', express_1.default.static(path_1.default.join(__dirname, '../../nfc-app')));
-// Serve Player Store PWA
+// Serve Player Store PWA (staff-facing)
 app.use('/store', express_1.default.static(path_1.default.join(__dirname, '../../store-app')));
-// Serve Player App PWA
+// Serve Player App PWA (player-facing)
 app.use('/app', express_1.default.static(path_1.default.join(__dirname, '../../player-app')));
 // Redirect root to NFC admin app
 app.get('/', (_req, res) => {
@@ -77,6 +94,7 @@ async function start() {
         console.error('[Server] Cannot start without database connection');
         process.exit(1);
     }
+    (0, backupService_1.startBackupSchedule)();
     app.listen(PORT, () => {
         console.log(`[Server] Convention Manager API running on port ${PORT}`);
     });

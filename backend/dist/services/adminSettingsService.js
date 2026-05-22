@@ -30,7 +30,7 @@ async function getQRSecretKey() {
 }
 // Set QR secret key
 async function setQRSecretKey(value, updatedBy) {
-    await setSetting('qr_secret_key', value, updatedBy);
+    await setSetting('qr_secret_key', value, updatedBy ?? null);
 }
 // Get all settings (admin only)
 async function getAllSettings() {

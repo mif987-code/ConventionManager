@@ -41,11 +41,29 @@ const router = (0, express_1.Router)();
 router.post('/types', async (req, res, next) => {
     try {
         const { name, category, format, entry_cost_vouchers, max_players, prize_structure, prize_structure_ties, tournament_structure } = req.body;
-        const conventionId = req.conventionId;
+        const { conventionId } = req;
         if (!name || !category || entry_cost_vouchers === undefined || !prize_structure) {
             return res.status(400).json({ error: 'name, category, entry_cost_vouchers, and prize_structure are required' });
         }
-        const eventType = await eventService.createEventType(name, category, format || null, entry_cost_vouchers, max_players || 8, prize_structure, prize_structure_ties, tournament_structure || 'swiss', conventionId);
+        const VALID_CATEGORIES = ['Draft', 'Sealed', 'Constructed', 'Commander'];
+        if (!VALID_CATEGORIES.includes(category)) {
+            return res.status(400).json({ error: `category must be one of: ${VALID_CATEGORIES.join(', ')}` });
+        }
+        const VALID_STRUCTURES = ['swiss', 'single_elimination', 'round_robin'];
+        if (tournament_structure && !VALID_STRUCTURES.includes(tournament_structure)) {
+            return res.status(400).json({ error: `tournament_structure must be one of: ${VALID_STRUCTURES.join(', ')}` });
+        }
+        if (typeof entry_cost_vouchers !== 'number' || entry_cost_vouchers < 0 || !Number.isInteger(entry_cost_vouchers)) {
+            return res.status(400).json({ error: 'entry_cost_vouchers must be a non-negative integer' });
+        }
+        const resolvedMaxPlayers = max_players ?? 8;
+        if (!Number.isInteger(resolvedMaxPlayers) || resolvedMaxPlayers < 2 || resolvedMaxPlayers > 512) {
+            return res.status(400).json({ error: 'max_players must be an integer between 2 and 512' });
+        }
+        if (typeof prize_structure !== 'object' || Array.isArray(prize_structure)) {
+            return res.status(400).json({ error: 'prize_structure must be an object' });
+        }
+        const eventType = await eventService.createEventType(name, category, format || null, entry_cost_vouchers, resolvedMaxPlayers, prize_structure, prize_structure_ties, tournament_structure || 'swiss', conventionId);
         res.status(201).json({ success: true, event_type: eventType });
     }
     catch (err) {
@@ -87,7 +105,7 @@ router.post('/types/:id/duplicate', async (req, res, next) => {
 });
 // GET /api/events/types - List all event types
 router.get('/types', async (req, res, next) => {
-    const conventionId = req.conventionId;
+    const { conventionId } = req;
     try {
         const eventTypes = await eventService.getAllEventTypes(conventionId);
         res.json({ success: true, event_types: eventTypes });
@@ -100,12 +118,12 @@ router.get('/types', async (req, res, next) => {
 // POST /api/events - Create a new event
 router.post('/', async (req, res, next) => {
     try {
-        const { name, event_type_id } = req.body;
-        const conventionId = req.conventionId;
+        const { name, event_type_id, preregistration_enabled } = req.body;
+        const { conventionId } = req;
         if (!name || !event_type_id) {
             return res.status(400).json({ error: 'name and event_type_id are required' });
         }
-        const event = await eventService.createEvent(name, event_type_id, conventionId);
+        const event = await eventService.createEvent(name, event_type_id, conventionId, preregistration_enabled);
         res.status(201).json({ success: true, event });
     }
     catch (err) {
@@ -116,7 +134,7 @@ router.post('/', async (req, res, next) => {
 router.get('/', async (req, res, next) => {
     try {
         const status = req.query.status;
-        const conventionId = req.conventionId;
+        const { conventionId } = req;
         const events = await eventService.getAllEvents(status, conventionId);
         res.json({ success: true, events });
     }

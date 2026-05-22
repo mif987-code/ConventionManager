@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Routes, Route, NavLink, useLocation } from 'react-router-dom';
-import { Users, Calendar, CreditCard, ScanLine, Trophy, Settings as SettingsIcon, Ticket, ShoppingBag, BarChart3, Shield, LogOut, Map, Menu, X as XIcon } from 'lucide-react';
+import { Users, Calendar, CreditCard, ScanLine, Trophy, Settings as SettingsIcon, Ticket, ShoppingBag, BarChart3, Shield, LogOut, Map, Menu, X as XIcon, WifiOff } from 'lucide-react';
 import { getApiKey, setApiKey } from './api';
+import { useNetworkStatus } from './hooks/useNetworkStatus';
 import DashboardPage from './pages/DashboardPage';
 import UsersPage from './pages/UsersPage';
 import EventsPage from './pages/EventsPage';
@@ -12,12 +13,9 @@ import EventTypesPage from './pages/EventTypesPage';
 import PrizeTemplatesPage from './pages/PrizeTemplatesPage';
 import StorePage from './pages/StorePage';
 import StatsPage from './pages/StatsPage';
-import PermissionsPage from './pages/PermissionsPage';
 import ConventionSelectPage from './pages/ConventionSelectPage';
-import SettingsPage from './pages/SettingsPage';
 import PackagesPage from './pages/PackagesPage';
 import FloorPlanPage from './pages/FloorPlanPage';
-import MtgScannerPage from './pages/MtgScannerPage';
 
 function App() {
   const location = useLocation();
@@ -26,6 +24,7 @@ function App() {
   const [conventionId, setConventionId] = useState<string | null>(localStorage.getItem('cm_convention_id'));
   const [conventionName, setConventionName] = useState<string | null>(localStorage.getItem('cm_convention_name'));
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { isOnline, queuedCount } = useNetworkStatus();
 
   useEffect(() => {
     setAuthenticated(!!getApiKey());
@@ -89,17 +88,14 @@ function App() {
     { to: '/', icon: <SettingsIcon size={20} />, label: 'Dashboard' },
     { to: '/users', icon: <Users size={20} />, label: 'Users' },
     { to: '/events', icon: <Calendar size={20} />, label: 'Events' },
+    { to: '/floor-plan', icon: <Map size={20} />, label: 'Floor Plan' },
     { to: '/event-types', icon: <Trophy size={20} />, label: 'Event Types' },
     { to: '/prize-templates', icon: <Ticket size={20} />, label: 'Prize Templates' },
     { to: '/vouchers', icon: <CreditCard size={20} />, label: 'Vouchers and Tix' },
-    { to: '/packages', icon: <Ticket size={20} />, label: 'Packages' },
     { to: '/store', icon: <ShoppingBag size={20} />, label: 'Store' },
+    { to: '/packages', icon: <Ticket size={20} />, label: 'Packages' },
     { to: '/scan', icon: <ScanLine size={20} />, label: 'NFC Scan' },
     { to: '/stats', icon: <BarChart3 size={20} />, label: 'Statistics' },
-    { to: '/permissions', icon: <Shield size={20} />, label: 'Permissions' },
-    { to: '/settings', icon: <SettingsIcon size={20} />, label: 'Settings' },
-    { to: '/floor-plan', icon: <Map size={20} />, label: 'Floor Plan' },
-    { to: '/mtg-scanner', icon: <ScanLine size={20} />, label: 'MTG Scanner' },
   ];
 
   const sidebarContent = (
@@ -155,6 +151,12 @@ function App() {
 
   return (
     <div className="min-h-screen flex bg-gray-50">
+      {!isOnline && (
+        <div className="fixed bottom-4 right-4 z-50 flex items-center gap-2 bg-gray-900 text-white text-xs font-medium px-3 py-2 rounded-full shadow-lg">
+          <WifiOff size={14} />
+          {queuedCount > 0 ? `Offline — ${queuedCount} queued` : 'Offline'}
+        </div>
+      )}
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div className="fixed inset-0 z-20 bg-black/40 md:hidden" onClick={() => setSidebarOpen(false)} />
@@ -182,17 +184,14 @@ function App() {
             <Route path="/users" element={<UsersPage />} />
             <Route path="/events" element={<EventsPage />} />
             <Route path="/events/:id" element={<EventDetailPage />} />
+            <Route path="/floor-plan" element={<FloorPlanPage />} />
             <Route path="/event-types" element={<EventTypesPage />} />
             <Route path="/prize-templates" element={<PrizeTemplatesPage />} />
             <Route path="/vouchers" element={<VouchersPage />} />
-            <Route path="/packages" element={<PackagesPage />} />
             <Route path="/store" element={<StorePage />} />
+            <Route path="/packages" element={<PackagesPage />} />
             <Route path="/scan" element={<ScanPage />} />
             <Route path="/stats" element={<StatsPage />} />
-            <Route path="/permissions" element={<PermissionsPage />} />
-            <Route path="/settings" element={<SettingsPage />} />
-            <Route path="/floor-plan" element={<FloorPlanPage />} />
-            <Route path="/mtg-scanner" element={<MtgScannerPage />} />
         </Routes>
         </div>
       </main>

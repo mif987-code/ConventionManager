@@ -96,13 +96,13 @@ async function duplicateEventType(id) {
     return createEventType(`${original.name} (Copy)`, original.category, original.format, original.entry_cost_vouchers, original.max_players, original.prize_structure, original.prize_structure_ties, original.tournament_structure);
 }
 // --- Events ---
-async function createEvent(name, eventTypeId, conventionId) {
+async function createEvent(name, eventTypeId, conventionId, preregistrationEnabled) {
     const eventType = await getEventTypeById(eventTypeId);
     if (!eventType)
         throw new Error('Event type not found');
-    const result = await db_1.pool.query(`INSERT INTO events (name, event_type_id, convention_id)
-     VALUES ($1, $2, $3)
-     RETURNING *`, [name, eventTypeId, conventionId || null]);
+    const result = await db_1.pool.query(`INSERT INTO events (name, event_type_id, convention_id, preregistration_enabled)
+     VALUES ($1, $2, $3, $4)
+     RETURNING *`, [name, eventTypeId, conventionId || null, preregistrationEnabled || false]);
     return result.rows[0];
 }
 async function getEventById(id) {
@@ -169,8 +169,8 @@ async function registerToEvent(userId, eventId, createdBy = 'system') {
         const countRes = await client.query(`SELECT COUNT(*)::int AS count FROM event_participants WHERE event_id = $1`, [eventId]);
         if (countRes.rows[0].count >= event.max_players)
             throw new Error('Event is full');
-        // 4. Check voucher balance
-        const balance = await (0, transactionService_1.getBalance)(userId, 'voucher', client);
+        // 4. Check voucher balance (scoped to convention)
+        const balance = await (0, transactionService_1.getBalance)(userId, 'voucher', client, event.convention_id);
         if (balance < event.entry_cost_vouchers) {
             throw new Error(`Not enough vouchers. Need ${event.entry_cost_vouchers}, have ${balance}`);
         }
@@ -183,9 +183,10 @@ async function registerToEvent(userId, eventId, createdBy = 'system') {
             eventId,
             createdBy,
             client,
+            conventionId: event.convention_id,
         });
         // 6. Add participant
-        await client.query(`INSERT INTO event_participants (event_id, user_id) VALUES ($1, $2)`, [eventId, userId]);
+        await client.query(`INSERT INTO event_participants (event_id, user_id, convention_id) VALUES ($1, $2, $3)`, [eventId, userId, event.convention_id]);
         await client.query('COMMIT');
         return { success: true, message: 'Registered successfully', costDeducted: event.entry_cost_vouchers };
     }
@@ -539,6 +540,7 @@ async function finishEvent(eventId, createdBy = 'system') {
                         eventId,
                         createdBy,
                         client,
+                        conventionId: event.convention_id,
                     });
                 }
                 prizes.push({ userId: sorted[i].user_id, record: key, amount: reward });
@@ -560,6 +562,7 @@ async function finishEvent(eventId, createdBy = 'system') {
                         eventId,
                         createdBy,
                         client,
+                        conventionId: event.convention_id,
                     });
                     prizes.push({ userId: p.user_id, record: recordWithTies, amount: reward });
                 }
@@ -601,6 +604,7 @@ async function cancelEvent(eventId, createdBy = 'system') {
                 eventId,
                 createdBy,
                 client,
+                conventionId: event.convention_id,
             });
         }
         await client.query(`UPDATE events SET status = 'cancelled' WHERE id = $1`, [eventId]);

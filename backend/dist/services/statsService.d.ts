@@ -1,4 +1,4 @@
-export declare function getStats(): Promise<{
+export declare function getStats(conventionId: number): Promise<{
     players: {
         total: any;
         names: any[];
@@ -28,14 +28,5 @@ export declare function getStats(): Promise<{
         used: any;
         unused: number;
     };
-    total_users: any;
-    total_events: any;
-    active_events: any;
-    total_vouchers_in: any;
-    total_vouchers_out: any;
-    total_tix_in: any;
-    total_tix_out: any;
-    store_items: number;
-    store_orders: any;
 }>;
 //# sourceMappingURL=statsService.d.ts.map

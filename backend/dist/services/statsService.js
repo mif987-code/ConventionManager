@@ -2,8 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getStats = getStats;
 const db_1 = require("../config/db");
-async function getStats() {
-    const conventionId = 1; // TODO: Get from request context
+async function getStats(conventionId) {
     // 1. Amount of players registered & Names of the players
     const totalPlayers = await db_1.pool.query(`SELECT COUNT(*)::int AS count FROM users WHERE convention_id = $1`, [conventionId]);
     const playerNames = await db_1.pool.query(`SELECT id, name, email FROM users WHERE convention_id = $1 ORDER BY name`, [conventionId]);
@@ -66,7 +65,6 @@ async function getStats() {
      FROM transactions 
      WHERE type = 'voucher' AND reason = 'event_entry' AND convention_id = $1`, [conventionId]);
     const vouchersUnused = vouchersSold.rows[0].total - vouchersUsed.rows[0].total;
-    // Existing stats for backward compatibility
     const eventsPlayed = await db_1.pool.query(`SELECT COUNT(*)::int AS count FROM events WHERE status = 'finished' AND convention_id = $1`, [conventionId]);
     const eventsOngoing = await db_1.pool.query(`SELECT COUNT(*)::int AS count FROM events WHERE status = 'ongoing' AND convention_id = $1`, [conventionId]);
     const eventsOpen = await db_1.pool.query(`SELECT COUNT(*)::int AS count FROM events WHERE status = 'open' AND convention_id = $1`, [conventionId]);
@@ -104,16 +102,6 @@ async function getStats() {
             used: vouchersUsed.rows[0].total,
             unused: vouchersUnused,
         },
-        // Legacy stats for backward compatibility
-        total_users: totalPlayers.rows[0].count,
-        total_events: totalEvents.rows[0].count,
-        active_events: eventsOngoing.rows[0].count + eventsOpen.rows[0].count,
-        total_vouchers_in: vouchersSold.rows[0].total,
-        total_vouchers_out: vouchersUsed.rows[0].total,
-        total_tix_in: tixAwarded.rows[0].total,
-        total_tix_out: tixUsed.rows[0].total,
-        store_items: 0, // TODO: Add this
-        store_orders: tixPurchases.rows[0].count,
     };
 }
 //# sourceMappingURL=statsService.js.map

@@ -14,7 +14,7 @@ router.get('/admins', async (_req, res) => {
         res.json({ admins });
     }
     catch (err) {
-        res.status(500).json({ error: err.message });
+        res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
     }
 });
 // GET /api/permissions/:userId — get permissions for a user
@@ -24,7 +24,7 @@ router.get('/:userId', async (req, res) => {
         res.json({ permissions });
     }
     catch (err) {
-        res.status(500).json({ error: err.message });
+        res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
     }
 });
 // PUT /api/permissions/:userId — set all permissions for a user (requires super)
@@ -45,7 +45,7 @@ router.put('/:userId', async (req, res) => {
         res.json({ permissions: updated });
     }
     catch (err) {
-        res.status(500).json({ error: err.message });
+        res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
     }
 });
 // POST /api/permissions/:userId/add — add a single permission
@@ -58,7 +58,7 @@ router.post('/:userId/add', async (req, res) => {
         res.json({ permissions: updated });
     }
     catch (err) {
-        res.status(400).json({ error: err.message });
+        res.status(400).json({ error: err instanceof Error ? err.message : String(err) });
     }
 });
 // POST /api/permissions/:userId/remove — remove a single permission
@@ -71,7 +71,7 @@ router.post('/:userId/remove', async (req, res) => {
         res.json({ permissions: updated });
     }
     catch (err) {
-        res.status(400).json({ error: err.message });
+        res.status(400).json({ error: err instanceof Error ? err.message : String(err) });
     }
 });
 // POST /api/permissions/:userId/promote — make user an admin with specified permissions
@@ -84,7 +84,7 @@ router.post('/:userId/promote', async (req, res) => {
         res.json({ admin: result });
     }
     catch (err) {
-        res.status(500).json({ error: err.message });
+        res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
     }
 });
 // POST /api/permissions/:userId/demote — remove admin status
@@ -96,7 +96,7 @@ router.post('/:userId/demote', async (req, res) => {
         res.json({ admin: result });
     }
     catch (err) {
-        res.status(500).json({ error: err.message });
+        res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
     }
 });
 exports.default = router;

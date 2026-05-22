@@ -4,6 +4,7 @@ import path from 'path';
 import dotenv from 'dotenv';
 import { testConnection } from './config/db';
 import { apiKeyAuth, conventionMiddleware, errorHandler } from './middleware/auth';
+import { startBackupSchedule } from './services/backupService';
 
 import usersRouter from './routes/users';
 import vouchersRouter from './routes/vouchers';
@@ -103,6 +104,8 @@ async function start() {
     console.error('[Server] Cannot start without database connection');
     process.exit(1);
   }
+
+  startBackupSchedule();
 
   app.listen(PORT, () => {
     console.log(`[Server] Convention Manager API running on port ${PORT}`);

@@ -13,6 +13,9 @@ router.get('/search', async (req, res) => {
         if (!q || typeof q !== 'string') {
             return res.status(400).json({ error: 'Query parameter "q" is required' });
         }
+        if (q.length > 200) {
+            return res.status(400).json({ error: 'Query too long (max 200 characters)' });
+        }
         let url = `https://api.scryfall.com/cards/search?q=${encodeURIComponent(q)}`;
         if (set && typeof set === 'string') {
             url += ` set:${encodeURIComponent(set)}`;
@@ -71,6 +74,9 @@ router.get('/sets-by-card', async (req, res) => {
         const { name } = req.query;
         if (!name || typeof name !== 'string') {
             return res.status(400).json({ error: 'Missing card name' });
+        }
+        if (name.length > 200) {
+            return res.status(400).json({ error: 'Card name too long (max 200 characters)' });
         }
         const EXCLUDE_LAYOUTS = new Set(['token', 'art_series', 'emblem']);
         const EXCLUDE_SET_TYPES = new Set(['memorabilia', 'minigame']);

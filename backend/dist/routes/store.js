@@ -41,14 +41,31 @@ const storeService = __importStar(require("../services/storeService"));
 const bulkImportService = __importStar(require("../services/bulkImportService"));
 const db_1 = require("../config/db");
 const multer_1 = __importDefault(require("multer"));
-const upload = (0, multer_1.default)({ storage: multer_1.default.memoryStorage() });
+const ALLOWED_MIME_TYPES = new Set([
+    'text/csv',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'text/plain',
+]);
+const upload = (0, multer_1.default)({
+    storage: multer_1.default.memoryStorage(),
+    limits: { fileSize: 10 * 1024 * 1024 },
+    fileFilter: (_req, file, cb) => {
+        if (ALLOWED_MIME_TYPES.has(file.mimetype) || file.originalname.match(/\.(csv|xlsx|xls)$/i)) {
+            cb(null, true);
+        }
+        else {
+            cb(new Error('Only CSV and Excel files are allowed'));
+        }
+    },
+});
 const router = (0, express_1.Router)();
 // --- Items ---
 // GET /api/store/items - List items (admin: all, public: active only via ?active=true)
 router.get('/items', async (req, res, next) => {
     try {
         const activeOnly = req.query.active === 'true';
-        const conventionId = req.conventionId;
+        const { conventionId } = req;
         const items = await storeService.getAllItems(activeOnly, conventionId);
         res.json({ success: true, items });
     }
@@ -72,7 +89,7 @@ router.get('/items/:id', async (req, res, next) => {
 router.post('/items', async (req, res, next) => {
     try {
         const { name, description, price_tix, stock, image_url, set_name, card_number, language, condition, foil, cost } = req.body;
-        const conventionId = req.conventionId;
+        const { conventionId } = req;
         if (!name || price_tix === undefined) {
             return res.status(400).json({ error: 'name and price_tix are required' });
         }
@@ -110,8 +127,7 @@ router.post('/bulk-import', upload.single('file'), async (req, res, next) => {
         if (req.body.items && Array.isArray(req.body.items)) {
             const { items, validate_scryfall } = req.body;
             const validateWithScryfall = validate_scryfall === 'true' || validate_scryfall === true;
-            const conventionId = req.conventionId;
-            console.log('[Store Route] Bulk import from JSON - items:', items.length, 'conventionId:', conventionId);
+            const { conventionId } = req;
             const result = await bulkImportService.bulkImportItems(items, validateWithScryfall, conventionId);
             res.json(result);
             return;
@@ -123,8 +139,7 @@ router.post('/bulk-import', upload.single('file'), async (req, res, next) => {
         const { validate_scryfall, dry_run } = req.body;
         const validateWithScryfall = validate_scryfall === 'true' || validate_scryfall === true;
         const dryRun = dry_run === 'true' || dry_run === true;
-        const conventionId = req.conventionId;
-        console.log('[Store Route] Bulk import - conventionId from request:', conventionId);
+        const { conventionId } = req;
         const items = await bulkImportService.parseImportFile(req.file.buffer, req.file.originalname);
         if (dryRun) {
             // Just parse and validate, don't import

@@ -3,23 +3,15 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const transactionService_1 = require("../services/transactionService");
 const router = (0, express_1.Router)();
-// POST /api/vouchers/topup - Admin adds vouchers to a user
 router.post('/topup', async (req, res, next) => {
     try {
         const { user_id, amount } = req.body;
-        const conventionId = req.conventionId;
+        const { conventionId } = req;
         if (!user_id || !amount || amount <= 0) {
-            return res.status(400).json({ error: 'user_id and positive amount are required' });
+            res.status(400).json({ error: 'user_id and positive amount are required' });
+            return;
         }
-        // Server-defined value — never trust client for transaction amounts in real flows
-        await (0, transactionService_1.addTransaction)({
-            userId: user_id,
-            type: 'voucher',
-            amount: amount,
-            reason: 'topup',
-            createdBy: 'admin',
-            conventionId,
-        });
+        await (0, transactionService_1.addTransaction)({ userId: user_id, type: 'voucher', amount, reason: 'topup', createdBy: 'admin', conventionId });
         const newBalance = await (0, transactionService_1.getBalance)(user_id, 'voucher', undefined, conventionId);
         res.json({ success: true, new_balance: newBalance });
     }
@@ -27,22 +19,15 @@ router.post('/topup', async (req, res, next) => {
         next(err);
     }
 });
-// POST /api/vouchers/adjust - Admin adjustment (can be negative)
 router.post('/adjust', async (req, res, next) => {
     try {
-        const { user_id, amount, reason } = req.body;
-        const conventionId = req.conventionId;
+        const { user_id, amount } = req.body;
+        const { conventionId } = req;
         if (!user_id || amount === undefined) {
-            return res.status(400).json({ error: 'user_id and amount are required' });
+            res.status(400).json({ error: 'user_id and amount are required' });
+            return;
         }
-        await (0, transactionService_1.addTransaction)({
-            userId: user_id,
-            type: 'voucher',
-            amount: amount,
-            reason: 'admin_adjust',
-            createdBy: 'admin',
-            conventionId,
-        });
+        await (0, transactionService_1.addTransaction)({ userId: user_id, type: 'voucher', amount, reason: 'admin_adjust', createdBy: 'admin', conventionId });
         const newBalance = await (0, transactionService_1.getBalance)(user_id, 'voucher', undefined, conventionId);
         res.json({ success: true, new_balance: newBalance });
     }
@@ -50,24 +35,21 @@ router.post('/adjust', async (req, res, next) => {
         next(err);
     }
 });
-// GET /api/vouchers/balance/:userId - Get voucher balance
 router.get('/balance/:userId', async (req, res, next) => {
     try {
-        const userId = parseInt(req.params.userId);
-        const conventionId = req.conventionId;
-        const balance = await (0, transactionService_1.getBalance)(userId, 'voucher', undefined, conventionId);
+        const userId = parseInt(req.params.userId, 10);
+        const balance = await (0, transactionService_1.getBalance)(userId, 'voucher', undefined, req.conventionId);
         res.json({ success: true, user_id: userId, balance });
     }
     catch (err) {
         next(err);
     }
 });
-// GET /api/vouchers/history/:userId - Get voucher transaction history
 router.get('/history/:userId', async (req, res, next) => {
     try {
-        const userId = parseInt(req.params.userId);
-        const limit = parseInt(req.query.limit) || 50;
-        const offset = parseInt(req.query.offset) || 0;
+        const userId = parseInt(req.params.userId, 10);
+        const limit = parseInt(req.query.limit, 10) || 50;
+        const offset = parseInt(req.query.offset, 10) || 0;
         const transactions = await (0, transactionService_1.getTransactionHistory)(userId, 'voucher', limit, offset);
         res.json({ success: true, transactions });
     }

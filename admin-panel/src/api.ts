@@ -11,22 +11,91 @@ export function getApiKey(): string {
   return apiKey;
 }
 
+// --- Network status & retry queue ---
+
+type QueuedRequest = {
+  path: string;
+  options: RequestInit;
+  resolve: (value: any) => void;
+  reject: (reason: any) => void;
+};
+
+const retryQueue: QueuedRequest[] = [];
+let _isOnline = navigator.onLine;
+const networkListeners = new Set<(online: boolean, queuedCount: number) => void>();
+
+function notify() {
+  networkListeners.forEach(fn => fn(_isOnline, retryQueue.length));
+}
+
+async function drainQueue() {
+  const pending = retryQueue.splice(0);
+  for (const item of pending) {
+    try {
+      const result = await request<unknown>(item.path, item.options);
+      item.resolve(result);
+    } catch (err) {
+      item.reject(err);
+    }
+  }
+  notify();
+}
+
+window.addEventListener('online', () => {
+  _isOnline = true;
+  notify();
+  drainQueue();
+});
+
+window.addEventListener('offline', () => {
+  _isOnline = false;
+  notify();
+});
+
+export function subscribeToNetworkStatus(fn: (online: boolean, queuedCount: number) => void) {
+  networkListeners.add(fn);
+  return () => networkListeners.delete(fn);
+}
+
+export function getNetworkStatus() {
+  return { isOnline: _isOnline, queuedCount: retryQueue.length };
+}
+
+// ---
+
+const MUTATION_METHODS = new Set(['POST', 'PUT', 'DELETE', 'PATCH']);
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const conventionId = localStorage.getItem('cm_convention_id');
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      ...(conventionId && { 'x-convention-id': conventionId }),
-      ...options.headers,
-    },
-  });
+  const method = (options.method || 'GET').toUpperCase();
 
-  const text = await res.text();
-  const data = text ? JSON.parse(text) : {};
-  if (!res.ok) throw new Error(data.error || `Request failed: ${res.status}`);
-  return data;
+  try {
+    const res = await fetch(`${API_BASE}${path}`, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        ...(conventionId && { 'x-convention-id': conventionId }),
+        ...options.headers,
+      },
+    });
+
+    const text = await res.text();
+    const data = text ? JSON.parse(text) : {};
+    if (!res.ok) throw new Error(data.error || `Request failed: ${res.status}`);
+    return data;
+  } catch (err) {
+    // Queue mutations on network failure (TypeError = no connection, not server error)
+    if (err instanceof TypeError && MUTATION_METHODS.has(method)) {
+      _isOnline = false;
+      notify();
+      return new Promise<T>((resolve, reject) => {
+        retryQueue.push({ path, options, resolve, reject });
+        notify();
+      });
+    }
+    throw err;
+  }
 }
 
 // Users

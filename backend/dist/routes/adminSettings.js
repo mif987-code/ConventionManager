@@ -63,31 +63,24 @@ router.get('/:key', async (req, res, next) => {
 router.put('/:key', async (req, res, next) => {
     try {
         const { value } = req.body;
-        const userId = req.userId; // From auth middleware
-        if (!value) {
+        if (value === undefined || value === null || value === '') {
             return res.status(400).json({ error: 'value is required' });
         }
-        await adminSettingsService.setSetting(req.params.key, value, userId);
+        await adminSettingsService.setSetting(req.params.key, value, undefined);
         res.json({ success: true, message: 'Setting updated' });
     }
     catch (err) {
         next(err);
     }
 });
-// PUT /api/admin/settings/qr-secret-key - Update QR secret key (super-admin only)
+// PUT /api/admin/settings/qr-secret-key - Update QR secret key
 router.put('/qr-secret-key', async (req, res, next) => {
     try {
         const { value } = req.body;
-        const userId = req.userId;
-        const user = req.user;
-        if (!value) {
-            return res.status(400).json({ error: 'value is required' });
+        if (!value || typeof value !== 'string' || value.length < 16) {
+            return res.status(400).json({ error: 'value must be a string of at least 16 characters' });
         }
-        // Check if user is super-admin
-        if (!user || !user.is_admin) {
-            return res.status(403).json({ error: 'Only super-admins can update QR secret key' });
-        }
-        await adminSettingsService.setQRSecretKey(value, userId);
+        await adminSettingsService.setQRSecretKey(value, undefined);
         res.json({ success: true, message: 'QR secret key updated' });
     }
     catch (err) {

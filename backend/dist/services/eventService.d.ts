@@ -37,7 +37,7 @@ export declare function getAllEventTypes(conventionId?: number): Promise<EventTy
 export declare function getEventTypeById(id: number): Promise<EventType | null>;
 export declare function deleteEventType(id: number): Promise<void>;
 export declare function duplicateEventType(id: number): Promise<EventType>;
-export declare function createEvent(name: string, eventTypeId: number, conventionId?: number): Promise<Event>;
+export declare function createEvent(name: string, eventTypeId: number, conventionId?: number, preregistrationEnabled?: boolean): Promise<Event>;
 export declare function getEventById(id: number): Promise<any>;
 export declare function getAllEvents(status?: string, conventionId?: number): Promise<any[]>;
 export declare function getEventParticipants(eventId: number): Promise<any[]>;

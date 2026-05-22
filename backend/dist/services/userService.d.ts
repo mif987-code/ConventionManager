@@ -10,6 +10,9 @@ export interface User {
     is_admin: boolean;
     admin_permissions: string[];
     is_preregistered: boolean;
+    is_active: boolean;
+    activated_at: Date | null;
+    activated_by: number | null;
     days_playing: number;
     convention_id: number | null;
     created_at: Date;
@@ -19,7 +22,7 @@ export declare function createUser(name: string, nfcUid?: string, email?: string
 export declare function getUserByNfcUid(nfcUid: string, conventionId?: number): Promise<User | null>;
 export declare function getUserByQrCode(qrCode: string, conventionId?: number): Promise<User | null>;
 export declare function getUserById(id: number): Promise<User | null>;
-export declare function getAllUsers(conventionId?: number): Promise<any[]>;
+export declare function getAllUsers(conventionId?: number): Promise<User[]>;
 export declare function getUserWithBalances(userId: number): Promise<{
     voucher_balance: number;
     tix_balance: number;
@@ -34,6 +37,9 @@ export declare function getUserWithBalances(userId: number): Promise<{
     is_admin: boolean;
     admin_permissions: string[];
     is_preregistered: boolean;
+    is_active: boolean;
+    activated_at: Date | null;
+    activated_by: number | null;
     days_playing: number;
     convention_id: number | null;
     created_at: Date;
@@ -53,12 +59,17 @@ export declare function getUserByNfcUidWithBalances(nfcUid: string): Promise<{
     is_admin: boolean;
     admin_permissions: string[];
     is_preregistered: boolean;
+    is_active: boolean;
+    activated_at: Date | null;
+    activated_by: number | null;
     days_playing: number;
     convention_id: number | null;
     created_at: Date;
     updated_at: Date;
 } | null>;
-export declare function updateUser(id: number, fields: Partial<Pick<User, 'name' | 'nfc_uid' | 'email' | 'days_playing' | 'is_admin'>>): Promise<any>;
-export declare function searchUsers(query: string): Promise<any[]>;
+export declare function updateUser(id: number, fields: Partial<Pick<User, 'name' | 'nfc_uid' | 'email' | 'days_playing' | 'is_admin'>>): Promise<User | null>;
+export declare function searchUsers(query: string, conventionId?: number): Promise<User[]>;
 export declare function regenerateQRCode(userId: number): Promise<User>;
+export declare function activateUser(userId: number, adminId: number): Promise<User | null>;
+export declare function deactivateUser(userId: number): Promise<User | null>;
 //# sourceMappingURL=userService.d.ts.map
