@@ -91,9 +91,10 @@ app.use('/store', express.static(path.join(__dirname, '../../store-app')));
 // Serve Player App PWA (player-facing)
 app.use('/app', express.static(path.join(__dirname, '../../player-app')));
 
-// Redirect root to NFC admin app
+// Redirect root to the public registration form (NFC/admin apps stay reachable
+// only at their explicit paths, e.g. /nfc, and are not linked from root).
 app.get('/', (_req, res) => {
-  res.redirect('/nfc/');
+  res.redirect('/register/');
 });
 
 // Health check (no auth required)
