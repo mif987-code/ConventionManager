@@ -27,8 +27,7 @@ function findColumn(headers: string[], field: keyof ExcelRow): number {
 function normalizeCondition(raw: string): CardCondition {
   const v = raw.toUpperCase().trim();
   const map: Record<string, CardCondition> = {
-    'M': 'M', 'MINT': 'M',
-    'NM': 'NM', 'NEAR MINT': 'NM', 'NEAR-MINT': 'NM',
+    'NM': 'NM', 'M': 'NM', 'MINT': 'NM', 'NEAR MINT': 'NM', 'NEAR-MINT': 'NM',
     'LP': 'LP', 'LIGHTLY PLAYED': 'LP', 'LIGHT PLAY': 'LP', 'EX': 'LP', 'EXCELLENT': 'LP',
     'MP': 'MP', 'MODERATELY PLAYED': 'MP', 'MOD PLAY': 'MP', 'VG': 'MP', 'GOOD': 'MP',
     'HP': 'HP', 'HEAVILY PLAYED': 'HP', 'HEAVY PLAY': 'HP', 'PL': 'HP', 'PLAYED': 'HP',
@@ -52,23 +51,23 @@ function normalizeFinish(raw: string | boolean | undefined, foilCol: string | bo
 }
 
 function normalizeLanguage(raw: string | undefined): CardLanguage {
-  if (!raw) return 'en';
+  if (!raw) return 'EN';
   const v = raw.toLowerCase().trim();
   const map: Record<string, CardLanguage> = {
-    'en': 'en', 'english': 'en',
-    'es': 'es', 'spanish': 'es', 'sp': 'es',
-    'fr': 'fr', 'french': 'fr',
-    'de': 'de', 'german': 'de',
-    'it': 'it', 'italian': 'it',
-    'pt': 'pt', 'portuguese': 'pt',
-    'ja': 'ja', 'jp': 'ja', 'japanese': 'ja',
-    'ko': 'ko', 'korean': 'ko',
-    'ru': 'ru', 'russian': 'ru',
-    'zhs': 'zhs', 'chinese simplified': 'zhs', 'cs': 'zhs',
-    'zht': 'zht', 'chinese traditional': 'zht', 'ct': 'zht',
-    'ph': 'ph', 'phyrexian': 'ph',
+    'en': 'EN', 'english': 'EN',
+    'es': 'ES', 'spanish': 'ES', 'sp': 'ES',
+    'fr': 'FR', 'french': 'FR',
+    'de': 'DE', 'german': 'DE',
+    'it': 'IT', 'italian': 'IT',
+    'pt': 'PT', 'portuguese': 'PT',
+    'ja': 'JA', 'jp': 'JA', 'japanese': 'JA',
+    'ko': 'KO', 'korean': 'KO',
+    'ru': 'RU', 'russian': 'RU',
+    'zhs': 'ZHS', 'chinese simplified': 'ZHS', 'cs': 'ZHS',
+    'zht': 'ZHT', 'chinese traditional': 'ZHT', 'ct': 'ZHT',
+    'ph': 'PH', 'phyrexian': 'PH',
   };
-  return map[v] ?? 'en';
+  return map[v] ?? 'EN';
 }
 
 // ─── Main parse function ──────────────────────────────────────────────────────

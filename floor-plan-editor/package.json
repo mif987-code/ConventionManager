@@ -1,0 +1,39 @@
+{
+  "name": "convention-floor-plan-editor",
+  "version": "1.0.0",
+  "description": "Floor Plan Editor for Convention Manager",
+  "main": "main.js",
+  "author": "Convention Manager Team",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder",
+    "build:win": "electron-builder --win",
+    "dist": "electron-builder --publish=never"
+  },
+  "build": {
+    "appId": "com.convention.manager.floorplan",
+    "productName": "Convention Floor Plan Editor",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "index.html",
+      "preload.js"
+    ],
+    "win": {
+      "target": "nsis",
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true
+    },
+    "forceCodeSigning": false
+  },
+  "devDependencies": {
+    "electron": "42.3.2",
+    "electron-builder": "^26.8.1"
+  }
+}

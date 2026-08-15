@@ -30,11 +30,11 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
 // POST /api/prize-templates - Create
 router.post('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { name, rounds, prize_structure, prize_structure_ties } = req.body;
+    const { name, rounds, prize_structure, prize_structure_ties, is_placement } = req.body;
     if (!name || !rounds || !prize_structure || !prize_structure_ties) {
       return res.status(400).json({ error: 'name, rounds, prize_structure, and prize_structure_ties are required' });
     }
-    const template = await prizeTemplateService.createPrizeTemplate(name, rounds, prize_structure, prize_structure_ties);
+    const template = await prizeTemplateService.createPrizeTemplate(name, rounds, prize_structure, prize_structure_ties, !!is_placement);
     res.status(201).json({ success: true, template });
   } catch (err) {
     next(err);

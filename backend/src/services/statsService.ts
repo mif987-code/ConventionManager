@@ -101,7 +101,7 @@ export async function getStats(conventionId: number) {
 
   // 7. Vouchers sold and unused
   const vouchersSold = await pool.query(
-    `SELECT COALESCE(SUM(amount), 0)::int AS total
+    `SELECT COALESCE(SUM(amount), 0)::numeric AS total
      FROM transactions 
      WHERE type = 'voucher' AND reason = 'topup' AND convention_id = $1`,
     [conventionId]
@@ -109,7 +109,7 @@ export async function getStats(conventionId: number) {
 
   // Calculate unused vouchers: total topped up - total used for events
   const vouchersUsed = await pool.query(
-    `SELECT COALESCE(SUM(ABS(amount)), 0)::int AS total
+    `SELECT COALESCE(SUM(ABS(amount)), 0)::numeric AS total
      FROM transactions 
      WHERE type = 'voucher' AND reason = 'event_entry' AND convention_id = $1`,
     [conventionId]

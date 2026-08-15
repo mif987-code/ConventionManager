@@ -9,10 +9,126 @@ export interface PaymentIntent {
   amount: number;
 }
 
-// Stub payment provider. Swap createPayment() body with a real Stripe/PayPal call
-// when a payment integration is added. The rest of the service (webhook handling,
-// voucher award on success) does not need to change.
-export async function createPayment(amount: number): Promise<PaymentIntent> {
+// ─────────────────────────────────────────────────────────────────────────────
+//  PROVIDER SELECTION
+//  Set PAYMENT_PROVIDER=tilopay | onvopay | mock in .env
+// ─────────────────────────────────────────────────────────────────────────────
+const PROVIDER = (process.env.PAYMENT_PROVIDER || 'mock').toLowerCase();
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  TILOPAY  (Central America / Costa Rica)
+//  Docs: https://web.tilopay.com/documentacion/sdk
+//  Required env vars:
+//    TILOPAY_API_KEY     – your API key from the Tilopay dashboard
+//    TILOPAY_API_USER    – your API user/email
+//    TILOPAY_REDIRECT_URL – URL to redirect after payment (your backend or frontend)
+// ─────────────────────────────────────────────────────────────────────────────
+async function createTilopayPayment(amount: number): Promise<PaymentIntent> {
+  const apiKey = process.env.TILOPAY_API_KEY;
+  const apiUser = process.env.TILOPAY_API_USER;
+  const redirectUrl = process.env.TILOPAY_REDIRECT_URL || `${process.env.APP_URL || 'http://localhost:3000'}/api/payments/tilopay-return`;
+
+  if (!apiKey || !apiUser) {
+    throw new Error('TILOPAY_API_KEY and TILOPAY_API_USER must be set in .env');
+  }
+
+  // Step 1: Authenticate to get access token
+  const authRes = await fetch('https://app.tilopay.com/api/v1/loginSdk', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ apiUser, apiKey }),
+  });
+  const authData = await authRes.json() as any;
+  if (!authRes.ok || !authData.access_token) {
+    throw new Error(`TiloPay auth failed: ${authData.message || authRes.status}`);
+  }
+
+  const orderId = 'cm_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+
+  // Step 2: Create payment link
+  const payRes = await fetch('https://app.tilopay.com/api/v1/charge', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${authData.access_token}`,
+    },
+    body: JSON.stringify({
+      amount: amount.toFixed(2),
+      currency: process.env.TILOPAY_CURRENCY || 'USD',
+      orderNumber: orderId,
+      redirect: redirectUrl,
+      billToFirstName: 'Convention',
+      billToLastName: 'Attendee',
+    }),
+  });
+  const payData = await payRes.json() as any;
+  if (!payRes.ok || !payData.redirect) {
+    throw new Error(`TiloPay charge failed: ${payData.message || payRes.status}`);
+  }
+
+  return {
+    id: orderId,
+    status: 'pending',
+    paymentUrl: payData.redirect,
+    paymentLink: payData.redirect,
+    amount,
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  ONVO PAY  (Costa Rica — SINPE Móvil, cards)
+//  Docs: https://docs.onvopay.com/checkout/one-time-links
+//  Required env vars:
+//    ONVO_SECRET_KEY     – onvo_live_sk_... or onvo_test_sk_...
+//    ONVO_REDIRECT_URL   – success redirect URL
+//    ONVO_CANCEL_URL     – cancel redirect URL
+//    ONVO_CURRENCY       – CRC or USD (default: CRC)
+// ─────────────────────────────────────────────────────────────────────────────
+async function createOnvoPayment(amount: number): Promise<PaymentIntent> {
+  const secretKey = process.env.ONVO_SECRET_KEY;
+  const redirectUrl = process.env.ONVO_REDIRECT_URL || `${process.env.APP_URL || 'http://localhost:3000'}/api/payments/onvo-return`;
+  const cancelUrl = process.env.ONVO_CANCEL_URL || `${process.env.APP_URL || 'http://localhost:3000'}/register`;
+  const currency = process.env.ONVO_CURRENCY || 'CRC';
+
+  if (!secretKey) {
+    throw new Error('ONVO_SECRET_KEY must be set in .env');
+  }
+
+  // ONVO amounts are in the smallest unit: CRC uses colones * 100, USD uses cents * 100
+  const unitAmount = Math.round(amount * 100);
+  const orderId = 'cm_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+
+  const res = await fetch('https://api.onvopay.com/v1/checkout/sessions/one-time-link', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${secretKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      lineItems: [{ quantity: 1, unitAmount, currency, description: `Convention payment ${orderId}` }],
+      redirectUrl,
+      cancelUrl,
+      metadata: { orderId },
+    }),
+  });
+  const data = await res.json() as any;
+  if (!res.ok || !data.url) {
+    throw new Error(`OnvoPay checkout failed: ${JSON.stringify(data)}`);
+  }
+
+  return {
+    id: data.id || orderId,
+    status: 'pending',
+    paymentUrl: data.url,
+    paymentLink: data.url,
+    amount,
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  MOCK  (development / testing)
+// ─────────────────────────────────────────────────────────────────────────────
+async function createMockPayment(amount: number): Promise<PaymentIntent> {
   const paymentId = 'mock_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
   return {
     id: paymentId,
@@ -21,6 +137,12 @@ export async function createPayment(amount: number): Promise<PaymentIntent> {
     paymentLink: `https://payment-mock.com/transaction/${paymentId}`,
     amount,
   };
+}
+
+export async function createPayment(amount: number): Promise<PaymentIntent> {
+  if (PROVIDER === 'tilopay') return createTilopayPayment(amount);
+  if (PROVIDER === 'onvopay') return createOnvoPayment(amount);
+  return createMockPayment(amount);
 }
 
 export async function storePayment(payment: PaymentIntent, userId: number): Promise<void> {

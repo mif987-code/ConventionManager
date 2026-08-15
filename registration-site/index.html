@@ -49,6 +49,13 @@
             class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-sm transition" />
         </div>
 
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Password <span class="text-red-500">*</span></label>
+          <input type="password" id="password" required minlength="8" placeholder="At least 8 characters"
+            class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-sm transition" />
+          <p class="text-xs text-gray-400 mt-1">Use this with your email to log into the player app.</p>
+        </div>
+
         <div class="grid grid-cols-2 gap-4">
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label>
@@ -107,23 +114,7 @@
       </div>
     </div>
 
-    <!-- Payment Modal -->
-    <div id="payment-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div class="bg-white rounded-2xl shadow-lg max-w-md w-full p-6">
-        <div class="flex items-center justify-between mb-4">
-          <h2 class="text-lg font-bold text-gray-800">Complete Payment</h2>
-          <button onclick="closePaymentModal()" class="text-gray-400 hover:text-gray-600">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-          </button>
-        </div>
-        <div id="payment-details" class="bg-gray-50 rounded-lg p-4 mb-4"></div>
-        <button onclick="completePayment()" id="complete-payment-btn" class="w-full bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-700 transition font-semibold text-sm">
-          Proceed to Payment
-        </button>
-      </div>
-    </div>
-
-    <p class="text-center text-xs text-gray-400 mt-6">Your information will be used for event management only.</p>
+    <p class="text-center text-xs text-gray-400 mt-6">Your information will be used for event management only. Payment (if applicable) will be collected at the convention.</p>
   </div>
 
   <script>
@@ -144,16 +135,11 @@
     const packagesContainer = document.getElementById('packages-container');
     const eventsSection = document.getElementById('events-section');
     const eventsContainer = document.getElementById('events-container');
-    const paymentModal = document.getElementById('payment-modal');
-    const paymentDetails = document.getElementById('payment-details');
-    const completePaymentBtn = document.getElementById('complete-payment-btn');
 
     let availableDates = [];
     let packages = [];
     let events = [];
     let scanMode = 'nfc'; // Default to NFC
-    let paymentMode = 'direct'; // 'direct' (no payment) or 'payment' (requires payment)
-    let pendingPayment = null;
 
     // Load convention info on page load
     async function loadConventionInfo() {
@@ -213,36 +199,114 @@
     }
 
     function renderPackages() {
-      packagesContainer.innerHTML = packages.map(pkg => `
+      packagesContainer.innerHTML = packages.map(pkg => {
+        const isMultiplierType = pkg.package_type === 'voucher_pack' || pkg.package_type === 'merchandise';
+        return `
         <label class="flex items-start gap-3 p-4 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition border border-gray-200">
-          <input type="radio" name="package" value="${pkg.id}" class="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500 mt-1">
+          <input type="checkbox" name="package" value="${pkg.id}" data-unit-cost="${pkg.prereg_cost || pkg.cost}"
+            class="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500 mt-1"
+            onchange="onPackageToggle(this, ${pkg.id})">
           <div class="flex-1">
             <div class="flex items-center justify-between">
               <span class="font-medium text-gray-800">${pkg.name}</span>
-              <span class="font-bold text-indigo-600">$${pkg.prereg_cost || pkg.cost}</span>
+              <span class="font-bold text-indigo-600">$${pkg.prereg_cost || pkg.cost}${isMultiplierType ? ' each' : ''}</span>
             </div>
             ${pkg.description ? `<p class="text-sm text-gray-500 mt-1">${pkg.description}</p>` : ''}
-            <p class="text-xs text-gray-400 mt-1">${pkg.days} day${pkg.days !== 1 ? 's' : ''} included</p>
+            ${pkg.days > 0 ? `<p class="text-xs text-gray-400 mt-1">${pkg.days} day${pkg.days !== 1 ? 's' : ''} included</p>` : ''}
             ${pkg.prereg_cost && pkg.regular_voucher_amount ? `<p class="text-xs text-green-600 mt-1">Includes ${pkg.regular_voucher_amount} voucher${pkg.regular_voucher_amount !== 1 ? 's' : ''}</p>` : ''}
             ${pkg.prereg_cost && !pkg.regular_voucher_amount && pkg.prereg_cost !== pkg.cost ? `<p class="text-xs text-orange-600 mt-1">Pre-registration price (regularly $${pkg.cost})</p>` : ''}
+            ${isMultiplierType ? `
+              <div id="qty-wrap-${pkg.id}" class="hidden mt-2 flex items-center gap-2" onclick="event.preventDefault()">
+                <label class="text-xs text-gray-500">Quantity:</label>
+                <input type="number" id="qty-${pkg.id}" min="1" value="1" data-package-id="${pkg.id}"
+                  class="w-16 px-2 py-1 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                  oninput="updatePackageTotalsDisplay()">
+              </div>` : ''}
           </div>
         </label>
-      `).join('');
+      `;
+      }).join('');
     }
 
-    function renderEvents() {
-      eventsContainer.innerHTML = events.map(evt => `
+    function onPackageToggle(checkbox, pkgId) {
+      const qtyWrap = document.getElementById(`qty-wrap-${pkgId}`);
+      if (qtyWrap) {
+        qtyWrap.classList.toggle('hidden', !checkbox.checked);
+      }
+    }
+
+    function updatePackageTotalsDisplay() {
+      // Placeholder hook in case a live running-total UI is added later
+    }
+
+    function getSelectedPackages() {
+      const checked = Array.from(document.querySelectorAll('input[name="package"]:checked'));
+      return checked.map(cb => {
+        const pkgId = parseInt(cb.value);
+        const qtyInput = document.getElementById(`qty-${pkgId}`);
+        const quantity = qtyInput ? Math.max(1, parseInt(qtyInput.value) || 1) : 1;
+        return { package_id: pkgId, quantity };
+      });
+    }
+
+    function formatTime(t) {
+      if (!t) return '';
+      const [h, m] = t.split(':');
+      const hour = parseInt(h, 10);
+      const ampm = hour >= 12 ? 'PM' : 'AM';
+      const hour12 = hour % 12 === 0 ? 12 : hour % 12;
+      return `${hour12}:${m} ${ampm}`;
+    }
+
+    function eventCard(evt) {
+      return `
         <label class="flex items-start gap-3 p-4 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition border border-gray-200">
           <input type="checkbox" name="event_prereg" value="${evt.id}" class="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500 mt-1">
           <div class="flex-1">
-            <span class="font-medium text-gray-800">${evt.name}</span>
+            <div class="flex items-center justify-between gap-2">
+              <span class="font-medium text-gray-800">${evt.name}</span>
+              ${(evt.start_time || evt.end_time) ? `<span class="text-xs font-medium text-indigo-600 whitespace-nowrap">${formatTime(evt.start_time)}${evt.end_time ? ` - ${formatTime(evt.end_time)}` : ''}</span>` : ''}
+            </div>
             <p class="text-sm text-gray-500 mt-1">
+              ${evt.category ? `${evt.category}${evt.format ? ` (${evt.format})` : ''} • ` : ''}
               ${evt.max_players ? `Max ${evt.max_players} participants` : ''}
               ${evt.entry_cost_vouchers ? ` • ${evt.entry_cost_vouchers} vouchers entry` : ''}
+              ${evt.track ? ` • ${evt.track}` : ''}
             </p>
           </div>
         </label>
-      `).join('');
+      `;
+    }
+
+    function renderEvents() {
+      // Group events by schedule day so players can browse the schedule
+      // interactively instead of scanning one long flat list.
+      const groups = new Map();
+      const noDay = [];
+      events.forEach(evt => {
+        if (!evt.schedule_day) { noDay.push(evt); return; }
+        if (!groups.has(evt.schedule_day)) groups.set(evt.schedule_day, []);
+        groups.get(evt.schedule_day).push(evt);
+      });
+
+      let html = '';
+      for (const [day, evts] of groups) {
+        html += `
+          <div>
+            <h3 class="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-2 mt-4 first:mt-0">${day}</h3>
+            <div class="space-y-3">${evts.map(eventCard).join('')}</div>
+          </div>
+        `;
+      }
+      if (noDay.length > 0) {
+        html += `
+          <div>
+            ${groups.size > 0 ? '<h3 class="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-2 mt-4">Unscheduled</h3>' : ''}
+            <div class="space-y-3">${noDay.map(eventCard).join('')}</div>
+          </div>
+        `;
+      }
+      eventsContainer.innerHTML = html;
     }
 
     // Auto-calculate age from DOB
@@ -266,9 +330,8 @@
       const selectedDates = Array.from(document.querySelectorAll('input[name="attendance_date"]:checked'))
         .map(cb => cb.value);
 
-      // Get selected package
-      const packageInput = document.querySelector('input[name="package"]:checked');
-      const selectedPackageId = packageInput ? parseInt(packageInput.value) : null;
+      // Get selected packages (multiple allowed, each with an optional quantity multiplier)
+      const selectedPackageSelections = getSelectedPackages();
 
       // Get selected events for pre-registration
       const selectedEvents = Array.from(document.querySelectorAll('input[name="event_prereg"]:checked'))
@@ -278,18 +341,22 @@
         name: document.getElementById('name').value.trim(),
         last_name: document.getElementById('last_name').value.trim(),
         email: document.getElementById('email').value.trim(),
+        password: document.getElementById('password').value,
         dob: document.getElementById('dob').value || null,
         age: document.getElementById('age').value ? parseInt(document.getElementById('age').value) : null,
         attendance_dates: selectedDates,
-        package_id: selectedPackageId,
+        packages: selectedPackageSelections,
         event_prereg_ids: selectedEvents,
       };
 
-      // Calculate total cost
-      const selectedPackage = packages.find(p => p.id === selectedPackageId);
+      // Calculate cost across all selected packages purely for the confirmation summary —
+      // online payment isn't available yet, so this is informational only.
       const selectedEventObjs = events.filter(e => selectedEvents.includes(e.id));
-      const packageCost = selectedPackage ? (selectedPackage.prereg_cost || selectedPackage.cost) : 0;
-      const totalCost = packageCost; // Events currently don't have a cost for preregistration
+      const selectedPackageDetails = selectedPackageSelections.map(sel => {
+        const pkg = packages.find(p => p.id === sel.package_id);
+        const unitCost = pkg ? (pkg.prereg_cost || pkg.cost) : 0;
+        return { ...sel, pkg, unitCost, lineCost: unitCost * sel.quantity };
+      });
 
       try {
         const res = await fetch(`${API_BASE}/preregister`, {
@@ -303,21 +370,7 @@
           throw new Error(json.error || 'Registration failed');
         }
 
-        // Check if payment is required
-        if (totalCost > 0) {
-          // Show payment modal
-          showPaymentModal(totalCost, {
-            userId: json.user.id,
-            userData: { ...data, id: json.user.id, attendanceDates: selectedDates },
-            selectedPackage,
-            selectedEventNames: selectedEventObjs.map(e => e.name),
-            packageName: selectedPackage?.name,
-            eventNames: selectedEventObjs.map(e => e.name),
-          });
-        } else {
-          // Direct success, no payment needed
-          showSuccess({ ...data, id: json.user.id, attendanceDates: selectedDates }, selectedPackage, selectedEventObjs.map(e => e.name), null);
-        }
+        showSuccess({ ...data, id: json.user.id, attendanceDates: selectedDates }, selectedPackageDetails, selectedEventObjs.map(e => e.name));
       } catch (err) {
         errorMsg.textContent = err.message;
         errorMsg.classList.remove('hidden');
@@ -333,55 +386,7 @@
       successSection.classList.add('hidden');
     }
 
-    function showPaymentModal(amount, details) {
-      paymentDetails.innerHTML = `
-        <p class="text-sm text-gray-700"><span class="font-medium">Amount:</span> $${amount}</p>
-        <p class="text-sm text-gray-700"><span class="font-medium">Package:</span> ${details.packageName || 'None'}</p>
-        ${details.eventNames ? `<p class="text-sm text-gray-700"><span class="font-medium">Events:</span> ${details.eventNames.join(', ')}</p>` : ''}
-      `;
-      paymentModal.classList.remove('hidden');
-      pendingPayment = { amount, details };
-    }
-
-    function closePaymentModal() {
-      paymentModal.classList.add('hidden');
-      pendingPayment = null;
-    }
-
-    async function completePayment() {
-      if (!pendingPayment) return;
-
-      completePaymentBtn.disabled = true;
-      completePaymentBtn.textContent = 'Creating payment...';
-
-      try {
-        const response = await fetch('/api/payments/create', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: pendingPayment.details.userId, amount: pendingPayment.amount }),
-        });
-
-        const data = await response.json();
-        if (data.success) {
-          // Open payment URL
-          window.open(data.paymentUrl, '_blank');
-          closePaymentModal();
-          // Show success message
-          showSuccess(pendingPayment.details.userData, pendingPayment.details.selectedPackage, pendingPayment.details.selectedEventNames, data.paymentLink);
-        } else {
-          errorMsg.textContent = 'Payment creation failed';
-          errorMsg.classList.remove('hidden');
-        }
-      } catch (err) {
-        errorMsg.textContent = err.message;
-        errorMsg.classList.remove('hidden');
-      } finally {
-        completePaymentBtn.disabled = false;
-        completePaymentBtn.textContent = 'Proceed to Payment';
-      }
-    }
-
-    function showSuccess(userData, selectedPackage, selectedEventNames, paymentLink) {
+    function showSuccess(userData, selectedPackageDetails, selectedEventNames) {
       const successMessageEl = document.getElementById('success-message');
       if (scanMode === 'qr') {
         successMessageEl.textContent = 'A personal and private QR code will be sent to you the day before the event to your email, it will also be available on the Event Application.';
@@ -395,10 +400,10 @@
         ${userData.dob ? `<p><span class="font-medium text-gray-700">Date of Birth:</span> ${userData.dob}</p>` : ''}
         ${userData.age ? `<p><span class="font-medium text-gray-700">Age:</span> ${userData.age}</p>` : ''}
         ${userData.attendanceDates?.length > 0 ? `<p><span class="font-medium text-gray-700">Attending:</span> ${userData.attendanceDates.length} day(s)</p>` : ''}
-        ${selectedPackage ? `<p><span class="font-medium text-gray-700">Package:</span> ${selectedPackage.name} ($${selectedPackage.cost})</p>` : ''}
+        ${selectedPackageDetails?.length > 0 ? selectedPackageDetails.map(d => `<p><span class="font-medium text-gray-700">Package:</span> ${d.pkg?.name || 'Package'}${d.quantity > 1 ? ` x${d.quantity}` : ''} ($${d.lineCost})</p>`).join('') : ''}
         ${selectedEventNames?.length > 0 ? `<p><span class="font-medium text-gray-700">Pre-registered Events:</span> ${selectedEventNames.join(', ')}</p>` : ''}
-        ${paymentLink ? `<p><span class="font-medium text-gray-700">Payment:</span> <a href="${paymentLink}" target="_blank" class="text-indigo-600 hover:underline">View Transaction</a></p>` : ''}
         <p class="mt-2 text-indigo-600 font-medium">Registration ID: #${userData.id}</p>
+        <p class="mt-2 text-sm text-gray-600">You can log into the <a href="/app" class="text-indigo-600 hover:underline font-medium">player app</a> now with your email and password to review or change your event pre-registrations.</p>
       `;
       formSection.classList.add('hidden');
       successSection.classList.remove('hidden');

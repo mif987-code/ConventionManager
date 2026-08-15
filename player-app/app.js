@@ -119,6 +119,7 @@ function navigate(page) {
     case 'events': renderEvents(content); break;
     case 'store': renderStore(content); break;
     case 'profile': renderProfile(content); break;
+    case 'collection': renderCollection(content); break;
   }
 }
 
@@ -139,8 +140,9 @@ let eventsTab = 'upcoming';
 async function renderEvents(el) {
   el.innerHTML = `
     <div class="page-hdr">Events</div>
-    <div style="display:flex;gap:8px;margin-bottom:14px;">
+    <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
       <button class="btn btn-sm ${eventsTab === 'upcoming' ? 'btn-accent' : 'btn-outline'}" onclick="eventsTab='upcoming';renderEvents(document.getElementById('page-content'))">Upcoming</button>
+      <button class="btn btn-sm ${eventsTab === 'preregistered' ? 'btn-accent' : 'btn-outline'}" onclick="eventsTab='preregistered';renderEvents(document.getElementById('page-content'))">Preregistered</button>
       <button class="btn btn-sm ${eventsTab === 'history' ? 'btn-accent' : 'btn-outline'}" onclick="eventsTab='history';renderEvents(document.getElementById('page-content'))">My History</button>
       <button class="btn btn-sm ${eventsTab === 'recent' ? 'btn-accent' : 'btn-outline'}" onclick="eventsTab='recent';renderEvents(document.getElementById('page-content'))">Recent Results</button>
     </div>
@@ -171,6 +173,36 @@ async function renderEvents(el) {
           </div>
         </div>
       `).join('');
+    } catch (err) { listEl.innerHTML = `<p style="color:var(--red);font-size:0.85rem;">${esc(err.message)}</p>`; }
+  } else if (eventsTab === 'preregistered') {
+    try {
+      const data = await api('/preregistrations');
+      const events = data.events || [];
+      if (events.length === 0) { listEl.innerHTML = '<p style="color:var(--text3);font-size:0.85rem;">No events open for pre-registration yet.</p>'; return; }
+      listEl.innerHTML = events.map(ev => {
+        const schedule = [
+          ev.schedule_day,
+          ev.start_time ? ev.start_time.slice(0, 5) + (ev.end_time ? ' - ' + ev.end_time.slice(0, 5) : '') : null,
+          ev.track,
+        ].filter(Boolean).join(' • ');
+        return `
+        <div class="evt-card">
+          <div style="display:flex;justify-content:space-between;align-items:start;">
+            <div>
+              <div class="evt-name">${esc(ev.name)}</div>
+              <div class="evt-meta">
+                ${ev.category ? `<span>${esc(ev.category)}${ev.format ? ' (' + esc(ev.format) + ')' : ''}</span>` : ''}
+                <span>${ev.preregistered_count}${ev.max_players ? '/' + ev.max_players : ''}</span>
+              </div>
+              ${schedule ? `<div class="evt-meta" style="margin-top:4px;color:var(--accent-light);">${esc(schedule)}</div>` : ''}
+            </div>
+            ${ev.preregistered_by_me
+              ? `<button class="btn btn-outline btn-sm" style="flex-shrink:0;border-color:var(--red);color:var(--red);" onclick="togglePreregistration(${ev.id}, true, this)">Cancel</button>`
+              : `<button class="btn btn-accent btn-sm" style="flex-shrink:0" onclick="togglePreregistration(${ev.id}, false, this)">Pre-register</button>`}
+          </div>
+        </div>
+      `;
+      }).join('');
     } catch (err) { listEl.innerHTML = `<p style="color:var(--red);font-size:0.85rem;">${esc(err.message)}</p>`; }
   } else if (eventsTab === 'history') {
     try {
@@ -223,6 +255,25 @@ async function registerForEvent(eventId, btn) {
     toast(err.message, 'error');
     btn.disabled = false;
     btn.textContent = 'Join';
+  }
+}
+
+async function togglePreregistration(eventId, isRegistered, btn) {
+  btn.disabled = true;
+  btn.textContent = '…';
+  try {
+    if (isRegistered) {
+      await api(`/preregistrations/${eventId}`, { method: 'DELETE' });
+      toast('Pre-registration cancelled');
+    } else {
+      await api(`/preregistrations/${eventId}`, { method: 'POST' });
+      toast('Pre-registered!');
+    }
+    renderEvents(document.getElementById('page-content'));
+  } catch (err) {
+    toast(err.message, 'error');
+    btn.disabled = false;
+    btn.textContent = isRegistered ? 'Cancel' : 'Pre-register';
   }
 }
 
@@ -496,6 +547,113 @@ async function changePassword() {
     toast('Password updated!');
     document.getElementById('new-pass').value = '';
   } catch (err) { toast(err.message, 'error'); }
+}
+
+// ==========================================
+//  COLLECTION PAGE
+// ==========================================
+async function renderCollection(el) {
+  el.innerHTML = `<div class="page-hdr">Collection</div><p style="color:var(--text3)">Loading…</p>`;
+
+  try {
+    const data = await api('/collection');
+    const items = data.collectibles || [];
+    const sets = data.sets || [];
+
+    const earnedIds = new Set(items.filter(c => c.earned_at).map(c => c.id));
+    const totalEarned = earnedIds.size;
+
+    let html = `<div class="page-hdr">Collection</div>`;
+
+    if (items.length === 0) {
+      html += `<div class="card" style="text-align:center;padding:40px 20px;">
+        <div style="font-size:2.5rem;margin-bottom:10px;">⭐</div>
+        <div style="color:var(--text2);font-size:0.9rem;">No collectibles set up for this convention yet.</div>
+      </div>`;
+      el.innerHTML = html;
+      return;
+    }
+
+    // Overall progress bar
+    const pct = items.length ? Math.round((totalEarned / items.length) * 100) : 0;
+    html += `
+      <div class="card" style="margin-bottom:16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <span style="font-size:0.8rem;font-weight:700;color:var(--text2);">OVERALL PROGRESS</span>
+          <span style="font-size:0.85rem;font-weight:800;color:var(--accent-light);">${totalEarned}/${items.length}</span>
+        </div>
+        <div class="coll-progress-bar"><div class="coll-progress-fill" style="width:${pct}%"></div></div>
+        <div style="font-size:0.75rem;color:var(--text3);">${pct}% complete</div>
+      </div>
+    `;
+
+    // Render sets first if any
+    if (sets.length > 0) {
+      sets.forEach(s => {
+        const setIds = Array.isArray(s.collectible_ids) ? s.collectible_ids : [];
+        const setItems = items.filter(c => setIds.includes(c.id));
+        const setEarned = setItems.filter(c => earnedIds.has(c.id)).length;
+        const setComplete = setEarned === setItems.length && setItems.length > 0;
+        const setPct = setItems.length ? Math.round((setEarned / setItems.length) * 100) : 0;
+
+        html += `<div class="coll-set">
+          <div class="coll-set-hdr">
+            <span class="coll-set-name">${esc(s.name)}</span>
+            <div style="display:flex;align-items:center;gap:8px;">
+              ${s.bonus_tix > 0 ? `<span class="coll-set-bonus">+${s.bonus_tix} tix on complete</span>` : ''}
+              ${setComplete ? '<span style="font-size:0.7rem;background:rgba(99,102,241,0.2);color:var(--accent-light);padding:2px 8px;border-radius:999px;font-weight:700;">✓ Complete</span>' : `<span style="font-size:0.75rem;color:var(--text3);">${setEarned}/${setItems.length}</span>`}
+            </div>
+          </div>
+          <div class="coll-progress-bar"><div class="coll-progress-fill" style="width:${setPct}%"></div></div>
+          ${s.description ? `<div style="font-size:0.75rem;color:var(--text3);margin-bottom:10px;">${esc(s.description)}</div>` : ''}
+          <div class="coll-grid">`;
+
+        setItems.forEach(c => {
+          const earned = earnedIds.has(c.id);
+          html += renderCollectibleCard(c, earned);
+        });
+
+        html += `</div></div>`;
+      });
+    }
+
+    // Uncategorised collectibles (not in any set)
+    const setAllIds = new Set(sets.flatMap(s => Array.isArray(s.collectible_ids) ? s.collectible_ids : []));
+    const loose = items.filter(c => !setAllIds.has(c.id));
+    if (loose.length > 0) {
+      if (sets.length > 0) html += `<div style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text3);margin-bottom:10px;">Other</div>`;
+      html += `<div class="coll-grid">`;
+      loose.forEach(c => {
+        const earned = earnedIds.has(c.id);
+        html += renderCollectibleCard(c, earned);
+      });
+      html += `</div>`;
+    }
+
+    el.innerHTML = html;
+  } catch (err) {
+    el.innerHTML = `<div class="page-hdr">Collection</div><p style="color:var(--red);font-size:0.85rem;">${esc(err.message)}</p>`;
+  }
+}
+
+function renderCollectibleCard(c, earned) {
+  const imgContent = c.image_url
+    ? `<img src="${esc(c.image_url)}" alt="${esc(c.name)}">`
+    : `<div class="coll-placeholder">⭐</div>`;
+  return `
+    <div class="coll-item" title="${esc(c.description || c.name)}">
+      <div class="coll-img-wrap ${earned ? 'earned' : 'locked'}">${imgContent}</div>
+      <span class="coll-name ${earned ? 'earned' : ''}">${esc(c.name)}</span>
+      ${earned ? `<span class="coll-earned-tag">Earned</span>` : `<span style="font-size:0.6rem;color:var(--text3);">${unlockHint(c)}</span>`}
+    </div>`;
+}
+
+function unlockHint(c) {
+  if (c.unlock_type === 'manual') return 'Special award';
+  if (c.unlock_type === 'event_count') return `Play ${c.unlock_threshold} event(s)`;
+  if (c.unlock_type === 'category') return `${c.unlock_threshold}× ${esc(c.unlock_value || '')}`;
+  if (c.unlock_type === 'event_type') return `${c.unlock_threshold}× specific event`;
+  return '';
 }
 
 // ---- Helpers ----

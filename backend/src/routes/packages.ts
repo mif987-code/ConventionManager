@@ -20,10 +20,13 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
   const { conventionId } = req;
   if (!conventionId) return res.status(400).json({ error: 'Convention ID required' });
   try {
-    const { name, description, days, cost, prereg_cost, regular_voucher_amount } = req.body;
+    const { name, description, days, cost, prereg_cost, regular_voucher_amount, package_type } = req.body;
 
-    if (!name || !days || cost === undefined) {
+    if (!name || days === undefined || days === null || cost === undefined) {
       return res.status(400).json({ error: 'name, days, and cost are required' });
+    }
+    if (days < 0) {
+      return res.status(400).json({ error: 'days cannot be negative' });
     }
 
     const pkg = await packageService.createPackage(
@@ -33,7 +36,8 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
       days,
       cost,
       prereg_cost || null,
-      regular_voucher_amount || 0
+      regular_voucher_amount || 0,
+      package_type || 'day_pass'
     );
     res.status(201).json({ success: true, package: pkg });
   } catch (err) {
@@ -44,7 +48,10 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
 // PUT /api/packages/:id - Update package
 router.put('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { name, description, days, cost, prereg_cost, regular_voucher_amount, is_active } = req.body;
+    const { name, description, days, cost, prereg_cost, regular_voucher_amount, is_active, package_type } = req.body;
+    if (days !== undefined && days !== null && days < 0) {
+      return res.status(400).json({ error: 'days cannot be negative' });
+    }
     const pkg = await packageService.updatePackage(
       parseInt(req.params.id),
       name,
@@ -53,7 +60,8 @@ router.put('/:id', async (req: Request, res: Response, next: NextFunction) => {
       cost,
       prereg_cost || null,
       regular_voucher_amount || 0,
-      is_active
+      is_active,
+      package_type || 'day_pass'
     );
     res.json({ success: true, package: pkg });
   } catch (err) {

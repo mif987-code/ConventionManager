@@ -21,11 +21,16 @@ export default function VouchersPage() {
   const [specialVouchersList, setSpecialVouchersList] = useState<any[]>([]);
   const [openEvents, setOpenEvents] = useState<any[]>([]);
   const [showCreateVoucher, setShowCreateVoucher] = useState(false);
-  const [newVoucher, setNewVoucher] = useState({ name: '', amount: 5, description: '', event_id: '', max_awards: 1 });
+  const [newVoucher, setNewVoucher] = useState({ name: '', amount: 5, description: '', category: '', entry_cost: 0, max_awards: 1 });
   const [creatingVoucher, setCreatingVoucher] = useState(false);
+  const [editingVoucher, setEditingVoucher] = useState<any | null>(null);
+  const [savingVoucherEdit, setSavingVoucherEdit] = useState(false);
   const [selectedSpecialVoucher, setSelectedSpecialVoucher] = useState<number | null>(null);
+  const [selectedAwardEventId, setSelectedAwardEventId] = useState<number | null>(null);
   const [awarding, setAwarding] = useState(false);
   const [userAwardedVouchers, setUserAwardedVouchers] = useState<any[]>([]);
+
+  const EVENT_CATEGORIES = ['Draft', 'Sealed', 'Constructed', 'Commander'];
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const doSearch = useCallback(async (query: string) => {
@@ -189,25 +194,53 @@ export default function VouchersPage() {
 
   async function handleCreateSpecialVoucher(e: React.FormEvent) {
     e.preventDefault();
-    if (!newVoucher.name || !newVoucher.event_id || newVoucher.amount <= 0) return;
+    if (!newVoucher.name || !newVoucher.category || newVoucher.amount <= 0) return;
+    const conventionId = localStorage.getItem('cm_convention_id');
+    if (!conventionId) return;
     setCreatingVoucher(true);
     setError('');
     try {
       await specialVouchers.create({
-        event_id: parseInt(newVoucher.event_id),
+        convention_id: parseInt(conventionId),
+        category: newVoucher.category,
+        entry_cost: newVoucher.entry_cost,
         name: newVoucher.name,
         amount: newVoucher.amount,
         description: newVoucher.description,
         max_awards: newVoucher.max_awards,
       });
       setSuccess('Special voucher created successfully!');
-      setNewVoucher({ name: '', amount: 5, description: '', event_id: '', max_awards: 1 });
+      setNewVoucher({ name: '', amount: 5, description: '', category: '', entry_cost: 0, max_awards: 1 });
       setShowCreateVoucher(false);
       loadSpecialVouchers();
     } catch (err: any) {
       setError(err.message);
     } finally {
       setCreatingVoucher(false);
+    }
+  }
+
+  async function handleUpdateSpecialVoucher(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editingVoucher) return;
+    setSavingVoucherEdit(true);
+    setError('');
+    try {
+      await specialVouchers.update(editingVoucher.id, {
+        name: editingVoucher.name,
+        category: editingVoucher.category,
+        entry_cost: editingVoucher.entry_cost,
+        amount: editingVoucher.amount,
+        description: editingVoucher.description,
+        max_awards: editingVoucher.max_awards,
+      });
+      setSuccess('Special voucher updated successfully!');
+      setEditingVoucher(null);
+      loadSpecialVouchers();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setSavingVoucherEdit(false);
     }
   }
 
@@ -225,32 +258,22 @@ export default function VouchersPage() {
 
   async function loadUserAwardedVouchers(userId: number) {
     try {
-      const conventionId = localStorage.getItem('cm_convention_id');
-      if (!conventionId) return;
-      // Get all special vouchers for the convention, then check which ones the user has
-      const svRes = await specialVouchers.list(parseInt(conventionId));
-      const vouchers = svRes.special_vouchers || [];
-
-      const awardedData = await Promise.all(
-        vouchers.map(async (sv: any) => {
-          try {
-            const awardsRes = await specialVouchers.getUserAwards(userId, sv.event_id);
-            const userAwards = awardsRes.awards || [];
-            const hasAward = userAwards.some((a: any) => a.special_voucher_id === sv.id);
-            return { ...sv, hasAward };
-          } catch {
-            return { ...sv, hasAward: false };
-          }
-        })
-      );
-      setUserAwardedVouchers(awardedData);
+      const res = await specialVouchers.getUserAwardsInConvention(userId);
+      setUserAwardedVouchers(res.awards || []);
     } catch (err: any) {
       console.error('Failed to load user awarded vouchers:', err);
     }
   }
 
+  // Open events matching the currently selected special voucher's category + entry cost
+  const matchingEventsForSelectedVoucher = (() => {
+    const voucher = specialVouchersList.find((v: any) => v.id === selectedSpecialVoucher);
+    if (!voucher) return [];
+    return openEvents.filter((e: any) => e.category === voucher.category && e.entry_cost_vouchers === voucher.entry_cost);
+  })();
+
   async function handleAwardSpecialVoucher() {
-    if (!user || !selectedSpecialVoucher) return;
+    if (!user || !selectedSpecialVoucher || !selectedAwardEventId) return;
     setAwarding(true);
     setError('');
     try {
@@ -259,11 +282,12 @@ export default function VouchersPage() {
 
       await specialVouchers.award(selectedSpecialVoucher, {
         user_id: user.id,
-        event_id: voucher.event_id,
+        event_id: selectedAwardEventId,
         awarded_by: 'manual'
       });
       setSuccess(`Special voucher "${voucher.name}" awarded to ${user.name}!`);
       setSelectedSpecialVoucher(null);
+      setSelectedAwardEventId(null);
       loadUserAwardedVouchers(user.id);
     } catch (err: any) {
       setError(err.message);
@@ -272,20 +296,13 @@ export default function VouchersPage() {
     }
   }
 
-  async function handleRemoveSpecialVoucherAward(voucherId: number) {
+  async function handleRemoveSpecialVoucherAward(awardId: number) {
     if (!user) return;
     setError('');
     try {
-      const conventionId = localStorage.getItem('cm_convention_id');
-      if (!conventionId) return;
-
-      const awardsRes = await specialVouchers.getUserAwards(user.id, specialVouchersList.find((v: any) => v.id === voucherId)?.event_id);
-      const award = awardsRes.awards?.find((a: any) => a.special_voucher_id === voucherId);
-      if (award) {
-        await specialVouchers.deleteAward(award.id);
-        setSuccess('Special voucher award removed!');
-        loadUserAwardedVouchers(user.id);
-      }
+      await specialVouchers.deleteAward(awardId);
+      setSuccess('Special voucher award removed!');
+      loadUserAwardedVouchers(user.id);
     } catch (err: any) {
       setError(err.message);
     }
@@ -668,23 +685,42 @@ export default function VouchersPage() {
                 </div>
 
                 {/* Award form */}
-                <div className="flex gap-2 items-end">
+                <div className="flex flex-col sm:flex-row gap-2 sm:items-end">
                   <div className="flex-1">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Select Special Voucher</label>
                     <select
                       value={selectedSpecialVoucher || ''}
-                      onChange={(e) => setSelectedSpecialVoucher(e.target.value ? parseInt(e.target.value) : null)}
+                      onChange={(e) => {
+                        setSelectedSpecialVoucher(e.target.value ? parseInt(e.target.value) : null);
+                        setSelectedAwardEventId(null);
+                      }}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
                     >
                       <option value="">Choose a voucher...</option>
                       {specialVouchersList.map((v: any) => (
-                        <option key={v.id} value={v.id}>{v.name} ({v.amount} vouchers)</option>
+                        <option key={v.id} value={v.id}>{v.name} ({v.amount} vouchers) — {v.category}, {v.entry_cost} entry</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">For Event</label>
+                    <select
+                      value={selectedAwardEventId || ''}
+                      onChange={(e) => setSelectedAwardEventId(e.target.value ? parseInt(e.target.value) : null)}
+                      disabled={!selectedSpecialVoucher}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none disabled:bg-gray-50"
+                    >
+                      <option value="">
+                        {selectedSpecialVoucher ? (matchingEventsForSelectedVoucher.length ? 'Choose a matching event...' : 'No matching open events') : 'Select a voucher first'}
+                      </option>
+                      {matchingEventsForSelectedVoucher.map((evt: any) => (
+                        <option key={evt.id} value={evt.id}>{evt.name}</option>
                       ))}
                     </select>
                   </div>
                   <button
                     onClick={handleAwardSpecialVoucher}
-                    disabled={!selectedSpecialVoucher || awarding}
+                    disabled={!selectedSpecialVoucher || !selectedAwardEventId || awarding}
                     className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition font-medium disabled:opacity-50"
                   >
                     {awarding ? 'Awarding...' : 'Award'}
@@ -699,15 +735,13 @@ export default function VouchersPage() {
                       {userAwardedVouchers.map((v: any) => (
                         <div key={v.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
                           <div>
-                            <p className="font-medium text-gray-800 text-sm">{v.name}</p>
-                            <p className="text-xs text-gray-500">{v.amount} vouchers • {v.event_name || 'No event'}</p>
+                            <p className="font-medium text-gray-800 text-sm">{v.voucher_name}</p>
+                            <p className="text-xs text-gray-500">{v.amount} vouchers • {v.category}, {v.entry_cost} entry</p>
                           </div>
-                          {v.hasAward && (
-                            <button onClick={() => handleRemoveSpecialVoucherAward(v.id)}
-                              className="text-red-500 hover:text-red-600 text-sm">
-                              Remove
-                            </button>
-                          )}
+                          <button onClick={() => handleRemoveSpecialVoucherAward(v.id)}
+                            className="text-red-500 hover:text-red-600 text-sm">
+                            Remove
+                          </button>
                         </div>
                       ))}
                     </div>
@@ -745,7 +779,7 @@ export default function VouchersPage() {
                       </div>
                       <div>
                         <h3 className="font-semibold text-gray-800">{voucher.name}</h3>
-                        {voucher.event_name && <p className="text-sm text-indigo-600 mt-1">Event: {voucher.event_name}</p>}
+                        <p className="text-sm text-indigo-600 mt-1">{voucher.category} events • {voucher.entry_cost} voucher{voucher.entry_cost !== 1 ? 's' : ''} entry</p>
                         {voucher.description && <p className="text-sm text-gray-500 mt-1">{voucher.description}</p>}
                         <div className="flex items-center gap-4 mt-2 text-sm">
                           <span className="text-indigo-600 font-semibold">{voucher.amount} vouchers</span>
@@ -754,6 +788,10 @@ export default function VouchersPage() {
                       </div>
                     </div>
                     <div className="flex gap-2">
+                      <button onClick={() => setEditingVoucher(voucher)}
+                        className="flex items-center gap-1 bg-gray-100 text-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-200 transition text-sm font-medium">
+                        Edit
+                      </button>
                       <button onClick={() => handleDeleteSpecialVoucher(voucher.id)}
                         className="flex items-center gap-1 bg-red-100 text-red-700 px-3 py-1.5 rounded-lg hover:bg-red-200 transition text-sm font-medium">
                         <Trash2 size={14} /> Delete
@@ -786,18 +824,30 @@ export default function VouchersPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Event</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Event Category</label>
                   <select
-                    value={newVoucher.event_id}
-                    onChange={(e) => setNewVoucher({ ...newVoucher, event_id: e.target.value })}
+                    value={newVoucher.category}
+                    onChange={(e) => setNewVoucher({ ...newVoucher, category: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
                     required
                   >
-                    <option value="">Select an event</option>
-                    {openEvents.map((evt: any) => (
-                      <option key={evt.id} value={evt.id}>{evt.name}</option>
+                    <option value="">Select a category</option>
+                    {EVENT_CATEGORIES.map((cat) => (
+                      <option key={cat} value={cat}>{cat}</option>
                     ))}
                   </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Entry Cost (vouchers)</label>
+                  <input
+                    type="number"
+                    value={newVoucher.entry_cost}
+                    onChange={(e) => setNewVoucher({ ...newVoucher, entry_cost: parseInt(e.target.value) || 0 })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                    min="0"
+                    required
+                  />
+                  <p className="text-xs text-gray-400 mt-1">Matches any event with this category and entry cost.</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Amount (vouchers)</label>
@@ -840,6 +890,94 @@ export default function VouchersPage() {
                 <button type="submit" disabled={creatingVoucher}
                   className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition text-sm font-medium disabled:opacity-50">
                   {creatingVoucher ? 'Creating...' : 'Create'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Special Voucher Modal */}
+      {editingVoucher && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">Edit Special Voucher</h3>
+            <form onSubmit={handleUpdateSpecialVoucher}>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                  <input
+                    type="text"
+                    value={editingVoucher.name}
+                    onChange={(e) => setEditingVoucher({ ...editingVoucher, name: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Event Category</label>
+                  <select
+                    value={editingVoucher.category}
+                    onChange={(e) => setEditingVoucher({ ...editingVoucher, category: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                    required
+                  >
+                    {EVENT_CATEGORIES.map((cat) => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Entry Cost (vouchers)</label>
+                  <input
+                    type="number"
+                    value={editingVoucher.entry_cost}
+                    onChange={(e) => setEditingVoucher({ ...editingVoucher, entry_cost: parseInt(e.target.value) || 0 })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                    min="0"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Amount (vouchers)</label>
+                  <input
+                    type="number"
+                    value={editingVoucher.amount}
+                    onChange={(e) => setEditingVoucher({ ...editingVoucher, amount: parseInt(e.target.value) || 0 })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                    min="1"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Description (optional)</label>
+                  <textarea
+                    value={editingVoucher.description || ''}
+                    onChange={(e) => setEditingVoucher({ ...editingVoucher, description: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                    rows={2}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Max Awards</label>
+                  <input
+                    type="number"
+                    value={editingVoucher.max_awards}
+                    onChange={(e) => setEditingVoucher({ ...editingVoucher, max_awards: parseInt(e.target.value) || 1 })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                    min="1"
+                    required
+                  />
+                </div>
+              </div>
+              <div className="flex gap-3 mt-6">
+                <button type="button" onClick={() => setEditingVoucher(null)}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition text-sm font-medium">
+                  Cancel
+                </button>
+                <button type="submit" disabled={savingVoucherEdit}
+                  className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition text-sm font-medium disabled:opacity-50">
+                  {savingVoucherEdit ? 'Saving...' : 'Save'}
                 </button>
               </div>
             </form>

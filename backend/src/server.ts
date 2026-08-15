@@ -26,6 +26,8 @@ import specialVouchersRouter from './routes/specialVouchers';
 import packagesRouter from './routes/packages';
 import paymentsRouter from './routes/payments';
 import floorPlanRouter from './routes/floorPlan';
+import collectiblesRouter from './routes/collectibles';
+import preregistrationsRouter from './routes/preregistrations';
 
 dotenv.config();
 
@@ -71,6 +73,11 @@ app.use('/api/special-vouchers', specialVouchersRouter);
 app.use('/api/packages', packagesRouter);
 app.use('/api/payments', paymentsRouter);
 app.use('/api/floor-plan', floorPlanRouter);
+app.use('/api/collectibles', collectiblesRouter);
+app.use('/api/preregistrations', preregistrationsRouter);
+
+// Serve uploaded images
+app.use('/uploads', express.static(path.join(__dirname, '../../uploads')));
 
 // Serve registration site static files
 app.use('/register', express.static(path.join(__dirname, '../../registration-site')));

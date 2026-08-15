@@ -10,7 +10,7 @@ export default function PackagesPage() {
   const [error, setError] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingPackage, setEditingPackage] = useState<any>(null);
-  const [form, setForm] = useState({ name: '', description: '', days: 1, cost: 0, prereg_cost: '', regular_voucher_amount: 0, is_active: true });
+  const [form, setForm] = useState({ name: '', description: '', days: 1, cost: 0, prereg_cost: '', regular_voucher_amount: 0, is_active: true, package_type: 'day_pass' });
 
   async function loadPackages() {
     try {
@@ -45,9 +45,9 @@ export default function PackagesPage() {
       const preregCost = form.prereg_cost ? parseFloat(form.prereg_cost) : null;
       let savedPackage;
       if (editingPackage) {
-        savedPackage = await packages.update(editingPackage.id, form.name, form.description || null, form.days, form.cost, preregCost, form.regular_voucher_amount, form.is_active);
+        savedPackage = await packages.update(editingPackage.id, form.name, form.description || null, form.days, form.cost, preregCost, form.regular_voucher_amount, form.is_active, form.package_type);
       } else {
-        savedPackage = await packages.create(form.name, form.description || null, form.days, form.cost, preregCost, form.regular_voucher_amount);
+        savedPackage = await packages.create(form.name, form.description || null, form.days, form.cost, preregCost, form.regular_voucher_amount, form.package_type);
       }
 
       // Handle special voucher associations
@@ -71,7 +71,7 @@ export default function PackagesPage() {
         }
       }
 
-      setForm({ name: '', description: '', days: 1, cost: 0, prereg_cost: '', regular_voucher_amount: 0, is_active: true });
+      setForm({ name: '', description: '', days: 1, cost: 0, prereg_cost: '', regular_voucher_amount: 0, is_active: true, package_type: 'day_pass' });
       setSelectedSpecialVoucherIds([]);
       setEditingPackage(null);
       setShowForm(false);
@@ -90,7 +90,8 @@ export default function PackagesPage() {
       cost: pkg.cost,
       prereg_cost: pkg.prereg_cost ? String(pkg.prereg_cost) : '',
       regular_voucher_amount: pkg.regular_voucher_amount || 0,
-      is_active: pkg.is_active
+      is_active: pkg.is_active,
+      package_type: pkg.package_type || 'day_pass'
     });
     loadPackageSpecialVouchers(pkg.id, pkg.convention_id);
     setShowForm(true);
@@ -107,7 +108,7 @@ export default function PackagesPage() {
   }
 
   function resetForm() {
-    setForm({ name: '', description: '', days: 1, cost: 0, prereg_cost: '', regular_voucher_amount: 0, is_active: true });
+    setForm({ name: '', description: '', days: 1, cost: 0, prereg_cost: '', regular_voucher_amount: 0, is_active: true, package_type: 'day_pass' });
     setSelectedSpecialVoucherIds([]);
     setEditingPackage(null);
     setShowForm(false);
@@ -148,16 +149,31 @@ export default function PackagesPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Days Included *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Package Type *</label>
+              <select
+                value={form.package_type}
+                onChange={(e) => setForm({ ...form, package_type: e.target.value })}
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+              >
+                <option value="day_pass">Day Pass</option>
+                <option value="voucher_pack">Voucher Pack</option>
+                <option value="merchandise">Merchandise</option>
+              </select>
+              <p className="text-xs text-gray-500 mt-1">Voucher packs and merchandise support quantity multipliers at checkout.</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Days Included</label>
               <input
                 type="number"
                 placeholder="Number of days"
                 value={form.days}
                 onChange={(e) => setForm({ ...form, days: parseInt(e.target.value) || 0 })}
                 required
-                min="1"
+                min="0"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
               />
+              <p className="text-xs text-gray-500 mt-1">Use 0 for non day-pass packages (vouchers, merchandise, etc).</p>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Regular Cost ($) *</label>
@@ -269,6 +285,7 @@ export default function PackagesPage() {
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
                 <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Name</th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Type</th>
                 <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Days</th>
                 <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Cost</th>
                 <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Pre-reg Cost</th>
@@ -284,6 +301,11 @@ export default function PackagesPage() {
                   <td className="px-6 py-3">
                     <div className="text-sm font-medium text-gray-800">{pkg.name}</div>
                     {pkg.description && <div className="text-xs text-gray-400">{pkg.description}</div>}
+                  </td>
+                  <td className="px-6 py-3 text-sm">
+                    <span className="bg-indigo-50 text-indigo-700 text-xs px-2 py-0.5 rounded-full font-medium capitalize">
+                      {(pkg.package_type || 'day_pass').replace('_', ' ')}
+                    </span>
                   </td>
                   <td className="px-6 py-3 text-sm text-gray-600">{pkg.days}</td>
                   <td className="px-6 py-3 text-sm text-gray-600">${pkg.cost}</td>
@@ -312,7 +334,7 @@ export default function PackagesPage() {
                 </tr>
               ))}
               {packageList.length === 0 && (
-                <tr><td colSpan={8} className="px-6 py-8 text-center text-gray-400">No packages yet. Create one to get started.</td></tr>
+                <tr><td colSpan={9} className="px-6 py-8 text-center text-gray-400">No packages yet. Create one to get started.</td></tr>
               )}
             </tbody>
           </table>

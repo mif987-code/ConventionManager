@@ -1,7 +1,12 @@
-import { Pool } from 'pg';
+import { Pool, types } from 'pg';
 import dotenv from 'dotenv';
 
 dotenv.config();
+
+// PostgreSQL NUMERIC (OID 1700) is returned as a string by node-pg to avoid precision loss.
+// Our NUMERIC columns (entry costs, ledger amounts) are used arithmetically as JS numbers,
+// so parse them as floats app-wide instead of handling this per-query.
+types.setTypeParser(1700, (val: string) => parseFloat(val));
 
 function requireEnv(key: string, fallback?: string): string {
   const val = process.env[key] ?? fallback;

@@ -4,6 +4,7 @@ export interface PrizeTemplate {
   id: number;
   name: string;
   rounds: number;
+  is_placement: boolean;
   prize_structure: Record<string, number>;
   prize_structure_ties: Record<string, number>;
   created_at: Date;
@@ -14,20 +15,21 @@ export async function createPrizeTemplate(
   name: string,
   rounds: number,
   prizeStructure: Record<string, number>,
-  prizeStructureTies: Record<string, number>
+  prizeStructureTies: Record<string, number>,
+  isPlacement: boolean = false
 ): Promise<PrizeTemplate> {
   const result = await pool.query(
-    `INSERT INTO prize_templates (name, rounds, prize_structure, prize_structure_ties)
-     VALUES ($1, $2, $3, $4)
+    `INSERT INTO prize_templates (name, rounds, prize_structure, prize_structure_ties, is_placement)
+     VALUES ($1, $2, $3, $4, $5)
      RETURNING *`,
-    [name, rounds, JSON.stringify(prizeStructure), JSON.stringify(prizeStructureTies)]
+    [name, rounds, JSON.stringify(prizeStructure), JSON.stringify(prizeStructureTies), isPlacement]
   );
   return result.rows[0];
 }
 
 export async function updatePrizeTemplate(
   id: number,
-  fields: { name?: string; rounds?: number; prize_structure?: Record<string, number>; prize_structure_ties?: Record<string, number> }
+  fields: { name?: string; rounds?: number; prize_structure?: Record<string, number>; prize_structure_ties?: Record<string, number>; is_placement?: boolean }
 ): Promise<PrizeTemplate> {
   const sets: string[] = [];
   const params: any[] = [];
@@ -37,6 +39,7 @@ export async function updatePrizeTemplate(
   if (fields.rounds !== undefined) { sets.push(`rounds = $${idx++}`); params.push(fields.rounds); }
   if (fields.prize_structure !== undefined) { sets.push(`prize_structure = $${idx++}`); params.push(JSON.stringify(fields.prize_structure)); }
   if (fields.prize_structure_ties !== undefined) { sets.push(`prize_structure_ties = $${idx++}`); params.push(JSON.stringify(fields.prize_structure_ties)); }
+  if (fields.is_placement !== undefined) { sets.push(`is_placement = $${idx++}`); params.push(fields.is_placement); }
 
   if (sets.length === 0) throw new Error('No fields to update');
 

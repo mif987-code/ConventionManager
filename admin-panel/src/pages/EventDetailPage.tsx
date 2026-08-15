@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Play, Trophy, XCircle, UserPlus, ChevronRight, Wifi, Search, Check, X, Loader2, QrCode, ScanLine } from 'lucide-react';
-import { events, users, conventions, floorPlan } from '../api';
+import { ArrowLeft, Play, Trophy, XCircle, UserPlus, ChevronRight, Wifi, Search, Check, X, Loader2, QrCode, ScanLine, Pencil } from 'lucide-react';
+import { events, users, conventions, floorPlan, specialVouchers as specialVouchersApi } from '../api';
 import FloorPlanPicker from '../components/FloorPlanPicker';
 
 const STATUS_COLORS: Record<string, string> = {
@@ -39,6 +39,17 @@ export default function EventDetailPage() {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [matchOutcomes, setMatchOutcomes] = useState<Record<number, 'p1' | 'p2' | 'draw'>>({});
   const [showTablePicker, setShowTablePicker] = useState(false);
+  const [showFinishModal, setShowFinishModal] = useState(false);
+  const [tieScenario, setTieScenario] = useState<'no_ties' | '1_draw' | '2_draws' | 'high_draw'>('no_ties');
+  const [teams, setTeams] = useState<any[]>([]);
+  const [teamPairSelection, setTeamPairSelection] = useState<number[]>([]);
+  const [teamError, setTeamError] = useState('');
+  const [pairing, setPairing] = useState(false);
+  const [specialVoucherNames, setSpecialVoucherNames] = useState<Record<number, string>>({});
+  const [editingDetails, setEditingDetails] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editPreregEnabled, setEditPreregEnabled] = useState(false);
+  const [savingDetails, setSavingDetails] = useState(false);
 
   async function loadEvent() {
     try {
@@ -49,11 +60,46 @@ export default function EventDetailPage() {
       setRounds(res.rounds || []);
       setMatches(res.matches || []);
       if (res.event?.current_round > 0) setSelectedRound(res.event.current_round);
+      if (res.event?.team_mode === '2hg') {
+        const tRes = await events.getTeams(parseInt(id!));
+        setTeams(tRes.teams || []);
+      } else {
+        setTeams([]);
+      }
     } catch (err: any) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
+  }
+
+  function toggleTeamPairSelection(userId: number) {
+    setTeamError('');
+    setTeamPairSelection(prev => {
+      if (prev.includes(userId)) return prev.filter(id => id !== userId);
+      if (prev.length >= 2) return [prev[1], userId];
+      return [...prev, userId];
+    });
+  }
+
+  async function handleLinkTeam() {
+    if (teamPairSelection.length !== 2) return;
+    setPairing(true);
+    setTeamError('');
+    try {
+      await events.createTeam(parseInt(id!), teamPairSelection[0], teamPairSelection[1]);
+      setTeamPairSelection([]);
+      loadEvent();
+    } catch (err: any) { setTeamError(err.message); }
+    finally { setPairing(false); }
+  }
+
+  async function handleUnlinkTeam(teamId: number) {
+    if (!confirm('Unlink this team? Both players will need to be re-paired before the event can start.')) return;
+    try {
+      await events.deleteTeam(parseInt(id!), teamId);
+      loadEvent();
+    } catch (err: any) { setTeamError(err.message); }
   }
 
   async function loadConvention() {
@@ -65,6 +111,10 @@ export default function EventDetailPage() {
         if (res.convention?.scan_mode) {
           setScanMode(res.convention.scan_mode);
         }
+        const svRes = await specialVouchersApi.list(parseInt(conventionId));
+        const map: Record<number, string> = {};
+        for (const v of svRes.special_vouchers || []) map[v.id] = v.name;
+        setSpecialVoucherNames(map);
       }
     } catch (err: any) {
       console.error('Failed to load convention:', err);
@@ -216,10 +266,72 @@ export default function EventDetailPage() {
 
   async function handleFinish() {
     try {
-      await events.finish(parseInt(id!));
+      await events.finish(parseInt(id!), tieScenario);
       if (event.table_id) await floorPlan.release(parseInt(id!)).catch(() => {});
+      setShowFinishModal(false);
       loadEvent();
     } catch (err: any) { setError(err.message); }
+  }
+
+  function computeTieScenario(): 'no_ties' | '1_draw' | '2_draws' | 'high_draw' {
+    const maxDraws = Math.max(...participants.map((p: any) => p.draws || 0), 0);
+    if (maxDraws === 0) return 'no_ties';
+    if (maxDraws === 1) return '1_draw';
+    if (maxDraws === 2) return '2_draws';
+    return 'high_draw';
+  }
+
+  function getActiveTieStructure() {
+    const ties = event.prize_structure_ties || {};
+    if (!Object.keys(ties).length) return null;
+    const is3Round = event.total_rounds === 3 && event.tournament_structure !== 'single_elimination';
+    if (!is3Round) return ties;
+    const drawMap: Record<string, Record<string, number>> = { no_ties: {}, '1_draw': {}, '2_draws': {}, high_draw: {} };
+    for (const [rec, amt] of Object.entries(ties) as [string, number][]) {
+      const parts = rec.split('-');
+      const t = parseInt(parts[2] ?? '0');
+      if (t === 0) drawMap['no_ties'][rec] = amt;
+      else if (t === 1) drawMap['1_draw'][rec] = amt;
+      else if (t === 2) drawMap['2_draws'][rec] = amt;
+      else drawMap['high_draw'][rec] = amt;
+    }
+    return drawMap[tieScenario];
+  }
+
+  function prizeTixAmount(entry: any): number {
+    if (entry === undefined || entry === null) return 0;
+    if (typeof entry === 'number') return entry;
+    return entry.tix ?? 0;
+  }
+
+  function prizeSpecialVoucherId(entry: any): number | null {
+    if (entry === undefined || entry === null || typeof entry === 'number') return null;
+    return entry.special_voucher_id ?? null;
+  }
+
+  function calcTotalPayout(structure: Record<string, any> | null): number {
+    if (!structure) return 0;
+    return participants.reduce((sum: number, p: any) => {
+      const key = `${p.wins}-${p.losses}-${p.draws}`;
+      return sum + prizeTixAmount(structure[key]);
+    }, 0);
+  }
+
+  function startEditingDetails() {
+    setEditName(event.name);
+    setEditPreregEnabled(!!event.preregistration_enabled);
+    setEditingDetails(true);
+  }
+
+  async function handleSaveDetails() {
+    if (!editName.trim()) { setError('Event name cannot be empty'); return; }
+    setSavingDetails(true);
+    try {
+      await events.update(parseInt(id!), { name: editName.trim(), preregistration_enabled: editPreregEnabled });
+      setEditingDetails(false);
+      loadEvent();
+    } catch (err: any) { setError(err.message); }
+    finally { setSavingDetails(false); }
   }
 
   async function handleCancel() {
@@ -254,17 +366,74 @@ export default function EventDetailPage() {
       {/* Event Header */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
         <div className="flex items-center justify-between mb-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-800">{event.name}</h1>
-            <p className="text-gray-500 mt-1">
-              {event.category && <span className="font-medium">{event.category}</span>}
-              {event.format && <span> / {event.format}</span>}
-              {' '}&middot; {event.entry_cost_vouchers} vouchers &middot; Max {event.max_players} players
-              {' '}&middot;{' '}
-              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${event.tournament_structure === 'single_elimination' ? 'bg-red-100 text-red-700' : 'bg-cyan-100 text-cyan-700'}`}>
-                {event.tournament_structure === 'single_elimination' ? 'Single Elim' : 'Swiss'}
-              </span>
-            </p>
+          <div className="flex-1">
+            {editingDetails ? (
+              <div className="space-y-2 max-w-md">
+                <input
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="text-xl font-bold text-gray-800 border border-indigo-300 rounded-lg px-2 py-1 w-full focus:ring-2 focus:ring-indigo-500 outline-none"
+                  autoFocus
+                />
+                <label className="flex items-center gap-2 text-sm text-gray-600">
+                  <input
+                    type="checkbox"
+                    checked={editPreregEnabled}
+                    onChange={(e) => setEditPreregEnabled(e.target.checked)}
+                    className="rounded border-gray-300"
+                  />
+                  Preregistration enabled
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleSaveDetails}
+                    disabled={savingDetails}
+                    className="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50"
+                  >
+                    {savingDetails ? 'Saving...' : 'Save'}
+                  </button>
+                  <button
+                    onClick={() => setEditingDetails(false)}
+                    disabled={savingDetails}
+                    className="bg-gray-100 text-gray-600 px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-gray-200"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <h1 className="text-2xl font-bold text-gray-800">{event.name}</h1>
+                {event.status === 'open' && (
+                  <button onClick={startEditingDetails} title="Edit name / preregistration" className="text-gray-400 hover:text-indigo-600">
+                    <Pencil size={16} />
+                  </button>
+                )}
+              </div>
+            )}
+            {!editingDetails && (
+              <p className="text-gray-500 mt-1">
+                {event.category && <span className="font-medium">{event.category}</span>}
+                {event.format && <span> / {event.format}</span>}
+                {' '}&middot; {Number(event.entry_cost_vouchers)} vouchers &middot; Max {event.max_players} players
+                {' '}&middot;{' '}
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${event.tournament_structure === 'single_elimination' ? 'bg-red-100 text-red-700' : 'bg-cyan-100 text-cyan-700'}`}>
+                  {event.tournament_structure === 'single_elimination' ? 'Single Elim' : 'Swiss'}
+                </span>
+                {event.team_mode === '2hg' && (
+                  <>
+                    {' '}
+                    <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-emerald-100 text-emerald-700">
+                      2-Headed Giant
+                    </span>
+                  </>
+                )}
+                {' '}&middot;{' '}
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${event.preregistration_enabled ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-500'}`}>
+                  {event.preregistration_enabled ? 'Prereg on' : 'Prereg off'}
+                </span>
+              </p>
+            )}
             {event.status === 'ongoing' && (
               <p className="text-sm text-indigo-600 mt-1 font-medium">
                 Round {event.current_round} of {event.total_rounds}
@@ -304,19 +473,80 @@ export default function EventDetailPage() {
           )}
         </div>
 
-        {event.prize_structure && (
-          <div className="mt-4 bg-gray-50 rounded-lg p-4">
-            <h3 className="text-sm font-medium text-gray-700 mb-2">Prize Structure (Tix by W-L record)</h3>
-            <div className="flex flex-wrap gap-4">
-              {Object.entries(event.prize_structure).map(([record, amount]) => (
-                <div key={record} className="text-center">
-                  <div className="text-xs text-gray-500">{record}</div>
-                  <div className="font-semibold text-gray-800">{amount as number} tix</div>
+        {(event.prize_structure || event.tix_per_player) && (() => {
+          const is3Round = event.total_rounds === 3 && event.tournament_structure !== 'single_elimination';
+          const ties = event.prize_structure_ties || {};
+          const hasTies = Object.keys(ties).length > 0;
+          const maxTix = event.tix_per_player && event.max_players ? event.tix_per_player * event.max_players : null;
+          return (
+            <div className="mt-4 space-y-3">
+              {maxTix && (
+                <div className="bg-indigo-50 border border-indigo-200 rounded-lg px-4 py-2 flex items-center gap-4">
+                  <span className="text-xs font-semibold text-indigo-700 uppercase tracking-wide">Max Tix Payout</span>
+                  <span className="font-bold text-indigo-800">{maxTix} tix</span>
+                  <span className="text-xs text-indigo-500">{event.max_players} players × {event.tix_per_player} tix</span>
                 </div>
-              ))}
+              )}
+              {event.prize_structure && (
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <h3 className="text-sm font-medium text-gray-700 mb-2">Prize Structure — Without Ties</h3>
+                  <div className="flex flex-wrap gap-4">
+                    {Object.entries(event.prize_structure).map(([record, entry]) => (
+                      <div key={record} className="text-center">
+                        <div className="text-xs text-gray-500">{record}</div>
+                        <div className="font-semibold text-gray-800">{prizeTixAmount(entry)} tix</div>
+                        {prizeSpecialVoucherId(entry) && (
+                          <div className="text-xs text-purple-600 font-medium">+ {specialVoucherNames[prizeSpecialVoucherId(entry)!] || 'Special Voucher'}</div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {hasTies && is3Round && (
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <h3 className="text-sm font-medium text-gray-700 mb-2">Prize Structure — With Ties (3-Round)</h3>
+                  {[['1_draw', '1 Draw', 1], ['2_draws', '2 Draws', 2], ['high_draw', 'High-Draw (3)', 3]].map(([key, label, draws]) => {
+                    const rows = Object.entries(ties).filter(([r]) => parseInt((r as string).split('-')[2] ?? '0') === draws);
+                    if (!rows.length) return null;
+                    return (
+                      <div key={key as string} className="mb-2">
+                        <div className="text-xs font-semibold text-gray-500 uppercase mb-1">{label as string}</div>
+                        <div className="flex flex-wrap gap-3">
+                          {rows.map(([record, entry]) => (
+                            <div key={record} className="text-center">
+                              <div className="text-xs text-gray-500">{record}</div>
+                              <div className="font-semibold text-gray-800">{prizeTixAmount(entry)} tix</div>
+                              {prizeSpecialVoucherId(entry) && (
+                                <div className="text-xs text-purple-600 font-medium">+ {specialVoucherNames[prizeSpecialVoucherId(entry)!] || 'Special Voucher'}</div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              {hasTies && !is3Round && (
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <h3 className="text-sm font-medium text-gray-700 mb-2">Prize Structure — With Ties</h3>
+                  <div className="flex flex-wrap gap-4">
+                    {Object.entries(ties).map(([record, entry]) => (
+                      <div key={record} className="text-center">
+                        <div className="text-xs text-gray-500">{record}</div>
+                        <div className="font-semibold text-gray-800">{prizeTixAmount(entry)} tix</div>
+                        {prizeSpecialVoucherId(entry) && (
+                          <div className="text-xs text-purple-600 font-medium">+ {specialVoucherNames[prizeSpecialVoucherId(entry)!] || 'Special Voucher'}</div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Action Buttons */}
         <div className="flex flex-wrap gap-3 mt-6">
@@ -341,7 +571,7 @@ export default function EventDetailPage() {
                 </button>
               )}
               {allCurrentRoundReported && isLastRound && (
-                <button onClick={handleFinish}
+                <button onClick={() => { setTieScenario(computeTieScenario()); setShowFinishModal(true); }}
                   className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition text-sm font-medium">
                   <Trophy size={16} /> Finish & Award Prizes
                 </button>
@@ -356,6 +586,86 @@ export default function EventDetailPage() {
           )}
         </div>
       </div>
+
+      {/* Finish & Award Prizes Modal */}
+      {showFinishModal && (() => {
+        const is3Round = event.total_rounds === 3 && event.tournament_structure !== 'single_elimination';
+        const ties = event.prize_structure_ties || {};
+        const hasTies = Object.keys(ties).length > 0;
+        const activeTieStruct = getActiveTieStructure();
+        const noTieStruct = event.prize_structure || {};
+        const activeStruct = tieScenario === 'no_ties' ? noTieStruct : (activeTieStruct || noTieStruct);
+        const totalPayout = calcTotalPayout(activeStruct);
+        const maxTix = event.tix_per_player && event.max_players ? event.tix_per_player * event.max_players : null;
+        const overBudget = maxTix !== null && totalPayout > maxTix;
+        return (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
+              <h2 className="text-lg font-bold text-gray-800 mb-1">Finish & Award Prizes</h2>
+              <p className="text-sm text-gray-500 mb-4">Confirm the tie scenario for this event before distributing prizes.</p>
+
+              {is3Round && hasTies ? (
+                <div className="mb-4">
+                  <label className="text-xs font-semibold text-gray-600 uppercase mb-2 block">Tie Scenario</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {(['no_ties', '1_draw', '2_draws', 'high_draw'] as const).map((s) => (
+                      <button key={s} onClick={() => setTieScenario(s)}
+                        className={`px-3 py-2 rounded-lg text-sm font-medium border transition ${
+                          tieScenario === s ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-gray-700 border-gray-300 hover:border-purple-400'
+                        }`}>
+                        {s === 'no_ties' ? 'No Ties' : s === '1_draw' ? 'With Ties — 1 Draw' : s === '2_draws' ? 'With Ties — 2 Draws' : 'High-Draw (3 Draws)'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="bg-gray-50 rounded-lg p-3 mb-4">
+                <div className="text-xs font-semibold text-gray-500 uppercase mb-2">Payout Preview (based on current standings)</div>
+                <div className="space-y-1">
+                  {participants.map((p: any) => {
+                    const key = `${p.wins}-${p.losses}-${p.draws}`;
+                    const tix = activeStruct[key] || 0;
+                    return (
+                      <div key={p.user_id} className="flex items-center justify-between text-sm">
+                        <span className="text-gray-700">{p.user_name}</span>
+                        <span className="font-mono text-xs text-gray-500 mr-2">{key}</span>
+                        <span className={`font-semibold ${tix > 0 ? 'text-green-700' : 'text-gray-400'}`}>{tix} tix</span>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="mt-2 pt-2 border-t border-gray-200 flex items-center justify-between">
+                  <span className="text-xs font-semibold text-gray-600">Total Payout</span>
+                  <span className={`font-bold text-sm ${overBudget ? 'text-red-600' : 'text-gray-800'}`}>{totalPayout} tix</span>
+                </div>
+                {maxTix && (
+                  <div className="flex items-center justify-between mt-1">
+                    <span className="text-xs text-gray-500">Max Budget ({event.max_players} × {event.tix_per_player})</span>
+                    <span className="text-xs font-semibold text-indigo-700">{maxTix} tix</span>
+                  </div>
+                )}
+                {overBudget && (
+                  <div className="mt-2 bg-red-50 border border-red-200 rounded px-3 py-2 text-xs text-red-700 font-medium">
+                    ⚠️ Payout exceeds budget by {totalPayout - maxTix!} tix. Adjust the prize structure before finishing.
+                  </div>
+                )}
+              </div>
+
+              <div className="flex gap-2">
+                <button onClick={handleFinish} disabled={overBudget}
+                  className="flex-1 flex items-center justify-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed">
+                  <Trophy size={15} /> Confirm & Award
+                </button>
+                <button onClick={() => setShowFinishModal(false)}
+                  className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 text-sm font-medium">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Tabs */}
       <div className="flex border-b border-gray-200 mb-6">
@@ -394,7 +704,11 @@ export default function EventDetailPage() {
                     <td className="px-6 py-3 text-sm text-gray-400">{idx + 1}</td>
                     <td className="px-6 py-3">
                       <div className="text-sm font-medium text-gray-800">{p.user_name}</div>
-                      <div className="text-xs text-gray-400 font-mono">{p.nfc_uid}</div>
+                      {event.team_mode === '2hg' && p.team_name ? (
+                        <div className="text-xs text-emerald-600 font-medium">{p.team_name}</div>
+                      ) : (
+                        <div className="text-xs text-gray-400 font-mono">{p.nfc_uid}</div>
+                      )}
                     </td>
                     <td className="px-6 py-3 text-sm text-center">
                       <span className="font-mono">
@@ -456,6 +770,8 @@ export default function EventDetailPage() {
                 {roundMatches.map((m: any) => {
                   const outcome = matchOutcomes[m.id];
                   const isBye = !m.player2_name;
+                  const p1Label = m.team1_name || m.player1_name;
+                  const p2Label = m.team2_name || m.player2_name;
                   return (
                     <div key={m.id} className="px-6 py-4">
                       <div className="flex items-center justify-between gap-4">
@@ -463,13 +779,13 @@ export default function EventDetailPage() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-3">
                             <div>
-                              <span className="font-medium text-gray-800">{m.player1_name}</span>
-                              <span className="text-gray-400 text-xs ml-1 font-mono">(P1)</span>
+                              <span className="font-medium text-gray-800">{p1Label}</span>
+                              {!m.team1_name && <span className="text-gray-400 text-xs ml-1 font-mono">(P1)</span>}
                             </div>
                             <span className="text-gray-400 text-sm font-medium">vs</span>
                             <div>
-                              <span className="font-medium text-gray-800">{m.player2_name || 'BYE'}</span>
-                              {!isBye && <span className="text-gray-400 text-xs ml-1 font-mono">(P2)</span>}
+                              <span className="font-medium text-gray-800">{p2Label || 'BYE'}</span>
+                              {!isBye && !m.team2_name && <span className="text-gray-400 text-xs ml-1 font-mono">(P2)</span>}
                             </div>
                           </div>
                         </div>
@@ -480,9 +796,9 @@ export default function EventDetailPage() {
                             {m.draws > 0 ? (
                               <span className="text-sm px-3 py-1 rounded-full bg-yellow-100 text-yellow-700 font-medium">Draw</span>
                             ) : m.player1_wins > m.player2_wins ? (
-                              <span className="text-sm px-3 py-1 rounded-full bg-green-100 text-green-700 font-medium">{m.player1_name} wins</span>
+                              <span className="text-sm px-3 py-1 rounded-full bg-green-100 text-green-700 font-medium">{p1Label} wins</span>
                             ) : (
-                              <span className="text-sm px-3 py-1 rounded-full bg-green-100 text-green-700 font-medium">{m.player2_name} wins</span>
+                              <span className="text-sm px-3 py-1 rounded-full bg-green-100 text-green-700 font-medium">{p2Label} wins</span>
                             )}
                             <span className="text-xs text-green-500">✓</span>
                             {!isBye && (
@@ -502,8 +818,8 @@ export default function EventDetailPage() {
                             <button onClick={() => setMatchOutcomes(prev => ({ ...prev, [m.id]: 'p1' }))}
                               className={`px-3 py-1.5 rounded-lg text-sm font-medium transition truncate max-w-[120px] ${
                                 outcome === 'p1' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
-                              title={m.player1_name}>
-                              {m.player1_name} wins
+                              title={p1Label}>
+                              {p1Label} wins
                             </button>
                             <button onClick={() => setMatchOutcomes(prev => ({ ...prev, [m.id]: 'draw' }))}
                               className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${
@@ -513,8 +829,8 @@ export default function EventDetailPage() {
                             <button onClick={() => setMatchOutcomes(prev => ({ ...prev, [m.id]: 'p2' }))}
                               className={`px-3 py-1.5 rounded-lg text-sm font-medium transition truncate max-w-[120px] ${
                                 outcome === 'p2' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
-                              title={m.player2_name}>
-                              {m.player2_name} wins
+                              title={p2Label}>
+                              {p2Label} wins
                             </button>
                             <button onClick={() => handleReportMatch(m.id)} disabled={!outcome}
                               className="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-sm hover:bg-indigo-700 transition disabled:opacity-40 disabled:cursor-not-allowed font-medium">
@@ -670,6 +986,79 @@ export default function EventDetailPage() {
             </div>
           )}
 
+          {event.team_mode === '2hg' && (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+              <h2 className="font-semibold text-gray-800 mb-1">2-Headed Giant Team Pairing</h2>
+              <p className="text-sm text-gray-500 mb-4">
+                Link registered players into 2-player teams. All players must be paired before the event can start.
+              </p>
+
+              {teamError && (
+                <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg mb-4 text-sm">
+                  {teamError}
+                  <button onClick={() => setTeamError('')} className="ml-2 font-bold">&times;</button>
+                </div>
+              )}
+
+              {teams.length > 0 && (
+                <div className="mb-4">
+                  <h3 className="text-xs font-semibold text-gray-500 uppercase mb-2">Linked Teams ({teams.length})</h3>
+                  <div className="border border-gray-200 rounded-lg divide-y divide-gray-100">
+                    {teams.map((t: any) => (
+                      <div key={t.id} className="flex items-center justify-between px-4 py-2.5">
+                        <span className="text-sm font-medium text-gray-800">{t.name}</span>
+                        {event.status === 'open' && (
+                          <button onClick={() => handleUnlinkTeam(t.id)}
+                            className="text-xs bg-red-50 text-red-600 px-2.5 py-1 rounded-md hover:bg-red-100 transition">
+                            Unlink
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {event.status === 'open' && (() => {
+                const unpaired = participants.filter((p: any) => !p.team_id);
+                return (
+                  <div>
+                    <h3 className="text-xs font-semibold text-gray-500 uppercase mb-2">
+                      Unpaired Players ({unpaired.length}) — select 2 to link
+                    </h3>
+                    {unpaired.length === 0 ? (
+                      <p className="text-sm text-gray-400 italic">All registered players are paired.</p>
+                    ) : (
+                      <>
+                        <div className="border border-gray-200 rounded-lg divide-y divide-gray-100 max-h-64 overflow-y-auto mb-3">
+                          {unpaired.map((p: any) => {
+                            const isSelected = teamPairSelection.includes(p.user_id);
+                            return (
+                              <div key={p.user_id}
+                                onClick={() => toggleTeamPairSelection(p.user_id)}
+                                className={`flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 cursor-pointer transition ${isSelected ? 'bg-indigo-50' : ''}`}>
+                                <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition ${
+                                  isSelected ? 'bg-indigo-600 border-indigo-600' : 'border-gray-300'}`}>
+                                  {isSelected && <Check size={12} className="text-white" />}
+                                </div>
+                                <span className="text-sm font-medium text-gray-800">{p.user_name}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <button onClick={handleLinkTeam} disabled={teamPairSelection.length !== 2 || pairing}
+                          className="flex items-center gap-1 bg-indigo-600 text-white px-4 py-1.5 rounded-lg hover:bg-indigo-700 transition text-sm font-medium disabled:opacity-50">
+                          {pairing ? <Loader2 size={14} className="animate-spin" /> : <UserPlus size={14} />}
+                          Link as Team {teamPairSelection.length === 2 ? '' : `(${teamPairSelection.length}/2 selected)`}
+                        </button>
+                      </>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
+          )}
+
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-200">
               <h2 className="font-semibold text-gray-800">Registered Players ({participants.length})</h2>
@@ -679,6 +1068,7 @@ export default function EventDetailPage() {
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
                   <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Player</th>
+                  {event.team_mode === '2hg' && <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Team</th>}
                   <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">NFC UID</th>
                   <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Registered</th>
                 </tr>
@@ -687,12 +1077,21 @@ export default function EventDetailPage() {
                 {participants.map((p: any) => (
                   <tr key={p.user_id} className="hover:bg-gray-50">
                     <td className="px-6 py-3 text-sm font-medium text-gray-800">{p.user_name}</td>
+                    {event.team_mode === '2hg' && (
+                      <td className="px-6 py-3 text-sm">
+                        {p.team_name ? (
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-medium">{p.team_name}</span>
+                        ) : (
+                          <span className="text-xs text-gray-400 italic">Unpaired</span>
+                        )}
+                      </td>
+                    )}
                     <td className="px-6 py-3 text-sm text-gray-600 font-mono">{p.nfc_uid}</td>
                     <td className="px-6 py-3 text-sm text-gray-500">{new Date(p.registered_at).toLocaleString()}</td>
                   </tr>
                 ))}
                 {participants.length === 0 && (
-                  <tr><td colSpan={3} className="px-6 py-8 text-center text-gray-400">No participants yet</td></tr>
+                  <tr><td colSpan={event.team_mode === '2hg' ? 4 : 3} className="px-6 py-8 text-center text-gray-400">No participants yet</td></tr>
                 )}
               </tbody>
             </table>

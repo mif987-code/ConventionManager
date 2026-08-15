@@ -18,17 +18,19 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
   }
 });
 
-// POST /api/special-vouchers - Create a special voucher
+// POST /api/special-vouchers - Create a special voucher (tied to an Event Type category + entry cost)
 router.post('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { event_id, name, amount, description, icon, color, max_awards } = req.body;
+    const { convention_id, category, entry_cost, name, amount, description, icon, color, max_awards } = req.body;
 
-    if (!event_id || !name || amount === undefined) {
-      return res.status(400).json({ error: 'event_id, name, and amount are required' });
+    if (!convention_id || !category || entry_cost === undefined || !name || amount === undefined) {
+      return res.status(400).json({ error: 'convention_id, category, entry_cost, name, and amount are required' });
     }
 
     const voucher = await specialVoucherService.createSpecialVoucher(
-      event_id,
+      convention_id,
+      category,
+      entry_cost,
       name,
       amount,
       description,
@@ -42,11 +44,11 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
   }
 });
 
-// GET /api/special-vouchers/event/:eventId - Get all special vouchers for an event
+// GET /api/special-vouchers/event/:eventId - Get special vouchers matching a live event's category + entry cost
 router.get('/event/:eventId', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const eventId = parseInt(req.params.eventId);
-    const vouchers = await specialVoucherService.getSpecialVouchersByEvent(eventId);
+    const vouchers = await specialVoucherService.getSpecialVouchersMatchingEvent(eventId);
     res.json({ success: true, special_vouchers: vouchers });
   } catch (err) {
     next(err);
@@ -134,6 +136,19 @@ router.get('/user/:userId/event/:eventId', async (req: Request, res: Response, n
     const userId = parseInt(req.params.userId);
     const eventId = parseInt(req.params.eventId);
     const awards = await specialVoucherService.getUserSpecialVouchersForEvent(userId, eventId);
+    res.json({ success: true, awards });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/special-vouchers/user/:userId - Get all special vouchers awarded to a user in the current convention
+router.get('/user/:userId', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = parseInt(req.params.userId);
+    const { conventionId } = req;
+    if (!conventionId) return res.status(400).json({ error: 'Convention ID required' });
+    const awards = await specialVoucherService.getUserSpecialVoucherAwards(userId, conventionId);
     res.json({ success: true, awards });
   } catch (err) {
     next(err);

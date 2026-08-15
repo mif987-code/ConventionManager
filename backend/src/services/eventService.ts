@@ -2,6 +2,11 @@ import { pool } from '../config/db';
 import { addTransaction, getBalance } from './transactionService';
 
 export type TournamentStructure = 'swiss' | 'single_elimination';
+export type TeamMode = 'single' | '2hg';
+
+/** A prize tier's value: either a plain Tix number (legacy), or an object carrying
+ *  a Tix amount and/or a Special Voucher to auto-award to whoever hits that tier. */
+export type PrizeEntry = number | { tix?: number; special_voucher_id?: number | null };
 
 export interface EventType {
   id: number;
@@ -11,10 +16,23 @@ export interface EventType {
   tournament_structure: TournamentStructure;
   entry_cost_vouchers: number;
   max_players: number;
-  prize_structure: Record<string, number>;
-  prize_structure_ties: Record<string, number>;
+  tix_per_player: number | null;
+  prize_structure: Record<string, PrizeEntry>;
+  prize_structure_ties: Record<string, PrizeEntry>;
+  team_mode: TeamMode;
   created_at: Date;
   updated_at: Date;
+}
+
+function prizeTixAmount(entry: PrizeEntry | undefined): number {
+  if (entry === undefined || entry === null) return 0;
+  if (typeof entry === 'number') return entry;
+  return entry.tix ?? 0;
+}
+
+function prizeSpecialVoucherId(entry: PrizeEntry | undefined): number | null {
+  if (entry === undefined || entry === null || typeof entry === 'number') return null;
+  return entry.special_voucher_id ?? null;
 }
 
 export interface Event {
@@ -26,6 +44,21 @@ export interface Event {
   total_rounds: number;
   created_at: Date;
   finished_at: Date | null;
+  schedule_day: string | null;
+  start_time: string | null;
+  end_time: string | null;
+  track: string | null;
+  schedule_color: string | null;
+  sort_order: number;
+}
+
+export interface EventScheduleFields {
+  schedule_day?: string | null;
+  start_time?: string | null;
+  end_time?: string | null;
+  track?: string | null;
+  schedule_color?: string | null;
+  sort_order?: number;
 }
 
 // --- Event Types ---
@@ -36,23 +69,25 @@ export async function createEventType(
   format: string | null,
   entryCostVouchers: number,
   maxPlayers: number,
-  prizeStructure: Record<string, number>,
-  prizeStructureTies?: Record<string, number>,
+  prizeStructure: Record<string, PrizeEntry>,
+  prizeStructureTies?: Record<string, PrizeEntry>,
   tournamentStructure: TournamentStructure = 'swiss',
-  conventionId?: number
+  conventionId?: number,
+  tixPerPlayer?: number | null,
+  teamMode: TeamMode = 'single'
 ): Promise<EventType> {
   const result = await pool.query(
-    `INSERT INTO event_types (name, category, format, entry_cost_vouchers, max_players, prize_structure, prize_structure_ties, tournament_structure, convention_id)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+    `INSERT INTO event_types (name, category, format, entry_cost_vouchers, max_players, tix_per_player, prize_structure, prize_structure_ties, tournament_structure, convention_id, team_mode)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
      RETURNING *`,
-    [name, category, format, entryCostVouchers, maxPlayers, JSON.stringify(prizeStructure), JSON.stringify(prizeStructureTies || {}), tournamentStructure, conventionId || null]
+    [name, category, format, entryCostVouchers, maxPlayers, tixPerPlayer ?? null, JSON.stringify(prizeStructure), JSON.stringify(prizeStructureTies || {}), tournamentStructure, conventionId || null, teamMode]
   );
   return result.rows[0];
 }
 
 export async function updateEventType(
   id: number,
-  fields: { name?: string; category?: string; format?: string | null; entry_cost_vouchers?: number; max_players?: number; prize_structure?: Record<string, number>; prize_structure_ties?: Record<string, number>; tournament_structure?: TournamentStructure }
+  fields: { name?: string; category?: string; format?: string | null; entry_cost_vouchers?: number; max_players?: number; tix_per_player?: number | null; prize_structure?: Record<string, PrizeEntry>; prize_structure_ties?: Record<string, PrizeEntry>; tournament_structure?: TournamentStructure; team_mode?: TeamMode }
 ): Promise<EventType> {
   const sets: string[] = [];
   const params: any[] = [];
@@ -63,9 +98,11 @@ export async function updateEventType(
   if (fields.format !== undefined) { sets.push(`format = $${idx++}`); params.push(fields.format); }
   if (fields.entry_cost_vouchers !== undefined) { sets.push(`entry_cost_vouchers = $${idx++}`); params.push(fields.entry_cost_vouchers); }
   if (fields.max_players !== undefined) { sets.push(`max_players = $${idx++}`); params.push(fields.max_players); }
+  if ('tix_per_player' in fields) { sets.push(`tix_per_player = $${idx++}`); params.push(fields.tix_per_player ?? null); }
   if (fields.prize_structure !== undefined) { sets.push(`prize_structure = $${idx++}`); params.push(JSON.stringify(fields.prize_structure)); }
   if (fields.prize_structure_ties !== undefined) { sets.push(`prize_structure_ties = $${idx++}`); params.push(JSON.stringify(fields.prize_structure_ties)); }
   if (fields.tournament_structure !== undefined) { sets.push(`tournament_structure = $${idx++}`); params.push(fields.tournament_structure); }
+  if (fields.team_mode !== undefined) { sets.push(`team_mode = $${idx++}`); params.push(fields.team_mode); }
 
   sets.push(`updated_at = NOW()`);
   params.push(id);
@@ -108,21 +145,101 @@ export async function duplicateEventType(id: number): Promise<EventType> {
     original.max_players,
     original.prize_structure,
     original.prize_structure_ties,
-    original.tournament_structure
+    original.tournament_structure,
+    undefined,
+    original.tix_per_player,
+    original.team_mode
   );
 }
 
 // --- Events ---
 
-export async function createEvent(name: string, eventTypeId: number, conventionId?: number, preregistrationEnabled?: boolean): Promise<Event> {
+export async function createEvent(
+  name: string,
+  eventTypeId: number,
+  conventionId?: number,
+  preregistrationEnabled?: boolean,
+  schedule?: EventScheduleFields
+): Promise<Event> {
   const eventType = await getEventTypeById(eventTypeId);
   if (!eventType) throw new Error('Event type not found');
 
   const result = await pool.query(
-    `INSERT INTO events (name, event_type_id, convention_id, preregistration_enabled)
-     VALUES ($1, $2, $3, $4)
+    `INSERT INTO events (name, event_type_id, convention_id, preregistration_enabled, schedule_day, start_time, end_time, track, schedule_color, sort_order)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
      RETURNING *`,
-    [name, eventTypeId, conventionId || null, preregistrationEnabled || false]
+    [
+      name,
+      eventTypeId,
+      conventionId || null,
+      preregistrationEnabled || false,
+      schedule?.schedule_day ?? null,
+      schedule?.start_time ?? null,
+      schedule?.end_time ?? null,
+      schedule?.track ?? null,
+      schedule?.schedule_color ?? '#6366f1',
+      schedule?.sort_order ?? 0,
+    ]
+  );
+  return result.rows[0];
+}
+
+export async function updateEventSchedule(id: number, fields: EventScheduleFields): Promise<Event> {
+  const sets: string[] = [];
+  const params: any[] = [];
+  let idx = 1;
+
+  if ('schedule_day' in fields) { sets.push(`schedule_day = $${idx++}`); params.push(fields.schedule_day ?? null); }
+  if ('start_time' in fields) { sets.push(`start_time = $${idx++}`); params.push(fields.start_time ?? null); }
+  if ('end_time' in fields) { sets.push(`end_time = $${idx++}`); params.push(fields.end_time ?? null); }
+  if ('track' in fields) { sets.push(`track = $${idx++}`); params.push(fields.track ?? null); }
+  if ('schedule_color' in fields) { sets.push(`schedule_color = $${idx++}`); params.push(fields.schedule_color ?? null); }
+  if (fields.sort_order !== undefined) { sets.push(`sort_order = $${idx++}`); params.push(fields.sort_order); }
+
+  if (sets.length === 0) {
+    const existing = await getEventById(id);
+    if (!existing) throw new Error('Event not found');
+    return existing;
+  }
+
+  params.push(id);
+  const result = await pool.query(
+    `UPDATE events SET ${sets.join(', ')} WHERE id = $${idx} RETURNING *`,
+    params
+  );
+  if (result.rows.length === 0) throw new Error('Event not found');
+  return result.rows[0];
+}
+
+export async function updateEventDetails(id: number, fields: { name?: string; preregistration_enabled?: boolean }): Promise<Event> {
+  const existing = await pool.query(`SELECT id, status FROM events WHERE id = $1`, [id]);
+  if (existing.rows.length === 0) throw new Error('Event not found');
+  if (existing.rows[0].status !== 'open') throw new Error('Only open events can be edited');
+
+  const sets: string[] = [];
+  const params: any[] = [];
+  let idx = 1;
+
+  if (fields.name !== undefined) {
+    if (!fields.name.trim()) throw new Error('name cannot be empty');
+    sets.push(`name = $${idx++}`);
+    params.push(fields.name.trim());
+  }
+  if (fields.preregistration_enabled !== undefined) {
+    sets.push(`preregistration_enabled = $${idx++}`);
+    params.push(fields.preregistration_enabled);
+  }
+
+  if (sets.length === 0) {
+    const current = await getEventById(id);
+    if (!current) throw new Error('Event not found');
+    return current;
+  }
+
+  params.push(id);
+  const result = await pool.query(
+    `UPDATE events SET ${sets.join(', ')} WHERE id = $${idx} RETURNING *`,
+    params
   );
   return result.rows[0];
 }
@@ -130,8 +247,8 @@ export async function createEvent(name: string, eventTypeId: number, conventionI
 export async function getEventById(id: number) {
   const result = await pool.query(
     `SELECT e.*, et.name AS event_type_name, et.category, et.format,
-            et.entry_cost_vouchers, et.max_players, et.prize_structure,
-            et.tournament_structure
+            et.entry_cost_vouchers, et.max_players, et.tix_per_player,
+            et.prize_structure, et.prize_structure_ties, et.tournament_structure, et.team_mode
      FROM events e
      JOIN event_types et ON e.event_type_id = et.id
      WHERE e.id = $1`,
@@ -141,7 +258,7 @@ export async function getEventById(id: number) {
 }
 
 export async function getAllEvents(status?: string, conventionId?: number) {
-  let query = `SELECT e.*, et.name AS event_type_name, et.entry_cost_vouchers, et.max_players,
+  let query = `SELECT e.*, et.name AS event_type_name, et.category, et.entry_cost_vouchers, et.max_players,
                et.tournament_structure,
                (SELECT COUNT(*) FROM event_participants ep WHERE ep.event_id = e.id)::int AS participant_count
                FROM events e
@@ -165,14 +282,113 @@ export async function getAllEvents(status?: string, conventionId?: number) {
 
 export async function getEventParticipants(eventId: number) {
   const result = await pool.query(
-    `SELECT ep.*, u.name AS user_name, u.nfc_uid
+    `SELECT ep.*, u.name AS user_name, u.nfc_uid, et.name AS team_name
      FROM event_participants ep
      JOIN users u ON ep.user_id = u.id
+     LEFT JOIN event_teams et ON ep.team_id = et.id
      WHERE ep.event_id = $1
      ORDER BY ep.match_points DESC, ep.wins DESC, ep.registered_at`,
     [eventId]
   );
   return result.rows;
+}
+
+// --- 2HG Team Pairing ---
+
+export async function getEventTeams(eventId: number) {
+  const result = await pool.query(
+    `SELECT et.*, u1.name AS member1_name, u2.name AS member2_name
+     FROM event_teams et
+     JOIN users u1 ON et.member1_id = u1.id
+     JOIN users u2 ON et.member2_id = u2.id
+     WHERE et.event_id = $1
+     ORDER BY et.created_at`,
+    [eventId]
+  );
+  return result.rows;
+}
+
+export async function createEventTeam(eventId: number, user1Id: number, user2Id: number) {
+  if (user1Id === user2Id) throw new Error('A team requires two different players');
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const eventRes = await client.query(
+      `SELECT e.*, et.team_mode FROM events e
+       JOIN event_types et ON e.event_type_id = et.id
+       WHERE e.id = $1 AND e.status = 'open' FOR UPDATE`,
+      [eventId]
+    );
+    const event = eventRes.rows[0];
+    if (!event) throw new Error('Event not found or not open for pairing');
+    if (event.team_mode !== '2hg') throw new Error('This event type is not configured for 2-Headed Giant teams');
+
+    const participantsRes = await client.query(
+      `SELECT ep.*, u.last_name, u.name FROM event_participants ep
+       JOIN users u ON ep.user_id = u.id
+       WHERE ep.event_id = $1 AND ep.user_id IN ($2, $3) FOR UPDATE`,
+      [eventId, user1Id, user2Id]
+    );
+    if (participantsRes.rows.length !== 2) throw new Error('Both players must be registered for this event');
+    if (participantsRes.rows.some((p: any) => p.team_id !== null)) {
+      throw new Error('One or both players are already paired with a partner');
+    }
+
+    const p1 = participantsRes.rows.find((p: any) => p.user_id === user1Id);
+    const p2 = participantsRes.rows.find((p: any) => p.user_id === user2Id);
+    const lastName1 = (p1.last_name || p1.name || '').trim();
+    const lastName2 = (p2.last_name || p2.name || '').trim();
+    const teamName = `${lastName1} / ${lastName2}`;
+
+    const teamRes = await client.query(
+      `INSERT INTO event_teams (event_id, member1_id, member2_id, name) VALUES ($1, $2, $3, $4) RETURNING *`,
+      [eventId, user1Id, user2Id, teamName]
+    );
+    const team = teamRes.rows[0];
+
+    await client.query(
+      `UPDATE event_participants SET team_id = $1 WHERE event_id = $2 AND user_id IN ($3, $4)`,
+      [team.id, eventId, user1Id, user2Id]
+    );
+
+    await client.query('COMMIT');
+    return team;
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+export async function deleteEventTeam(eventId: number, teamId: number) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const eventRes = await client.query(
+      `SELECT status FROM events WHERE id = $1 FOR UPDATE`,
+      [eventId]
+    );
+    if (!eventRes.rows[0]) throw new Error('Event not found');
+    if (eventRes.rows[0].status !== 'open') throw new Error('Teams can only be unlinked before the event starts');
+
+    const teamRes = await client.query(
+      `DELETE FROM event_teams WHERE id = $1 AND event_id = $2 RETURNING *`,
+      [teamId, eventId]
+    );
+    if (teamRes.rows.length === 0) throw new Error('Team not found');
+
+    await client.query('COMMIT');
+    return { success: true };
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
 }
 
 // --- Registration (with DB transaction for safety) ---
@@ -265,8 +481,9 @@ export async function startEvent(eventId: number) {
     await client.query('BEGIN');
 
     const eventRes = await client.query(
-      `SELECT e.*, et.tournament_structure,
-              (SELECT COUNT(*)::int FROM event_participants WHERE event_id = e.id) AS player_count
+      `SELECT e.*, et.tournament_structure, et.team_mode,
+              (SELECT COUNT(*)::int FROM event_participants WHERE event_id = e.id) AS player_count,
+              (SELECT COUNT(*)::int FROM event_participants WHERE event_id = e.id AND team_id IS NULL) AS unpaired_count
        FROM events e
        JOIN event_types et ON e.event_type_id = et.id
        WHERE e.id = $1 AND e.status = 'open' FOR UPDATE`,
@@ -277,10 +494,23 @@ export async function startEvent(eventId: number) {
     const event = eventRes.rows[0];
     if (event.player_count < 2) throw new Error('Need at least 2 players to start');
 
+    const isTwoHeadedGiant = event.team_mode === '2hg';
+    let pairingUnitCount = event.player_count;
+
+    if (isTwoHeadedGiant) {
+      if (event.player_count % 2 !== 0) {
+        throw new Error('2-Headed Giant events require an even number of registered players. Unregister or add one more player before starting.');
+      }
+      if (event.unpaired_count > 0) {
+        throw new Error(`${event.unpaired_count} player(s) are not yet paired with a partner. Link all players into teams before starting.`);
+      }
+      pairingUnitCount = event.player_count / 2;
+    }
+
     const isSingleElim = event.tournament_structure === 'single_elimination';
     const totalRounds = isSingleElim
-      ? calcSingleElimRounds(event.player_count)
-      : calcSwissRounds(event.player_count);
+      ? calcSingleElimRounds(pairingUnitCount)
+      : calcSwissRounds(pairingUnitCount);
 
     await client.query(
       `UPDATE events SET status = 'ongoing', current_round = 0, total_rounds = $2 WHERE id = $1`,
@@ -306,7 +536,7 @@ export async function createNextRound(eventId: number) {
     await client.query('BEGIN');
 
     const eventRes = await client.query(
-      `SELECT e.*, et.tournament_structure
+      `SELECT e.*, et.tournament_structure, et.team_mode
        FROM events e
        JOIN event_types et ON e.event_type_id = et.id
        WHERE e.id = $1 AND e.status = 'ongoing' FOR UPDATE`,
@@ -316,6 +546,7 @@ export async function createNextRound(eventId: number) {
     if (!event) throw new Error('Event not found or not ongoing');
 
     const isSingleElim = event.tournament_structure === 'single_elimination';
+    const isTwoHeadedGiant = event.team_mode === '2hg';
 
     // Check all matches in current round are reported (if not round 0)
     if (event.current_round > 0) {
@@ -344,10 +575,10 @@ export async function createNextRound(eventId: number) {
 
     if (isSingleElim) {
       // ---- SINGLE ELIMINATION PAIRING ----
-      await pairSingleElimination(client, eventId, round, nextRound, event, matches);
+      await pairSingleElimination(client, eventId, round, nextRound, event, matches, isTwoHeadedGiant);
     } else {
       // ---- SWISS PAIRING ----
-      await pairSwiss(client, eventId, round, matches);
+      await pairSwiss(client, eventId, round, matches, isTwoHeadedGiant);
     }
 
     // Update current round
@@ -363,9 +594,61 @@ export async function createNextRound(eventId: number) {
   }
 }
 
-// --- Swiss pairing helper ---
-async function pairSwiss(client: any, eventId: number, round: any, matches: any[]) {
-  // Get participants sorted by match_points (top vs next-top)
+// --- Mirrored stat helpers (2HG teams apply the same result to both members) ---
+async function bumpWin(client: any, eventId: number, userId: number) {
+  await client.query(
+    `UPDATE event_participants SET wins = wins + 1, match_points = match_points + 3 WHERE event_id = $1 AND user_id = $2`,
+    [eventId, userId]
+  );
+}
+async function bumpLoss(client: any, eventId: number, userId: number) {
+  await client.query(`UPDATE event_participants SET losses = losses + 1 WHERE event_id = $1 AND user_id = $2`, [eventId, userId]);
+}
+async function bumpDraw(client: any, eventId: number, userId: number) {
+  await client.query(
+    `UPDATE event_participants SET draws = draws + 1, match_points = match_points + 1 WHERE event_id = $1 AND user_id = $2`,
+    [eventId, userId]
+  );
+}
+async function unbumpWin(client: any, eventId: number, userId: number) {
+  await client.query(
+    `UPDATE event_participants SET wins = wins - 1, match_points = match_points - 3 WHERE event_id = $1 AND user_id = $2`,
+    [eventId, userId]
+  );
+}
+async function unbumpLoss(client: any, eventId: number, userId: number) {
+  await client.query(`UPDATE event_participants SET losses = losses - 1 WHERE event_id = $1 AND user_id = $2`, [eventId, userId]);
+}
+async function unbumpDraw(client: any, eventId: number, userId: number) {
+  await client.query(
+    `UPDATE event_participants SET draws = draws - 1, match_points = match_points - 1 WHERE event_id = $1 AND user_id = $2`,
+    [eventId, userId]
+  );
+}
+
+interface PairingUnit {
+  repId: number;
+  partnerId: number | null;
+  teamId: number | null;
+}
+
+async function awardByeWin(client: any, eventId: number, unit: PairingUnit) {
+  await bumpWin(client, eventId, unit.repId);
+  if (unit.partnerId) await bumpWin(client, eventId, unit.partnerId);
+}
+
+async function getSwissPairingUnits(client: any, eventId: number, isTwoHeadedGiant: boolean): Promise<PairingUnit[]> {
+  if (isTwoHeadedGiant) {
+    const teamsRes = await client.query(
+      `SELECT et.id AS team_id, et.member1_id, et.member2_id, ep.match_points, ep.wins
+       FROM event_teams et
+       JOIN event_participants ep ON ep.team_id = et.id AND ep.user_id = et.member1_id
+       WHERE et.event_id = $1
+       ORDER BY ep.match_points DESC, ep.wins DESC, RANDOM()`,
+      [eventId]
+    );
+    return teamsRes.rows.map((r: any) => ({ repId: r.member1_id, partnerId: r.member2_id, teamId: r.team_id }));
+  }
   const participants = await client.query(
     `SELECT ep.user_id, ep.match_points, ep.wins
      FROM event_participants ep
@@ -373,30 +656,36 @@ async function pairSwiss(client: any, eventId: number, round: any, matches: any[
      ORDER BY ep.match_points DESC, ep.wins DESC, RANDOM()`,
     [eventId]
   );
+  return participants.rows.map((p: any) => ({ repId: p.user_id, partnerId: null, teamId: null }));
+}
 
-  const players = participants.rows.map((p: any) => p.user_id);
+// --- Swiss pairing helper ---
+async function pairSwiss(client: any, eventId: number, round: any, matches: any[], isTwoHeadedGiant: boolean = false) {
+  const units = await getSwissPairingUnits(client, eventId, isTwoHeadedGiant);
 
-  // Pair players: adjacent pairing from sorted standings
+  // Pair units: adjacent pairing from sorted standings
   const paired = new Set<number>();
-  for (let i = 0; i < players.length; i++) {
-    if (paired.has(players[i])) continue;
+  for (let i = 0; i < units.length; i++) {
+    if (paired.has(i)) continue;
 
-    let opponent: number | null = null;
-    for (let j = i + 1; j < players.length; j++) {
-      if (!paired.has(players[j])) {
-        opponent = players[j];
-        paired.add(players[j]);
+    let opponentIdx: number | null = null;
+    for (let j = i + 1; j < units.length; j++) {
+      if (!paired.has(j)) {
+        opponentIdx = j;
+        paired.add(j);
         break;
       }
     }
 
-    paired.add(players[i]);
+    paired.add(i);
+    const unit = units[i];
+    const opponent = opponentIdx !== null ? units[opponentIdx] : null;
 
     // Insert match (opponent null = bye)
     const matchRes = await client.query(
-      `INSERT INTO event_matches (round_id, event_id, player1_id, player2_id, reported)
-       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-      [round.id, eventId, players[i], opponent, opponent === null]
+      `INSERT INTO event_matches (round_id, event_id, player1_id, player2_id, team1_id, team2_id, reported)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      [round.id, eventId, unit.repId, opponent?.repId ?? null, unit.teamId, opponent?.teamId ?? null, opponent === null]
     );
 
     // If bye, auto-award a win
@@ -405,51 +694,58 @@ async function pairSwiss(client: any, eventId: number, round: any, matches: any[
         `UPDATE event_matches SET player1_wins = 2, player2_wins = 0, reported = TRUE WHERE id = $1`,
         [matchRes.rows[0].id]
       );
-      await client.query(
-        `UPDATE event_participants SET wins = wins + 1, match_points = match_points + 3 WHERE event_id = $1 AND user_id = $2`,
-        [eventId, players[i]]
-      );
+      await awardByeWin(client, eventId, unit);
     }
 
     matches.push(matchRes.rows[0]);
   }
 }
 
-// --- Single Elimination pairing helper ---
-async function pairSingleElimination(client: any, eventId: number, round: any, nextRound: number, event: any, matches: any[]) {
-  if (nextRound === 1) {
-    // Round 1: seed players randomly, assign byes for non-power-of-2
-    const participants = await client.query(
-      `SELECT ep.user_id FROM event_participants ep
-       WHERE ep.event_id = $1 ORDER BY RANDOM()`,
-      [eventId]
-    );
-    const players: number[] = participants.rows.map((p: any) => p.user_id);
-    const totalSlots = Math.pow(2, event.total_rounds); // e.g. 8 for 3 rounds
-    const numByes = totalSlots - players.length;
+async function getTeamPartnerMap(client: any, eventId: number): Promise<Map<number, { member1Id: number; member2Id: number }>> {
+  const teamsRes = await client.query(`SELECT id, member1_id, member2_id FROM event_teams WHERE event_id = $1`, [eventId]);
+  const map = new Map<number, { member1Id: number; member2Id: number }>();
+  for (const t of teamsRes.rows) map.set(t.id, { member1Id: t.member1_id, member2Id: t.member2_id });
+  return map;
+}
 
-    // Build bracket slots: real players first, then nulls for byes
-    // Byes go to the bottom seeds (last positions) so top players get byes
-    const slots: (number | null)[] = [];
+function partnerOf(teamPartners: Map<number, { member1Id: number; member2Id: number }>, teamId: number | null, repId: number): number | null {
+  if (!teamId) return null;
+  const pair = teamPartners.get(teamId);
+  if (!pair) return null;
+  return pair.member1Id === repId ? pair.member2Id : pair.member1Id;
+}
+
+// --- Single Elimination pairing helper ---
+async function pairSingleElimination(client: any, eventId: number, round: any, nextRound: number, event: any, matches: any[], isTwoHeadedGiant: boolean = false) {
+  const teamPartners = isTwoHeadedGiant ? await getTeamPartnerMap(client, eventId) : new Map();
+
+  if (nextRound === 1) {
+    // Round 1: seed units randomly, assign byes for non-power-of-2
+    const units = await getSwissPairingUnits(client, eventId, isTwoHeadedGiant);
+    // Re-shuffle for round 1 seeding (getSwissPairingUnits already orders by points, all 0 at start, so RANDOM() applies)
+    const totalSlots = Math.pow(2, event.total_rounds); // e.g. 8 for 3 rounds
+
+    // Build bracket slots: real units first, then nulls for byes
+    const slots: (PairingUnit | null)[] = [];
     for (let i = 0; i < totalSlots; i++) {
-      slots.push(i < players.length ? players[i] : null);
+      slots.push(i < units.length ? units[i] : null);
     }
 
     // Create matches from pairs of slots
     for (let i = 0; i < totalSlots; i += 2) {
-      const p1 = slots[i];
-      const p2 = slots[i + 1];
+      const u1 = slots[i];
+      const u2 = slots[i + 1];
 
-      if (p1 === null && p2 === null) continue; // shouldn't happen
+      if (u1 === null && u2 === null) continue; // shouldn't happen
 
-      const isBye = p1 === null || p2 === null;
-      const player1 = p1 ?? p2!;
-      const player2 = isBye ? null : p2;
+      const isBye = u1 === null || u2 === null;
+      const unit1 = (u1 ?? u2)!;
+      const unit2 = isBye ? null : u2;
 
       const matchRes = await client.query(
-        `INSERT INTO event_matches (round_id, event_id, player1_id, player2_id, reported)
-         VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-        [round.id, eventId, player1, player2, isBye]
+        `INSERT INTO event_matches (round_id, event_id, player1_id, player2_id, team1_id, team2_id, reported)
+         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+        [round.id, eventId, unit1.repId, unit2?.repId ?? null, unit1.teamId, unit2?.teamId ?? null, isBye]
       );
 
       // If bye, auto-award a win
@@ -458,10 +754,7 @@ async function pairSingleElimination(client: any, eventId: number, round: any, n
           `UPDATE event_matches SET player1_wins = 2, player2_wins = 0, reported = TRUE WHERE id = $1`,
           [matchRes.rows[0].id]
         );
-        await client.query(
-          `UPDATE event_participants SET wins = wins + 1, match_points = match_points + 3 WHERE event_id = $1 AND user_id = $2`,
-          [eventId, player1]
-        );
+        await awardByeWin(client, eventId, unit1);
       }
 
       matches.push(matchRes.rows[0]);
@@ -479,33 +772,39 @@ async function pairSingleElimination(client: any, eventId: number, round: any, n
 
     const prevResults = prevMatches.rows;
 
-    // Determine winners from each match
-    const winners: number[] = [];
+    // Determine winning unit from each match
+    const winners: PairingUnit[] = [];
     for (const m of prevResults) {
       if (!m.reported) throw new Error(`Previous round has unreported matches`);
+      let repId: number;
+      let teamId: number | null = null;
       if (m.player2_id === null) {
-        // Bye — player1 advances
-        winners.push(m.player1_id);
+        repId = m.player1_id;
+        teamId = m.team1_id;
       } else if (m.player1_wins > m.player2_wins) {
-        winners.push(m.player1_id);
+        repId = m.player1_id;
+        teamId = m.team1_id;
       } else if (m.player2_wins > m.player1_wins) {
-        winners.push(m.player2_id);
+        repId = m.player2_id;
+        teamId = m.team2_id;
       } else {
         // Draw in single elimination — shouldn't happen, but default to player1
-        winners.push(m.player1_id);
+        repId = m.player1_id;
+        teamId = m.team1_id;
       }
+      winners.push({ repId, teamId, partnerId: isTwoHeadedGiant ? partnerOf(teamPartners, teamId, repId) : null });
     }
 
     // Pair winners: [0] vs [1], [2] vs [3], etc.
     for (let i = 0; i < winners.length; i += 2) {
-      const p1 = winners[i];
-      const p2 = i + 1 < winners.length ? winners[i + 1] : null;
+      const unit1 = winners[i];
+      const unit2 = i + 1 < winners.length ? winners[i + 1] : null;
 
-      const isBye = p2 === null;
+      const isBye = unit2 === null;
       const matchRes = await client.query(
-        `INSERT INTO event_matches (round_id, event_id, player1_id, player2_id, reported)
-         VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-        [round.id, eventId, p1, p2, isBye]
+        `INSERT INTO event_matches (round_id, event_id, player1_id, player2_id, team1_id, team2_id, reported)
+         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+        [round.id, eventId, unit1.repId, unit2?.repId ?? null, unit1.teamId, unit2?.teamId ?? null, isBye]
       );
 
       if (isBye) {
@@ -513,10 +812,7 @@ async function pairSingleElimination(client: any, eventId: number, round: any, n
           `UPDATE event_matches SET player1_wins = 2, player2_wins = 0, reported = TRUE WHERE id = $1`,
           [matchRes.rows[0].id]
         );
-        await client.query(
-          `UPDATE event_participants SET wins = wins + 1, match_points = match_points + 3 WHERE event_id = $1 AND user_id = $2`,
-          [eventId, p1]
-        );
+        await awardByeWin(client, eventId, unit1);
       }
 
       matches.push(matchRes.rows[0]);
@@ -542,37 +838,30 @@ export async function reportMatchResult(
     if (!match) throw new Error('Match not found');
     if (!match.player2_id) throw new Error('Cannot report a bye match');
 
+    // Resolve 2HG partner ids (null for regular single-player matches)
+    const teamPartners = (match.team1_id || match.team2_id) ? await getTeamPartnerMap(client, match.event_id) : new Map();
+    const partner1 = partnerOf(teamPartners, match.team1_id, match.player1_id);
+    const partner2 = partnerOf(teamPartners, match.team2_id, match.player2_id);
+
     // If already reported, reverse old stats first
     if (match.reported) {
       const oldP1 = match.player1_wins;
       const oldP2 = match.player2_wins;
       if (oldP1 > oldP2) {
-        await client.query(
-          `UPDATE event_participants SET wins = wins - 1, match_points = match_points - 3 WHERE event_id = $1 AND user_id = $2`,
-          [match.event_id, match.player1_id]
-        );
-        await client.query(
-          `UPDATE event_participants SET losses = losses - 1 WHERE event_id = $1 AND user_id = $2`,
-          [match.event_id, match.player2_id]
-        );
+        await unbumpWin(client, match.event_id, match.player1_id);
+        if (partner1) await unbumpWin(client, match.event_id, partner1);
+        await unbumpLoss(client, match.event_id, match.player2_id);
+        if (partner2) await unbumpLoss(client, match.event_id, partner2);
       } else if (oldP2 > oldP1) {
-        await client.query(
-          `UPDATE event_participants SET wins = wins - 1, match_points = match_points - 3 WHERE event_id = $1 AND user_id = $2`,
-          [match.event_id, match.player2_id]
-        );
-        await client.query(
-          `UPDATE event_participants SET losses = losses - 1 WHERE event_id = $1 AND user_id = $2`,
-          [match.event_id, match.player1_id]
-        );
+        await unbumpWin(client, match.event_id, match.player2_id);
+        if (partner2) await unbumpWin(client, match.event_id, partner2);
+        await unbumpLoss(client, match.event_id, match.player1_id);
+        if (partner1) await unbumpLoss(client, match.event_id, partner1);
       } else {
-        await client.query(
-          `UPDATE event_participants SET draws = draws - 1, match_points = match_points - 1 WHERE event_id = $1 AND user_id = $2`,
-          [match.event_id, match.player1_id]
-        );
-        await client.query(
-          `UPDATE event_participants SET draws = draws - 1, match_points = match_points - 1 WHERE event_id = $1 AND user_id = $2`,
-          [match.event_id, match.player2_id]
-        );
+        await unbumpDraw(client, match.event_id, match.player1_id);
+        if (partner1) await unbumpDraw(client, match.event_id, partner1);
+        await unbumpDraw(client, match.event_id, match.player2_id);
+        if (partner2) await unbumpDraw(client, match.event_id, partner2);
       }
     }
 
@@ -583,35 +872,23 @@ export async function reportMatchResult(
 
     // Determine match winner
     if (player1Wins > player2Wins) {
-      // Player 1 wins the match
-      await client.query(
-        `UPDATE event_participants SET wins = wins + 1, match_points = match_points + 3 WHERE event_id = $1 AND user_id = $2`,
-        [match.event_id, match.player1_id]
-      );
-      await client.query(
-        `UPDATE event_participants SET losses = losses + 1 WHERE event_id = $1 AND user_id = $2`,
-        [match.event_id, match.player2_id]
-      );
+      // Player 1 (and partner, if 2HG) wins the match
+      await bumpWin(client, match.event_id, match.player1_id);
+      if (partner1) await bumpWin(client, match.event_id, partner1);
+      await bumpLoss(client, match.event_id, match.player2_id);
+      if (partner2) await bumpLoss(client, match.event_id, partner2);
     } else if (player2Wins > player1Wins) {
-      // Player 2 wins the match
-      await client.query(
-        `UPDATE event_participants SET wins = wins + 1, match_points = match_points + 3 WHERE event_id = $1 AND user_id = $2`,
-        [match.event_id, match.player2_id]
-      );
-      await client.query(
-        `UPDATE event_participants SET losses = losses + 1 WHERE event_id = $1 AND user_id = $2`,
-        [match.event_id, match.player1_id]
-      );
+      // Player 2 (and partner, if 2HG) wins the match
+      await bumpWin(client, match.event_id, match.player2_id);
+      if (partner2) await bumpWin(client, match.event_id, partner2);
+      await bumpLoss(client, match.event_id, match.player1_id);
+      if (partner1) await bumpLoss(client, match.event_id, partner1);
     } else {
       // Draw
-      await client.query(
-        `UPDATE event_participants SET draws = draws + 1, match_points = match_points + 1 WHERE event_id = $1 AND user_id = $2`,
-        [match.event_id, match.player1_id]
-      );
-      await client.query(
-        `UPDATE event_participants SET draws = draws + 1, match_points = match_points + 1 WHERE event_id = $1 AND user_id = $2`,
-        [match.event_id, match.player2_id]
-      );
+      await bumpDraw(client, match.event_id, match.player1_id);
+      if (partner1) await bumpDraw(client, match.event_id, partner1);
+      await bumpDraw(client, match.event_id, match.player2_id);
+      if (partner2) await bumpDraw(client, match.event_id, partner2);
     }
 
     await client.query('COMMIT');
@@ -636,11 +913,14 @@ export async function getRoundMatches(eventId: number, roundNumber: number) {
   const result = await pool.query(
     `SELECT em.*, er.round_number,
             u1.name AS player1_name, u2.name AS player2_name,
-            u1.nfc_uid AS player1_nfc, u2.nfc_uid AS player2_nfc
+            u1.nfc_uid AS player1_nfc, u2.nfc_uid AS player2_nfc,
+            t1.name AS team1_name, t2.name AS team2_name
      FROM event_matches em
      JOIN event_rounds er ON em.round_id = er.id
      LEFT JOIN users u1 ON em.player1_id = u1.id
      LEFT JOIN users u2 ON em.player2_id = u2.id
+     LEFT JOIN event_teams t1 ON em.team1_id = t1.id
+     LEFT JOIN event_teams t2 ON em.team2_id = t2.id
      WHERE er.event_id = $1 AND er.round_number = $2
      ORDER BY em.id`,
     [eventId, roundNumber]
@@ -651,11 +931,14 @@ export async function getRoundMatches(eventId: number, roundNumber: number) {
 export async function getAllEventMatches(eventId: number) {
   const result = await pool.query(
     `SELECT em.*, er.round_number,
-            u1.name AS player1_name, u2.name AS player2_name
+            u1.name AS player1_name, u2.name AS player2_name,
+            t1.name AS team1_name, t2.name AS team2_name
      FROM event_matches em
      JOIN event_rounds er ON em.round_id = er.id
      LEFT JOIN users u1 ON em.player1_id = u1.id
      LEFT JOIN users u2 ON em.player2_id = u2.id
+     LEFT JOIN event_teams t1 ON em.team1_id = t1.id
+     LEFT JOIN event_teams t2 ON em.team2_id = t2.id
      WHERE er.event_id = $1
      ORDER BY er.round_number, em.id`,
     [eventId]
@@ -678,14 +961,14 @@ export async function setParticipantResult(eventId: number, userId: number, posi
 
 // --- Finish Event + Distribute Prizes by W/L Record ---
 
-export async function finishEvent(eventId: number, createdBy: string = 'system') {
+export async function finishEvent(eventId: number, createdBy: string = 'system', tieScenario?: string) {
   const client = await pool.connect();
 
   try {
     await client.query('BEGIN');
 
     const eventRes = await client.query(
-      `SELECT e.*, et.prize_structure, et.prize_structure_ties, et.tournament_structure
+      `SELECT e.*, et.prize_structure, et.prize_structure_ties, et.tournament_structure, et.team_mode
        FROM events e
        JOIN event_types et ON e.event_type_id = et.id
        WHERE e.id = $1 AND e.status = 'ongoing'
@@ -695,6 +978,7 @@ export async function finishEvent(eventId: number, createdBy: string = 'system')
 
     const event = eventRes.rows[0];
     if (!event) throw new Error('Event not found or not ongoing');
+    const isTwoHeadedGiant = event.team_mode === '2hg';
 
     const participants = await client.query(
       `SELECT user_id, wins, losses, draws, match_points FROM event_participants WHERE event_id = $1`,
@@ -704,70 +988,125 @@ export async function finishEvent(eventId: number, createdBy: string = 'system')
     // Determine if any player has ties
     const hasTies = participants.rows.some((p: any) => p.draws > 0);
 
-    // Pick the right prize structure: if ties exist and ties variant is available, use it
-    const tiesStructure: Record<string, number> = event.prize_structure_ties || {};
-    const noTiesStructure: Record<string, number> = event.prize_structure || {};
+    const tiesStructure: Record<string, PrizeEntry> = event.prize_structure_ties || {};
+    const noTiesStructure: Record<string, PrizeEntry> = event.prize_structure || {};
     const hasTiesVariant = Object.keys(tiesStructure).length > 0;
-    const prizeStructure: Record<string, number> = (hasTies && hasTiesVariant) ? tiesStructure : noTiesStructure;
 
-    const prizes: Array<{ userId: number; record: string; amount: number }> = [];
+    // For 3-round Swiss events, split the prize_structure_ties by draw count and pick the right scenario
+    const is3Round = event.total_rounds === 3 && event.tournament_structure !== 'single_elimination';
+    let prizeStructure: Record<string, PrizeEntry>;
+    if (tieScenario && tieScenario !== 'no_ties' && hasTiesVariant && is3Round) {
+      const drawCount = tieScenario === '1_draw' ? 1 : tieScenario === '2_draws' ? 2 : 3;
+      prizeStructure = {};
+      for (const [rec, entry] of Object.entries(tiesStructure)) {
+        const parts = rec.split('-');
+        const t = parseInt(parts[2] ?? '0');
+        if (t === drawCount) prizeStructure[rec] = entry;
+      }
+    } else if (tieScenario === 'no_ties' || !hasTies || !hasTiesVariant) {
+      prizeStructure = noTiesStructure;
+    } else {
+      prizeStructure = (hasTies && hasTiesVariant) ? tiesStructure : noTiesStructure;
+    }
+
+    const prizes: Array<{ userId: number; record: string; amount: number; specialVoucherId?: number | null }> = [];
+    const specialVoucherService = await import('./specialVoucherService');
+
+    // For 2HG events, rank by team (both members share identical mirrored stats) so
+    // partners land on the same placement instead of adjacent positions.
+    let rankingRows = participants.rows;
+    let teamOfUser = new Map<number, number>();
+    if (isTwoHeadedGiant) {
+      const teamsRes = await client.query(`SELECT id, member1_id, member2_id FROM event_teams WHERE event_id = $1`, [eventId]);
+      for (const t of teamsRes.rows) {
+        teamOfUser.set(t.member1_id, t.id);
+        teamOfUser.set(t.member2_id, t.id);
+      }
+      const seenTeams = new Set<number>();
+      rankingRows = participants.rows.filter((p: any) => {
+        const teamId = teamOfUser.get(p.user_id);
+        if (!teamId || seenTeams.has(teamId)) return false;
+        seenTeams.add(teamId);
+        return true;
+      });
+    }
 
     // Assign positions by match_points
-    const sorted = [...participants.rows].sort((a: any, b: any) => b.match_points - a.match_points || b.wins - a.wins);
+    const sorted = [...rankingRows].sort((a: any, b: any) => b.match_points - a.match_points || b.wins - a.wins);
     for (let i = 0; i < sorted.length; i++) {
       await client.query(
         `UPDATE event_participants SET result_position = $3 WHERE event_id = $1 AND user_id = $2`,
         [eventId, sorted[i].user_id, i + 1]
       );
+      if (isTwoHeadedGiant) {
+        const teamId = teamOfUser.get(sorted[i].user_id);
+        const teamRow = (await client.query(`SELECT member1_id, member2_id FROM event_teams WHERE id = $1`, [teamId])).rows[0];
+        const partnerId = teamRow.member1_id === sorted[i].user_id ? teamRow.member2_id : teamRow.member1_id;
+        await client.query(
+          `UPDATE event_participants SET result_position = $3 WHERE event_id = $1 AND user_id = $2`,
+          [eventId, partnerId, i + 1]
+        );
+      }
     }
 
     // Check if prize structure uses placement keys (Commander: 1st, 2nd, 3rd, 4th)
     const placementSuffixes = ['st', 'nd', 'rd', 'th'];
     const isPlacementBased = Object.keys(prizeStructure).some(k => placementSuffixes.some(s => k.endsWith(s)));
 
+    async function awardPrizeEntry(userId: number, key: string, entry: PrizeEntry | undefined) {
+      const reward = prizeTixAmount(entry);
+      const specialVoucherId = prizeSpecialVoucherId(entry);
+      let memberReward = 0;
+
+      if (reward > 0) {
+        memberReward = isTwoHeadedGiant ? Math.ceil(reward / 2) : reward;
+        await addTransaction({
+          userId,
+          type: 'tix',
+          amount: memberReward,
+          reason: 'prize',
+          eventId,
+          createdBy,
+          client,
+          conventionId: event.convention_id,
+        });
+      }
+
+      if (specialVoucherId) {
+        await specialVoucherService.awardSpecialVoucherAsPrize(client, specialVoucherId, userId, eventId, createdBy);
+      }
+
+      if (memberReward > 0 || specialVoucherId) {
+        prizes.push({ userId, record: key, amount: memberReward, specialVoucherId });
+      }
+    }
+
     if (isPlacementBased) {
-      // Award tix by final position (Commander style)
+      // Award tix/special vouchers by final position (Commander style)
       for (let i = 0; i < sorted.length; i++) {
         const pos = i + 1;
         const suffix = pos === 1 ? 'st' : pos === 2 ? 'nd' : pos === 3 ? 'rd' : 'th';
         const key = `${pos}${suffix}`;
-        const reward = prizeStructure[key] ?? 0;
-        if (reward > 0) {
-          await addTransaction({
-            userId: sorted[i].user_id,
-            type: 'tix',
-            amount: reward,
-            reason: 'prize',
-            eventId,
-            createdBy,
-            client,
-            conventionId: event.convention_id,
-          });
+        const entry = prizeStructure[key];
+
+        if (isTwoHeadedGiant) {
+          const teamId = teamOfUser.get(sorted[i].user_id);
+          const teamRow = (await client.query(`SELECT member1_id, member2_id FROM event_teams WHERE id = $1`, [teamId])).rows[0];
+          await awardPrizeEntry(teamRow.member1_id, key, entry);
+          await awardPrizeEntry(teamRow.member2_id, key, entry);
+        } else {
+          await awardPrizeEntry(sorted[i].user_id, key, entry);
         }
-        prizes.push({ userId: sorted[i].user_id, record: key, amount: reward });
       }
     } else {
-      // Award tix based on W-L-T record (Swiss style)
+      // Award tix/special vouchers based on W-L-T record (Swiss style)
       for (const p of participants.rows) {
         const recordNoTies = `${p.wins}-${p.losses}`;
         const recordWithTies = `${p.wins}-${p.losses}-${p.draws}`;
 
         // Try exact W-L-T first, then W-L
-        const reward = prizeStructure[recordWithTies] ?? prizeStructure[recordNoTies] ?? 0;
-
-        if (reward > 0) {
-          await addTransaction({
-            userId: p.user_id,
-            type: 'tix',
-            amount: reward,
-            reason: 'prize',
-            eventId,
-            createdBy,
-            client,
-            conventionId: event.convention_id,
-          });
-          prizes.push({ userId: p.user_id, record: recordWithTies, amount: reward });
-        }
+        const entry = prizeStructure[recordWithTies] ?? prizeStructure[recordNoTies];
+        await awardPrizeEntry(p.user_id, recordWithTies, entry);
       }
     }
 

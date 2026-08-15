@@ -136,11 +136,24 @@ export const tix = {
 };
 
 // Events
+export interface EventSchedule {
+  schedule_day?: string | null;
+  start_time?: string | null;
+  end_time?: string | null;
+  track?: string | null;
+  schedule_color?: string | null;
+  sort_order?: number;
+}
+
 export const events = {
   list: (status?: string) => request<any>(`/events${status ? `?status=${status}` : ''}`),
   get: (id: number) => request<any>(`/events/${id}`),
-  create: (name: string, event_type_id: number, preregistration_enabled?: boolean) =>
-    request<any>('/events', { method: 'POST', body: JSON.stringify({ name, event_type_id, preregistration_enabled }) }),
+  create: (name: string, event_type_id: number, preregistration_enabled?: boolean, schedule?: EventSchedule) =>
+    request<any>('/events', { method: 'POST', body: JSON.stringify({ name, event_type_id, preregistration_enabled, ...schedule }) }),
+  updateSchedule: (id: number, schedule: EventSchedule) =>
+    request<any>(`/events/${id}/schedule`, { method: 'PATCH', body: JSON.stringify(schedule) }),
+  update: (id: number, fields: { name?: string; preregistration_enabled?: boolean }) =>
+    request<any>(`/events/${id}`, { method: 'PUT', body: JSON.stringify(fields) }),
   register: (eventId: number, user_id: number) =>
     request<any>(`/events/${eventId}/register`, { method: 'POST', body: JSON.stringify({ user_id }) }),
   registerNfc: (eventId: number, nfc_uid: string) =>
@@ -155,16 +168,22 @@ export const events = {
     request<any>(`/events/${eventId}/rounds/${round}`),
   setResults: (eventId: number, results: Array<{ user_id: number; position: number }>) =>
     request<any>(`/events/${eventId}/results`, { method: 'POST', body: JSON.stringify({ results }) }),
-  finish: (eventId: number) =>
-    request<any>(`/events/${eventId}/finish`, { method: 'POST' }),
+  finish: (eventId: number, tieScenario?: string) =>
+    request<any>(`/events/${eventId}/finish`, { method: 'POST', body: JSON.stringify({ tie_scenario: tieScenario }) }),
   cancel: (eventId: number) =>
     request<any>(`/events/${eventId}/cancel`, { method: 'POST' }),
+  getTeams: (eventId: number) =>
+    request<any>(`/events/${eventId}/teams`),
+  createTeam: (eventId: number, user1Id: number, user2Id: number) =>
+    request<any>(`/events/${eventId}/teams`, { method: 'POST', body: JSON.stringify({ user1_id: user1Id, user2_id: user2Id }) }),
+  deleteTeam: (eventId: number, teamId: number) =>
+    request<any>(`/events/${eventId}/teams/${teamId}`, { method: 'DELETE' }),
 };
 
 // Event Types
 export const eventTypes = {
   list: () => request<any>('/events/types'),
-  create: (data: { name: string; category: string; format?: string | null; tournament_structure?: string; entry_cost_vouchers: number; max_players: number; prize_structure: Record<string, number>; prize_structure_ties?: Record<string, number> }) =>
+  create: (data: { name: string; category: string; format?: string | null; tournament_structure?: string; entry_cost_vouchers: number; max_players: number; tix_per_player?: number | null; prize_structure: Record<string, number>; prize_structure_ties?: Record<string, number>; team_mode?: string }) =>
     request<any>('/events/types', { method: 'POST', body: JSON.stringify(data) }),
   update: (id: number, fields: any) =>
     request<any>(`/events/types/${id}`, { method: 'PUT', body: JSON.stringify(fields) }),
@@ -178,7 +197,7 @@ export const eventTypes = {
 export const prizeTemplates = {
   list: (rounds?: number) => request<any>(`/prize-templates${rounds ? `?rounds=${rounds}` : ''}`),
   get: (id: number) => request<any>(`/prize-templates/${id}`),
-  create: (data: { name: string; rounds: number; prize_structure: Record<string, number>; prize_structure_ties: Record<string, number> }) =>
+  create: (data: { name: string; rounds: number; prize_structure: Record<string, number>; prize_structure_ties: Record<string, number>; is_placement?: boolean }) =>
     request<any>('/prize-templates', { method: 'POST', body: JSON.stringify(data) }),
   update: (id: number, fields: any) =>
     request<any>(`/prize-templates/${id}`, { method: 'PUT', body: JSON.stringify(fields) }),
@@ -249,7 +268,7 @@ export const conventions = {
 // Special Vouchers
 export const specialVouchers = {
   list: (conventionId: number) => request<any>(`/special-vouchers?convention_id=${conventionId}`),
-  create: (data: { event_id: number; name: string; amount: number; description?: string; icon?: string; color?: string; max_awards?: number }) =>
+  create: (data: { convention_id: number; category: string; entry_cost: number; name: string; amount: number; description?: string; icon?: string; color?: string; max_awards?: number }) =>
     request<any>('/special-vouchers', { method: 'POST', body: JSON.stringify(data) }),
   getByEvent: (eventId: number) => request<any>(`/special-vouchers/event/${eventId}`),
   get: (id: number) => request<any>(`/special-vouchers/${id}`),
@@ -259,22 +278,47 @@ export const specialVouchers = {
     request<any>(`/special-vouchers/${id}/award`, { method: 'POST', body: JSON.stringify(data) }),
   getAwards: (id: number) => request<any>(`/special-vouchers/${id}/awards`),
   getUserAwards: (userId: number, eventId: number) => request<any>(`/special-vouchers/user/${userId}/event/${eventId}`),
+  getUserAwardsInConvention: (userId: number) => request<any>(`/special-vouchers/user/${userId}`),
   deleteAward: (awardId: number) => request<any>(`/special-vouchers/awards/${awardId}`, { method: 'DELETE' }),
 };
 
 // Packages
 export const packages = {
   list: () => request<any>('/packages'),
-  create: (name: string, description: string | null, days: number, cost: number, preregCost: number | null, regularVoucherAmount: number) =>
-    request<any>('/packages', { method: 'POST', body: JSON.stringify({ name, description, days, cost, prereg_cost: preregCost, regular_voucher_amount: regularVoucherAmount }) }),
-  update: (id: number, name: string, description: string | null, days: number, cost: number, preregCost: number | null, regularVoucherAmount: number, is_active: boolean) =>
-    request<any>(`/packages/${id}`, { method: 'PUT', body: JSON.stringify({ name, description, days, cost, prereg_cost: preregCost, regular_voucher_amount: regularVoucherAmount, is_active }) }),
+  create: (name: string, description: string | null, days: number, cost: number, preregCost: number | null, regularVoucherAmount: number, packageType: string = 'day_pass') =>
+    request<any>('/packages', { method: 'POST', body: JSON.stringify({ name, description, days, cost, prereg_cost: preregCost, regular_voucher_amount: regularVoucherAmount, package_type: packageType }) }),
+  update: (id: number, name: string, description: string | null, days: number, cost: number, preregCost: number | null, regularVoucherAmount: number, is_active: boolean, packageType: string = 'day_pass') =>
+    request<any>(`/packages/${id}`, { method: 'PUT', body: JSON.stringify({ name, description, days, cost, prereg_cost: preregCost, regular_voucher_amount: regularVoucherAmount, is_active, package_type: packageType }) }),
   delete: (id: number) => request<any>(`/packages/${id}`, { method: 'DELETE' }),
   getSpecialVouchers: (id: number) => request<any>(`/packages/${id}/special-vouchers`),
   addSpecialVoucher: (id: number, voucherId: number) =>
     request<any>(`/packages/${id}/special-vouchers/${voucherId}`, { method: 'POST' }),
   removeSpecialVoucher: (id: number, voucherId: number) =>
     request<any>(`/packages/${id}/special-vouchers/${voucherId}`, { method: 'DELETE' }),
+};
+
+// Collectibles
+export const collectibles = {
+  list: () => request<any>('/collectibles'),
+  create: (data: any) => request<any>('/collectibles', { method: 'POST', body: JSON.stringify(data) }),
+  createFormData: (formData: FormData) => fetch(`${API_BASE}/collectibles`, {
+    method: 'POST',
+    headers: { 'x-api-key': apiKey, 'x-convention-id': localStorage.getItem('cm_convention_id') || '' },
+    body: formData,
+  }).then(r => r.json()),
+  update: (id: number, data: any) => request<any>(`/collectibles/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  updateFormData: (id: number, formData: FormData) => fetch(`${API_BASE}/collectibles/${id}`, {
+    method: 'PUT',
+    headers: { 'x-api-key': apiKey, 'x-convention-id': localStorage.getItem('cm_convention_id') || '' },
+    body: formData,
+  }).then(r => r.json()),
+  delete: (id: number) => request<any>(`/collectibles/${id}`, { method: 'DELETE' }),
+  listSets: () => request<any>('/collectibles/sets'),
+  createSet: (data: any) => request<any>('/collectibles/sets', { method: 'POST', body: JSON.stringify(data) }),
+  updateSet: (id: number, data: any) => request<any>(`/collectibles/sets/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteSet: (id: number) => request<any>(`/collectibles/sets/${id}`, { method: 'DELETE' }),
+  playerCollection: (userId: number) => request<any>(`/collectibles/player/${userId}`),
+  award: (userId: number, collectibleId: number) => request<any>('/collectibles/award', { method: 'POST', body: JSON.stringify({ user_id: userId, collectible_id: collectibleId }) }),
 };
 
 // Axios-compatible api object used by FloorPlan components
@@ -287,6 +331,12 @@ export const api = {
     const data = await request<any>(path, { method: 'POST', body: body ? JSON.stringify(body) : undefined });
     return { data };
   },
+};
+
+// Preregistrations
+export const preregistrations = {
+  list: () => request<any>('/preregistrations'),
+  stats: () => request<any>('/preregistrations/stats'),
 };
 
 // Floor Plan

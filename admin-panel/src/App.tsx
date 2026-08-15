@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Routes, Route, NavLink, useLocation } from 'react-router-dom';
-import { Users, Calendar, CreditCard, ScanLine, Trophy, Settings as SettingsIcon, Ticket, ShoppingBag, BarChart3, Shield, LogOut, Map, Menu, X as XIcon, WifiOff } from 'lucide-react';
+import { Users, Calendar, CreditCard, ScanLine, Trophy, Settings as SettingsIcon, Ticket, ShoppingBag, BarChart3, Shield, LogOut, Map, Menu, X as XIcon, WifiOff, Star, CalendarClock, UserCheck } from 'lucide-react';
 import { getApiKey, setApiKey } from './api';
 import { useNetworkStatus } from './hooks/useNetworkStatus';
 import DashboardPage from './pages/DashboardPage';
@@ -16,6 +16,9 @@ import StatsPage from './pages/StatsPage';
 import ConventionSelectPage from './pages/ConventionSelectPage';
 import PackagesPage from './pages/PackagesPage';
 import FloorPlanPage from './pages/FloorPlanPage';
+import CollectionPage from './pages/CollectionPage';
+import SchedulePage from './pages/SchedulePage';
+import PreregisteredPage from './pages/PreregisteredPage';
 
 function App() {
   const location = useLocation();
@@ -88,6 +91,8 @@ function App() {
     { to: '/', icon: <SettingsIcon size={20} />, label: 'Dashboard' },
     { to: '/users', icon: <Users size={20} />, label: 'Users' },
     { to: '/events', icon: <Calendar size={20} />, label: 'Events' },
+    { to: '/schedule', icon: <CalendarClock size={20} />, label: 'Schedule' },
+    { to: '/preregistered', icon: <UserCheck size={20} />, label: 'Preregistered' },
     { to: '/floor-plan', icon: <Map size={20} />, label: 'Floor Plan' },
     { to: '/event-types', icon: <Trophy size={20} />, label: 'Event Types' },
     { to: '/prize-templates', icon: <Ticket size={20} />, label: 'Prize Templates' },
@@ -96,6 +101,7 @@ function App() {
     { to: '/packages', icon: <Ticket size={20} />, label: 'Packages' },
     { to: '/scan', icon: <ScanLine size={20} />, label: 'NFC Scan' },
     { to: '/stats', icon: <BarChart3 size={20} />, label: 'Statistics' },
+    { to: '/collection', icon: <Star size={20} />, label: 'Collection' },
   ];
 
   const sidebarContent = (
@@ -184,6 +190,8 @@ function App() {
             <Route path="/users" element={<UsersPage />} />
             <Route path="/events" element={<EventsPage />} />
             <Route path="/events/:id" element={<EventDetailPage />} />
+            <Route path="/schedule" element={<SchedulePage />} />
+            <Route path="/preregistered" element={<PreregisteredPage />} />
             <Route path="/floor-plan" element={<FloorPlanPage />} />
             <Route path="/event-types" element={<EventTypesPage />} />
             <Route path="/prize-templates" element={<PrizeTemplatesPage />} />
@@ -192,6 +200,7 @@ function App() {
             <Route path="/packages" element={<PackagesPage />} />
             <Route path="/scan" element={<ScanPage />} />
             <Route path="/stats" element={<StatsPage />} />
+            <Route path="/collection" element={<CollectionPage />} />
         </Routes>
         </div>
       </main>

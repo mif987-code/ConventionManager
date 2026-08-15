@@ -2,7 +2,9 @@ import { pool } from '../config/db';
 
 export interface SpecialVoucher {
   id: number;
-  event_id: number;
+  convention_id: number;
+  category: string;
+  entry_cost: number;
   name: string;
   description: string | null;
   amount: number;
@@ -23,9 +25,12 @@ export interface SpecialVoucherAward {
   awarded_at: Date;
 }
 
-// Create a special voucher for an event
+// Create a special voucher for an Event Type category + entry cost combo
+// (e.g. category='Constructed', entryCost=1 -> matches any Constructed event costing 1 voucher to enter)
 export async function createSpecialVoucher(
-  eventId: number,
+  conventionId: number,
+  category: string,
+  entryCost: number,
   name: string,
   amount: number,
   description?: string,
@@ -34,19 +39,31 @@ export async function createSpecialVoucher(
   maxAwards: number = 1
 ): Promise<SpecialVoucher> {
   const result = await pool.query(
-    `INSERT INTO special_vouchers (event_id, name, description, amount, icon, color, max_awards)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
+    `INSERT INTO special_vouchers (convention_id, category, entry_cost, name, description, amount, icon, color, max_awards)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
      RETURNING *`,
-    [eventId, name, description || null, amount, icon, color, maxAwards]
+    [conventionId, category, entryCost, name, description || null, amount, icon, color, maxAwards]
   );
   return result.rows[0];
 }
 
-// Get all special vouchers for an event
-export async function getSpecialVouchersByEvent(eventId: number): Promise<SpecialVoucher[]> {
-  const result = await pool.query(
-    `SELECT * FROM special_vouchers WHERE event_id = $1 ORDER BY created_at DESC`,
+// Get all special vouchers that match a specific live event's category + entry cost
+export async function getSpecialVouchersMatchingEvent(eventId: number): Promise<SpecialVoucher[]> {
+  const eventRes = await pool.query(
+    `SELECT e.convention_id, et.category, et.entry_cost_vouchers
+     FROM events e
+     JOIN event_types et ON e.event_type_id = et.id
+     WHERE e.id = $1`,
     [eventId]
+  );
+  const event = eventRes.rows[0];
+  if (!event) return [];
+
+  const result = await pool.query(
+    `SELECT * FROM special_vouchers
+     WHERE convention_id = $1 AND category = $2 AND entry_cost = $3
+     ORDER BY created_at DESC`,
+    [event.convention_id, event.category, event.entry_cost_vouchers]
   );
   return result.rows;
 }
@@ -54,11 +71,7 @@ export async function getSpecialVouchersByEvent(eventId: number): Promise<Specia
 // Get all special vouchers for a convention
 export async function getSpecialVouchersByConvention(conventionId: number): Promise<SpecialVoucher[]> {
   const result = await pool.query(
-    `SELECT sv.*, e.name as event_name 
-     FROM special_vouchers sv
-     JOIN events e ON sv.event_id = e.id
-     WHERE e.convention_id = $1
-     ORDER BY sv.created_at DESC`,
+    `SELECT * FROM special_vouchers WHERE convention_id = $1 ORDER BY created_at DESC`,
     [conventionId]
   );
   return result.rows;
@@ -77,6 +90,8 @@ export async function getSpecialVoucherById(id: number): Promise<SpecialVoucher 
 export async function updateSpecialVoucher(
   id: number,
   fields: {
+    category?: string;
+    entry_cost?: number;
     name?: string;
     description?: string | null;
     amount?: number;
@@ -89,6 +104,8 @@ export async function updateSpecialVoucher(
   const params: any[] = [];
   let idx = 1;
 
+  if (fields.category !== undefined) { sets.push(`category = $${idx++}`); params.push(fields.category); }
+  if (fields.entry_cost !== undefined) { sets.push(`entry_cost = $${idx++}`); params.push(fields.entry_cost); }
   if (fields.name !== undefined) { sets.push(`name = $${idx++}`); params.push(fields.name); }
   if (fields.description !== undefined) { sets.push(`description = $${idx++}`); params.push(fields.description); }
   if (fields.amount !== undefined) { sets.push(`amount = $${idx++}`); params.push(fields.amount); }
@@ -134,6 +151,20 @@ export async function awardSpecialVoucher(
     );
     const voucher = voucherRes.rows[0];
     if (!voucher) throw new Error('Special voucher not found');
+
+    // Validate the chosen event matches this voucher's category + entry cost
+    const eventCheckRes = await client.query(
+      `SELECT et.category, et.entry_cost_vouchers
+       FROM events e
+       JOIN event_types et ON e.event_type_id = et.id
+       WHERE e.id = $1`,
+      [eventId]
+    );
+    const eventInfo = eventCheckRes.rows[0];
+    if (!eventInfo) throw new Error('Event not found');
+    if (eventInfo.category !== voucher.category || eventInfo.entry_cost_vouchers !== voucher.entry_cost) {
+      throw new Error(`This special voucher only applies to ${voucher.category} events costing ${voucher.entry_cost} voucher(s) to enter`);
+    }
 
     // Check if max awards reached
     if (voucher.awarded_count >= voucher.max_awards) {
@@ -195,6 +226,57 @@ export async function awardSpecialVoucher(
   }
 }
 
+// Award a special voucher as an automatic event prize (called from finishEvent's own
+// transaction). Unlike awardSpecialVoucher, this skips the category/entry_cost match
+// check since the mapping is explicit (the admin picked this voucher for this prize tier).
+// Silently no-ops instead of throwing so a misconfigured/exhausted voucher doesn't abort
+// the whole prize distribution.
+export async function awardSpecialVoucherAsPrize(
+  client: any,
+  specialVoucherId: number,
+  userId: number,
+  eventId: number,
+  awardedBy: string = 'admin'
+): Promise<SpecialVoucherAward | null> {
+  const voucherRes = await client.query(`SELECT * FROM special_vouchers WHERE id = $1 FOR UPDATE`, [specialVoucherId]);
+  const voucher = voucherRes.rows[0];
+  if (!voucher) return null;
+
+  if (voucher.awarded_count >= voucher.max_awards) return null;
+
+  const existingRes = await client.query(
+    `SELECT id FROM special_voucher_awards WHERE special_voucher_id = $1 AND user_id = $2 AND event_id = $3`,
+    [specialVoucherId, userId, eventId]
+  );
+  if (existingRes.rows.length > 0) return null;
+
+  const awardRes = await client.query(
+    `INSERT INTO special_voucher_awards (special_voucher_id, user_id, event_id, awarded_by)
+     VALUES ($1, $2, $3, $4)
+     RETURNING *`,
+    [specialVoucherId, userId, eventId, awardedBy]
+  );
+
+  await client.query(`UPDATE special_vouchers SET awarded_count = awarded_count + 1 WHERE id = $1`, [specialVoucherId]);
+
+  const { addTransaction } = await import('./transactionService');
+  const eventRes = await client.query(`SELECT convention_id FROM events WHERE id = $1`, [eventId]);
+  const eventConventionId = eventRes.rows[0]?.convention_id;
+
+  await addTransaction({
+    userId,
+    type: 'voucher',
+    amount: voucher.amount,
+    reason: 'special_voucher',
+    eventId,
+    createdBy: awardedBy,
+    conventionId: eventConventionId,
+    client,
+  });
+
+  return awardRes.rows[0];
+}
+
 // Get awards for a special voucher
 export async function getSpecialVoucherAwards(specialVoucherId: number): Promise<SpecialVoucherAward[]> {
   const result = await pool.query(
@@ -217,6 +299,19 @@ export async function getUserSpecialVouchersForEvent(userId: number, eventId: nu
      WHERE sva.user_id = $1 AND sva.event_id = $2
      ORDER BY sva.awarded_at DESC`,
     [userId, eventId]
+  );
+  return result.rows;
+}
+
+// Get all special vouchers awarded to a user within a convention (across any event)
+export async function getUserSpecialVoucherAwards(userId: number, conventionId: number): Promise<any[]> {
+  const result = await pool.query(
+    `SELECT sva.*, sv.name AS voucher_name, sv.icon, sv.color, sv.amount, sv.category, sv.entry_cost
+     FROM special_voucher_awards sva
+     JOIN special_vouchers sv ON sva.special_voucher_id = sv.id
+     WHERE sva.user_id = $1 AND sv.convention_id = $2
+     ORDER BY sva.awarded_at DESC`,
+    [userId, conventionId]
   );
   return result.rows;
 }

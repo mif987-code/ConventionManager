@@ -216,6 +216,83 @@ router.post('/events/:id/register', playerAuth, async (req: Request, res: Respon
   } catch (err) { next(err); }
 });
 
+// GET /player/preregistrations - List events open for pre-registration in the
+// player's convention (regardless of 'open' status), flagging which ones the
+// player has already pre-registered for.
+router.get('/preregistrations', playerAuth, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = (req as any).playerId;
+    const userRes = await pool.query(`SELECT convention_id FROM users WHERE id = $1`, [userId]);
+    const conventionId = userRes.rows[0]?.convention_id;
+    if (!conventionId) return res.json({ success: true, events: [] });
+
+    const result = await pool.query(
+      `SELECT e.id, e.name, e.status, e.schedule_day, e.start_time, e.end_time, e.track,
+              et.name AS event_type_name, et.category, et.format, et.max_players, et.entry_cost_vouchers,
+              (ep.id IS NOT NULL AND ep.preregistered = TRUE) AS preregistered_by_me,
+              (SELECT COUNT(*)::int FROM event_participants ep2 WHERE ep2.event_id = e.id AND ep2.preregistered = TRUE) AS preregistered_count
+       FROM events e
+       JOIN event_types et ON e.event_type_id = et.id
+       LEFT JOIN event_participants ep ON ep.event_id = e.id AND ep.user_id = $1
+       WHERE e.convention_id = $2 AND e.preregistration_enabled = TRUE AND e.status != 'cancelled'
+       ORDER BY e.schedule_day ASC NULLS LAST, e.start_time ASC NULLS LAST, e.name ASC`,
+      [userId, conventionId]
+    );
+
+    res.json({ success: true, events: result.rows });
+  } catch (err) { next(err); }
+});
+
+// POST /player/preregistrations/:id - Pre-register for an event (no voucher cost, mirrors public site)
+router.post('/preregistrations/:id', playerAuth, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = (req as any).playerId;
+    const eventId = parseInt(req.params.id);
+
+    const eventRes = await pool.query(
+      `SELECT e.id, e.preregistration_enabled, e.status, e.convention_id, u.convention_id AS user_convention_id
+       FROM events e, users u
+       WHERE e.id = $1 AND u.id = $2`,
+      [eventId, userId]
+    );
+    const row = eventRes.rows[0];
+    if (!row) return res.status(404).json({ error: 'Event not found' });
+    if (!row.preregistration_enabled) return res.status(400).json({ error: 'Pre-registration is not enabled for this event' });
+    if (row.status === 'cancelled') return res.status(400).json({ error: 'This event has been cancelled' });
+    if (row.convention_id !== row.user_convention_id) return res.status(403).json({ error: 'This event is not part of your convention' });
+
+    await pool.query(
+      `INSERT INTO event_participants (user_id, event_id, preregistered, convention_id)
+       VALUES ($1, $2, true, $3)
+       ON CONFLICT (event_id, user_id) DO UPDATE SET preregistered = true`,
+      [userId, eventId, row.convention_id]
+    );
+
+    res.json({ success: true, message: 'Pre-registered successfully' });
+  } catch (err) { next(err); }
+});
+
+// DELETE /player/preregistrations/:id - Cancel a pre-registration (only before the player has actually played)
+router.delete('/preregistrations/:id', playerAuth, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = (req as any).playerId;
+    const eventId = parseInt(req.params.id);
+
+    const partRes = await pool.query(
+      `SELECT id, wins, losses, draws, result_position FROM event_participants WHERE event_id = $1 AND user_id = $2 AND preregistered = TRUE`,
+      [eventId, userId]
+    );
+    const participant = partRes.rows[0];
+    if (!participant) return res.status(404).json({ error: 'You are not pre-registered for this event' });
+
+    const hasPlayed = participant.wins > 0 || participant.losses > 0 || participant.draws > 0 || participant.result_position !== null;
+    if (hasPlayed) return res.status(400).json({ error: 'Cannot cancel — this event has already started for you' });
+
+    await pool.query(`DELETE FROM event_participants WHERE id = $1`, [participant.id]);
+    res.json({ success: true, message: 'Pre-registration cancelled' });
+  } catch (err) { next(err); }
+});
+
 // GET /player/store/items - List active store items
 router.get('/store/items', playerAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -241,6 +318,40 @@ router.get('/store/orders', playerAuth, async (req: Request, res: Response, next
     const userId = (req as any).playerId;
     const orders = await storeService.getUserOrders(userId);
     res.json({ success: true, orders });
+  } catch (err) { next(err); }
+});
+
+// GET /player/collection - Get all collectibles for current convention with earned status
+router.get('/collection', playerAuth, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = (req as any).playerId;
+    // Derive convention_id from the convention active for the player's registration
+    const convRes = await pool.query(
+      `SELECT DISTINCT e.convention_id FROM event_participants ep
+       JOIN events e ON e.id = ep.event_id WHERE ep.user_id = $1 ORDER BY 1 DESC LIMIT 1`,
+      [userId]
+    );
+    const conventionId = convRes.rows[0]?.convention_id ?? null;
+
+    const allRes = await pool.query(
+      `SELECT c.*,
+        (SELECT earned_at FROM player_collectibles pc WHERE pc.collectible_id = c.id AND pc.user_id = $1 LIMIT 1) AS earned_at
+       FROM collectibles c
+       WHERE c.convention_id = $2
+       ORDER BY c.created_at ASC`,
+      [userId, conventionId]
+    );
+
+    const setsRes = await pool.query(
+      `SELECT cs.*, COALESCE(json_agg(csi.collectible_id) FILTER (WHERE csi.collectible_id IS NOT NULL), '[]') AS collectible_ids
+       FROM collection_sets cs
+       LEFT JOIN collection_set_items csi ON csi.set_id = cs.id
+       WHERE cs.convention_id = $1
+       GROUP BY cs.id ORDER BY cs.created_at ASC`,
+      [conventionId]
+    );
+
+    res.json({ success: true, collectibles: allRes.rows, sets: setsRes.rows });
   } catch (err) { next(err); }
 });
 

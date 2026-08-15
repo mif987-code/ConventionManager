@@ -49,8 +49,8 @@ export async function getBalance(
   const executor = client ?? pool;
 
   const query = conventionId
-    ? `SELECT COALESCE(SUM(amount), 0)::int AS balance FROM transactions WHERE user_id = $1 AND type = $2 AND convention_id = $3`
-    : `SELECT COALESCE(SUM(amount), 0)::int AS balance FROM transactions WHERE user_id = $1 AND type = $2`;
+    ? `SELECT COALESCE(SUM(amount), 0)::numeric AS balance FROM transactions WHERE user_id = $1 AND type = $2 AND convention_id = $3`
+    : `SELECT COALESCE(SUM(amount), 0)::numeric AS balance FROM transactions WHERE user_id = $1 AND type = $2`;
 
   const params: (number | string)[] = conventionId
     ? [userId, type, conventionId]
