@@ -17,15 +17,21 @@ function requireEnv(key: string, fallback?: string): string {
   return val;
 }
 
+const dbHost = requireEnv('DB_HOST', 'localhost');
+const isLocalHost = dbHost === 'localhost' || dbHost === '127.0.0.1';
+
 export const pool = new Pool({
   user: requireEnv('DB_USER', 'postgres'),
-  host: requireEnv('DB_HOST', 'localhost'),
+  host: dbHost,
   database: requireEnv('DB_NAME', 'convention_manager'),
   password: requireEnv('DB_PASSWORD'),
   port: parseInt(requireEnv('DB_PORT', '5432'), 10),
   max: 20,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 2000,
+  // Managed Postgres providers (Render, etc.) require SSL and use certificates
+  // not in Node's default CA store; local development doesn't need/support it.
+  ssl: isLocalHost ? false : { rejectUnauthorized: false },
 });
 
 pool.on('error', (err) => {
