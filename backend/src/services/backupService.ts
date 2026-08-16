@@ -2,7 +2,7 @@ import { exec } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import cron from 'node-cron';
-import { uploadBackupToDrive, isDriveBackupConfigured } from './googleDriveService';
+import { uploadBackupToDropbox, isDropboxBackupConfigured } from './dropboxService';
 
 const BACKUP_DIR = path.join(__dirname, '../../backups');
 
@@ -74,7 +74,7 @@ function runFullBackup() {
     }
     console.log(`[Backup] Full backup done: ${filename}`);
     cleanBackups('backup_', 7 * 24 * 60 * 60 * 1000); // keep 7 days
-    await uploadBackupToDrive(path.join(BACKUP_DIR, filename), filename);
+    await uploadBackupToDropbox(path.join(BACKUP_DIR, filename), filename);
   });
 }
 
@@ -90,7 +90,7 @@ function runQuickBackup() {
     }
     console.log(`[Backup] Quick backup done: ${filename}`);
     cleanBackups('quick_', 24 * 60 * 60 * 1000); // keep 24 hours
-    await uploadBackupToDrive(path.join(BACKUP_DIR, filename), filename);
+    await uploadBackupToDropbox(path.join(BACKUP_DIR, filename), filename);
   });
 }
 
@@ -99,7 +99,7 @@ export function startBackupSchedule() {
   cron.schedule('*/15 * * * *', runQuickBackup);
   console.log('[Backup] Full backup scheduled at 02:00 daily (7-day retention)');
   console.log('[Backup] Quick backup scheduled every 15 min (24-hour retention)');
-  console.log(isDriveBackupConfigured()
-    ? '[Backup] Google Drive upload is ENABLED for every backup'
-    : '[Backup] Google Drive upload is DISABLED (set GOOGLE_SERVICE_ACCOUNT_JSON and GOOGLE_DRIVE_BACKUP_FOLDER_ID to enable)');
+  console.log(isDropboxBackupConfigured()
+    ? '[Backup] Dropbox upload is ENABLED for every backup'
+    : '[Backup] Dropbox upload is DISABLED (set DROPBOX_ACCESS_TOKEN to enable)');
 }
