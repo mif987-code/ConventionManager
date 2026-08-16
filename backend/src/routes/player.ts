@@ -6,6 +6,7 @@ import * as userService from '../services/userService';
 import * as storeService from '../services/storeService';
 import * as eventService from '../services/eventService';
 import { getBalance } from '../services/transactionService';
+import { syncPreregistrationToSheet } from '../services/googleSheetsService';
 
 const router = Router();
 
@@ -250,7 +251,8 @@ router.post('/preregistrations/:id', playerAuth, async (req: Request, res: Respo
     const eventId = parseInt(req.params.id);
 
     const eventRes = await pool.query(
-      `SELECT e.id, e.preregistration_enabled, e.status, e.convention_id, u.convention_id AS user_convention_id
+      `SELECT e.id, e.name AS event_name, e.preregistration_enabled, e.status, e.convention_id,
+              u.convention_id AS user_convention_id, u.name AS user_name, u.last_name AS user_last_name, u.email AS user_email
        FROM events e, users u
        WHERE e.id = $1 AND u.id = $2`,
       [eventId, userId]
@@ -267,6 +269,8 @@ router.post('/preregistrations/:id', playerAuth, async (req: Request, res: Respo
        ON CONFLICT (event_id, user_id) DO UPDATE SET preregistered = true`,
       [userId, eventId, row.convention_id]
     );
+
+    await syncPreregistrationToSheet(row.event_name, `${row.user_name} ${row.user_last_name}`.trim(), row.user_email);
 
     res.json({ success: true, message: 'Pre-registered successfully' });
   } catch (err) { next(err); }
