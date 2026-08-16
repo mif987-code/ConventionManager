@@ -1,6 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import bcrypt from 'bcrypt';
 import rateLimit from 'express-rate-limit';
+import axios from 'axios';
 import { pool } from '../config/db';
 import { syncPreregistrationToSheet } from '../services/googleSheetsService';
 
@@ -15,16 +16,39 @@ const registrationLimiter = rateLimit({
   message: { error: 'Too many registrations. Please try again later.' },
 });
 
+// Verifies a Google reCAPTCHA v2 token server-side. If RECAPTCHA_SECRET_KEY
+// isn't set, verification is skipped entirely (useful for local dev before
+// keys are configured) so this never blocks the app from running.
+async function verifyRecaptcha(token: string | undefined): Promise<boolean> {
+  const secret = process.env.RECAPTCHA_SECRET_KEY;
+  if (!secret) return true; // not configured — skip
+  if (!token) return false;
+
+  try {
+    const params = new URLSearchParams({ secret, response: token });
+    const { data } = await axios.post('https://www.google.com/recaptcha/api/siteverify', params);
+    return Boolean(data.success);
+  } catch (err) {
+    console.error('[Recaptcha] Verification request failed:', (err as Error).message);
+    return false;
+  }
+}
+
 // POST /public/preregister - Public pre-registration (no API key needed)
 router.post('/preregister', registrationLimiter, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { name, last_name, email, password, age, dob, attendance_dates, package_id, packages: packagesInput, event_prereg_ids } = req.body;
+    const { name, last_name, email, password, age, dob, attendance_dates, package_id, packages: packagesInput, event_prereg_ids, recaptcha_token } = req.body;
 
     if (!name || !last_name || !email || !password) {
       return res.status(400).json({ error: 'name, last_name, email, and password are required' });
     }
     if (typeof password !== 'string' || password.length < 8) {
       return res.status(400).json({ error: 'Password must be at least 8 characters' });
+    }
+
+    const recaptchaValid = await verifyRecaptcha(recaptcha_token);
+    if (!recaptchaValid) {
+      return res.status(400).json({ error: 'CAPTCHA verification failed. Please try again.' });
     }
 
     // Normalize package selection: support both the legacy single `package_id`

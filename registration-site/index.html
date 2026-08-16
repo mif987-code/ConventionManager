@@ -7,6 +7,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://www.google.com/recaptcha/api.js" async defer></script>
   <style>
     body { font-family: 'Inter', sans-serif; }
     .fade-in { animation: fadeIn 0.3s ease-in; }
@@ -97,6 +98,9 @@
           <label class="block text-sm font-medium text-gray-700 mb-2">Pre-register for Events <span class="text-gray-400 font-normal">(Optional - save your spot)</span></label>
           <div id="events-container" class="space-y-3"></div>
         </div>
+
+        <!-- CAPTCHA -->
+        <div class="g-recaptcha" data-sitekey="6LfpCoktAAAAAI-t4EFgOK_kUngFNCx68otNahuB"></div>
 
         <!-- Error / loading -->
         <div id="error-msg" class="hidden text-sm bg-red-50 text-red-700 px-4 py-3 rounded-lg border border-red-200"></div>
@@ -378,6 +382,15 @@
       const selectedEvents = Array.from(document.querySelectorAll('input[name="event_prereg"]:checked'))
         .map(cb => parseInt(cb.value));
 
+      const recaptchaToken = typeof grecaptcha !== 'undefined' ? grecaptcha.getResponse() : '';
+      if (!recaptchaToken) {
+        errorMsg.textContent = 'Please complete the CAPTCHA before submitting.';
+        errorMsg.classList.remove('hidden');
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> Pre-Register';
+        return;
+      }
+
       const data = {
         name: document.getElementById('name').value.trim(),
         last_name: document.getElementById('last_name').value.trim(),
@@ -388,6 +401,7 @@
         attendance_dates: selectedDates,
         packages: selectedPackageSelections,
         event_prereg_ids: selectedEvents,
+        recaptcha_token: recaptchaToken,
       };
 
       // Calculate cost across all selected packages purely for the confirmation summary —
@@ -415,6 +429,7 @@
       } catch (err) {
         errorMsg.textContent = err.message;
         errorMsg.classList.remove('hidden');
+        if (typeof grecaptcha !== 'undefined') grecaptcha.reset();
       } finally {
         submitBtn.disabled = false;
         submitBtn.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> Pre-Register';
@@ -423,6 +438,7 @@
 
     function resetForm() {
       form.reset();
+      if (typeof grecaptcha !== 'undefined') grecaptcha.reset();
       formSection.classList.remove('hidden');
       successSection.classList.add('hidden');
     }
