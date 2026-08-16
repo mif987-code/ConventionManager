@@ -4,3 +4,4 @@ dist/
 .env
 *.cmd
 *.ps1
+backend/backups/*.sql
