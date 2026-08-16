@@ -62,21 +62,27 @@ function pgDump(filename: string, extraArgs: string, onDone: (err: Error | null)
   });
 }
 
-function runFullBackup() {
-  ensureBackupDir();
-  const dateStr = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-  const filename = `backup_${dateStr}.sql`;
-  console.log(`[Backup] Full backup starting: ${filename}`);
-  pgDump(filename, '', async (err) => {
-    if (err) {
-      console.error(`[Backup] Full backup failed: ${err.message}`);
-      return;
-    }
-    console.log(`[Backup] Full backup done: ${filename}`);
-    cleanBackups('backup_', 7 * 24 * 60 * 60 * 1000); // keep 7 days
-    await uploadBackupToDropbox(path.join(BACKUP_DIR, filename), filename);
+function runFullBackup(): Promise<{ filename: string }> {
+  return new Promise((resolve, reject) => {
+    ensureBackupDir();
+    const dateStr = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const filename = `backup_${dateStr}.sql`;
+    console.log(`[Backup] Full backup starting: ${filename}`);
+    pgDump(filename, '', async (err) => {
+      if (err) {
+        console.error(`[Backup] Full backup failed: ${err.message}`);
+        reject(err);
+        return;
+      }
+      console.log(`[Backup] Full backup done: ${filename}`);
+      cleanBackups('backup_', 7 * 24 * 60 * 60 * 1000); // keep 7 days
+      await uploadBackupToDropbox(path.join(BACKUP_DIR, filename), filename);
+      resolve({ filename });
+    });
   });
 }
+
+export { runFullBackup };
 
 function runQuickBackup() {
   ensureBackupDir();

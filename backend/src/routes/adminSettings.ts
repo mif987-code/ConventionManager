@@ -1,5 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import * as adminSettingsService from '../services/adminSettingsService';
+import { runFullBackup } from '../services/backupService';
 
 const router = Router();
 
@@ -53,6 +54,16 @@ router.put('/qr-secret-key', async (req: Request, res: Response, next: NextFunct
 
     await adminSettingsService.setQRSecretKey(value, undefined);
     res.json({ success: true, message: 'QR secret key updated' });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/admin/settings/backup-now - Trigger an immediate full DB backup + Dropbox upload
+router.post('/backup-now', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const result = await runFullBackup();
+    res.json({ success: true, message: 'Backup completed', filename: result.filename });
   } catch (err) {
     next(err);
   }
