@@ -1,35 +1,22 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import bcrypt from 'bcrypt';
+import rateLimit from 'express-rate-limit';
 import { pool } from '../config/db';
 import { syncPreregistrationToSheet } from '../services/googleSheetsService';
 
 const router = Router();
 
-// Simple in-memory rate limiter per IP
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
-const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
-const RATE_LIMIT_MAX = 10; // max 10 registrations per window per IP
-
-function rateLimit(req: Request, res: Response, next: NextFunction) {
-  const ip = req.ip || req.socket.remoteAddress || 'unknown';
-  const now = Date.now();
-  const entry = rateLimitMap.get(ip);
-
-  if (!entry || now > entry.resetAt) {
-    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
-    return next();
-  }
-
-  if (entry.count >= RATE_LIMIT_MAX) {
-    return res.status(429).json({ error: 'Too many registrations. Please try again later.' });
-  }
-
-  entry.count++;
-  return next();
-}
+// Cap registrations per IP to blunt scripted signup floods.
+const registrationLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many registrations. Please try again later.' },
+});
 
 // POST /public/preregister - Public pre-registration (no API key needed)
-router.post('/preregister', rateLimit, async (req: Request, res: Response, next: NextFunction) => {
+router.post('/preregister', registrationLimiter, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { name, last_name, email, password, age, dob, attendance_dates, package_id, packages: packagesInput, event_prereg_ids } = req.body;
 

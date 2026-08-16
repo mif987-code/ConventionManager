@@ -1,6 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import rateLimit from 'express-rate-limit';
 import { pool } from '../config/db';
 import * as userService from '../services/userService';
 import * as storeService from '../services/storeService';
@@ -9,6 +10,17 @@ import { getBalance } from '../services/transactionService';
 import { syncPreregistrationToSheet } from '../services/googleSheetsService';
 
 const router = Router();
+
+// Login attempts are CPU-expensive (bcrypt.compare) and unauthenticated, so a
+// flood of requests here can pin the server's CPU far more effectively than
+// most other endpoints. Cap attempts per IP.
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many login attempts. Please try again later.' },
+});
 
 if (!process.env.JWT_SECRET) {
   console.error('[Auth] JWT_SECRET environment variable is required');
@@ -41,7 +53,7 @@ function playerAuth(req: Request, res: Response, next: NextFunction) {
 // =============================================
 
 // POST /player/auth/nfc - Login by NFC UID
-router.post('/auth/nfc', async (req: Request, res: Response, next: NextFunction) => {
+router.post('/auth/nfc', authLimiter, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { nfc_uid } = req.body;
     if (!nfc_uid) return res.status(400).json({ error: 'nfc_uid is required' });
@@ -61,7 +73,7 @@ router.post('/auth/nfc', async (req: Request, res: Response, next: NextFunction)
 });
 
 // POST /player/auth/login - Login by email + password
-router.post('/auth/login', async (req: Request, res: Response, next: NextFunction) => {
+router.post('/auth/login', authLimiter, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { email, password } = req.body;
     if (!email || !password) return res.status(400).json({ error: 'email and password are required' });

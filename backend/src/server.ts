@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import dotenv from 'dotenv';
+import rateLimit from 'express-rate-limit';
 import { testConnection } from './config/db';
 import { apiKeyAuth, conventionMiddleware, errorHandler } from './middleware/auth';
 import { startBackupSchedule } from './services/backupService';
@@ -45,6 +46,18 @@ app.use(cors({
   credentials: false,
 }));
 app.use(express.json({ limit: '1mb' }));
+
+// Global backstop rate limit: guards against any single IP hammering any
+// endpoint (registration bots, scripted abuse, etc.) hard enough to exhaust
+// the DB connection pool or CPU. Individual sensitive endpoints (login,
+// registration) have their own stricter limits on top of this.
+app.use(rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests. Please try again later.' },
+}));
 
 // Public routes (no API key required)
 app.use('/public', publicRegistrationRouter);
