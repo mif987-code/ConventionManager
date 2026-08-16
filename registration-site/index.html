@@ -56,17 +56,29 @@
           <p class="text-xs text-gray-400 mt-1">Use this with your email to log into the player app.</p>
         </div>
 
-        <div class="grid grid-cols-2 gap-4">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label>
-            <input type="date" id="dob"
-              class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-sm transition" />
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label>
+          <div class="grid grid-cols-3 gap-2">
+            <select id="dob_day"
+              class="w-full px-2 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-sm transition">
+              <option value="">Day</option>
+            </select>
+            <select id="dob_month"
+              class="w-full px-2 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-sm transition">
+              <option value="">Month</option>
+            </select>
+            <select id="dob_year"
+              class="w-full px-2 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-sm transition">
+              <option value="">Year</option>
+            </select>
           </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Age</label>
-            <input type="number" id="age" min="5" max="120" placeholder="25"
-              class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-sm transition" />
-          </div>
+          <input type="hidden" id="dob" />
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Age</label>
+          <input type="number" id="age" min="5" max="120" placeholder="25"
+            class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-sm transition" />
         </div>
 
         <div id="attendance-section" class="hidden">
@@ -309,16 +321,45 @@
       eventsContainer.innerHTML = html;
     }
 
-    // Auto-calculate age from DOB
-    document.getElementById('dob').addEventListener('change', (e) => {
-      const dob = new Date(e.target.value);
+    // Populate Day/Month/Year dropdowns for Date of Birth
+    const dobDaySelect = document.getElementById('dob_day');
+    const dobMonthSelect = document.getElementById('dob_month');
+    const dobYearSelect = document.getElementById('dob_year');
+    const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+    for (let d = 1; d <= 31; d++) {
+      dobDaySelect.insertAdjacentHTML('beforeend', `<option value="${d}">${d}</option>`);
+    }
+    MONTH_NAMES.forEach((name, i) => {
+      dobMonthSelect.insertAdjacentHTML('beforeend', `<option value="${i + 1}">${name}</option>`);
+    });
+    const currentYear = new Date().getFullYear();
+    for (let y = currentYear; y >= currentYear - 100; y--) {
+      dobYearSelect.insertAdjacentHTML('beforeend', `<option value="${y}">${y}</option>`);
+    }
+
+    // Rebuild the hidden ISO dob value and auto-calculate age whenever any part changes
+    function updateDobFromParts() {
+      const day = dobDaySelect.value;
+      const month = dobMonthSelect.value;
+      const year = dobYearSelect.value;
+      const dobHidden = document.getElementById('dob');
+      if (!day || !month || !year) {
+        dobHidden.value = '';
+        return;
+      }
+      const isoDob = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      dobHidden.value = isoDob;
+
+      const dob = new Date(isoDob);
       if (isNaN(dob.getTime())) return;
       const today = new Date();
       let age = today.getFullYear() - dob.getFullYear();
       const m = today.getMonth() - dob.getMonth();
       if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age--;
       document.getElementById('age').value = age;
-    });
+    }
+    [dobDaySelect, dobMonthSelect, dobYearSelect].forEach((el) => el.addEventListener('change', updateDobFromParts));
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
