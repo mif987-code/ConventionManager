@@ -34,6 +34,12 @@ async function verifyRecaptcha(token: string | undefined): Promise<boolean> {
   }
 }
 
+// Letters (any language), spaces, apostrophes, hyphens, and periods only — no
+// digits or symbols. Blocks junk/script-injection-style input in name fields
+// (note: this is a data-quality guard, not a SQL-injection fix — all queries
+// here already use parameterized values, so injection was never possible).
+const NAME_PATTERN = /^[\p{L}][\p{L}\s'.-]{0,49}$/u;
+
 // POST /public/preregister - Public pre-registration (no API key needed)
 router.post('/preregister', registrationLimiter, async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -41,6 +47,12 @@ router.post('/preregister', registrationLimiter, async (req: Request, res: Respo
 
     if (!name || !last_name || !email || !password) {
       return res.status(400).json({ error: 'name, last_name, email, and password are required' });
+    }
+    if (typeof name !== 'string' || !NAME_PATTERN.test(name.trim())) {
+      return res.status(400).json({ error: 'First name can only contain letters, spaces, hyphens, and apostrophes' });
+    }
+    if (typeof last_name !== 'string' || !NAME_PATTERN.test(last_name.trim())) {
+      return res.status(400).json({ error: 'Last name can only contain letters, spaces, hyphens, and apostrophes' });
     }
     if (typeof password !== 'string' || password.length < 8) {
       return res.status(400).json({ error: 'Password must be at least 8 characters' });
