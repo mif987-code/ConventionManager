@@ -88,6 +88,7 @@ function runQuickBackup() {
       console.error(`[Backup] Quick backup failed: ${err.message}`);
       return;
     }
+    console.log(`[Backup] Quick backup done: ${filename}`);
     cleanBackups('quick_', 24 * 60 * 60 * 1000); // keep 24 hours
     await uploadBackupToDrive(path.join(BACKUP_DIR, filename), filename);
   });
