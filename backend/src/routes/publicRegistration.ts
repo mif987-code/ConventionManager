@@ -159,10 +159,10 @@ router.post('/preregister', rateLimit, async (req: Request, res: Response, next:
       const fullName = `${name} ${last_name}`.trim();
       for (const eventId of event_prereg_ids) {
         await pool.query(
-          `INSERT INTO event_participants (user_id, event_id, preregistered)
-           VALUES ($1, $2, true)
+          `INSERT INTO event_participants (user_id, event_id, convention_id, preregistered)
+           VALUES ($1, $2, $3, true)
            ON CONFLICT (user_id, event_id) DO UPDATE SET preregistered = true`,
-          [userId, eventId]
+          [userId, eventId, conventionId]
         );
 
         const eventRes = await pool.query(`SELECT name FROM events WHERE id = $1`, [eventId]);
