@@ -26,6 +26,7 @@ import attendanceRouter from './routes/attendance';
 import specialVouchersRouter from './routes/specialVouchers';
 import packagesRouter from './routes/packages';
 import paymentsRouter from './routes/payments';
+import paymentWebhooksRouter from './routes/paymentWebhooks';
 import floorPlanRouter from './routes/floorPlan';
 import collectiblesRouter from './routes/collectibles';
 import preregistrationsRouter from './routes/preregistrations';
@@ -62,6 +63,7 @@ app.use(rateLimit({
 // Public routes (no API key required)
 app.use('/public', publicRegistrationRouter);
 app.use('/player', playerRouter);
+app.use('/webhooks/payments', paymentWebhooksRouter); // payment provider webhooks
 app.use('/api/sets', setsRouter); // Sets lookup (public, no auth needed)
 app.use('/api/cards', cardsRouter); // Cards lookup (public, no auth needed)
 

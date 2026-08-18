@@ -130,7 +130,7 @@
       </div>
     </div>
 
-    <p class="text-center text-xs text-gray-400 mt-6">Your information will be used for event management only. Payment (if applicable) will be collected at the convention.</p>
+    <p class="text-center text-xs text-gray-400 mt-6">Your information will be used for event management only. Payment (if applicable) is processed securely through OnvoPay.</p>
   </div>
 
   <script>
@@ -423,6 +423,29 @@
 
         if (!res.ok) {
           throw new Error(json.error || 'Registration failed');
+        }
+
+        // If paid packages were selected, create a payment and redirect to checkout
+        if (json.package_total_cost > 0) {
+          submitBtn.innerHTML = '<svg class="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Redirecting to payment...';
+
+          const payRes = await fetch(`${API_BASE}/payment`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: json.user.id }),
+          });
+          const payJson = await payRes.json();
+
+          if (!payRes.ok) {
+            throw new Error(payJson.error || 'Payment setup failed');
+          }
+
+          if (!payJson.paymentUrl) {
+            throw new Error('Payment URL not received');
+          }
+
+          window.location.href = payJson.paymentUrl;
+          return;
         }
 
         showSuccess({ ...data, id: json.user.id, attendanceDates: selectedDates }, selectedPackageDetails, selectedEventObjs.map(e => e.name));

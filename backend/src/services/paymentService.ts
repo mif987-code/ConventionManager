@@ -26,7 +26,7 @@ const PROVIDER = (process.env.PAYMENT_PROVIDER || 'mock').toLowerCase();
 async function createTilopayPayment(amount: number): Promise<PaymentIntent> {
   const apiKey = process.env.TILOPAY_API_KEY;
   const apiUser = process.env.TILOPAY_API_USER;
-  const redirectUrl = process.env.TILOPAY_REDIRECT_URL || `${process.env.APP_URL || 'http://localhost:3000'}/api/payments/tilopay-return`;
+  const redirectUrl = process.env.TILOPAY_REDIRECT_URL || `${process.env.APP_URL || 'http://localhost:3000'}/webhooks/payments/tilopay-return`;
 
   if (!apiKey || !apiUser) {
     throw new Error('TILOPAY_API_KEY and TILOPAY_API_USER must be set in .env');
@@ -86,7 +86,7 @@ async function createTilopayPayment(amount: number): Promise<PaymentIntent> {
 // ─────────────────────────────────────────────────────────────────────────────
 async function createOnvoPayment(amount: number): Promise<PaymentIntent> {
   const secretKey = process.env.ONVO_SECRET_KEY;
-  const redirectUrl = process.env.ONVO_REDIRECT_URL || `${process.env.APP_URL || 'http://localhost:3000'}/api/payments/onvo-return`;
+  const redirectUrl = process.env.ONVO_REDIRECT_URL || `${process.env.APP_URL || 'http://localhost:3000'}/webhooks/payments/onvo-return`;
   const cancelUrl = process.env.ONVO_CANCEL_URL || `${process.env.APP_URL || 'http://localhost:3000'}/register`;
   const currency = process.env.ONVO_CURRENCY || 'CRC';
 
@@ -169,20 +169,32 @@ export async function updatePaymentStatus(paymentId: string, status: string): Pr
 }
 
 export async function handlePaymentWebhook(paymentId: string, status: string): Promise<void> {
-  const payment = await getPayment(paymentId);
-
-  if (!payment) {
-    throw new Error('Payment not found');
+  if (status !== 'paid' && status !== 'failed') {
+    throw new Error(`Invalid payment status: ${status}`);
   }
 
-  // Prevent double processing
-  if (payment.status === 'paid') {
+  // Atomically claim this payment only if it is still pending. This makes the
+  // webhook idempotent and prevents double-awarding from concurrent/replayed
+  // notifications.
+  const updateRes = await pool.query(
+    `UPDATE payments SET status = $1, updated_at = NOW() WHERE id = $2 AND status = 'pending' RETURNING *`,
+    [status, paymentId]
+  );
+
+  if (updateRes.rowCount === 0) {
+    // Either the payment doesn't exist or was already processed.
+    const payment = await getPayment(paymentId);
+    if (!payment) {
+      throw new Error('Payment not found');
+    }
     return;
   }
 
+  const payment = updateRes.rows[0];
+
   if (status === 'paid') {
-    // Update payment status
-    await updatePaymentStatus(paymentId, 'paid');
+    // Payment row is already atomically marked as 'paid' above.
+    // Award vouchers based on the stored package / amount.
 
     // Check if user has a package selected
     const packageRes = await pool.query(

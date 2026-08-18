@@ -31,87 +31,24 @@ router.post('/create', async (req: Request, res: Response, next: NextFunction) =
   }
 });
 
-// POST /api/payments/webhook - Generic webhook (mock / internal use)
+// POST /api/payments/webhook - Generic webhook for admin testing / mock use only.
+// TiloPay and Onvo webhooks are now served by the public /webhooks/payments router
+// so external payment providers are not blocked by API key auth and can sign
+// their requests properly.
 router.post('/webhook', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { paymentId, status } = req.body;
     if (!paymentId || !status) {
       return res.status(400).json({ error: 'paymentId and status are required' });
     }
+    if (status !== 'paid' && status !== 'failed') {
+      return res.status(400).json({ error: 'status must be paid or failed' });
+    }
     await paymentService.handlePaymentWebhook(paymentId, status);
     res.json({ success: true });
   } catch (err) {
     next(err);
   }
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  TILOPAY — redirect return URL (GET) + IPN webhook (POST)
-//  TiloPay redirects the browser back to TILOPAY_REDIRECT_URL after payment.
-//  It also sends an IPN (Instant Payment Notification) POST to the same URL
-//  or a separate configured IPN URL.
-//  Query/body params: orderNumber, approved (true/false), authorizationCode
-// ─────────────────────────────────────────────────────────────────────────────
-async function handleTilopayNotification(params: any, res: Response) {
-  const orderId = params.orderNumber || params.order_number;
-  const approved = params.approved === 'true' || params.approved === true || params.approved === '1';
-
-  if (!orderId) {
-    res.status(400).send('Missing orderNumber');
-    return;
-  }
-
-  try {
-    await paymentService.handlePaymentWebhook(orderId, approved ? 'paid' : 'failed');
-  } catch (err: any) {
-    console.error('[TiloPay] Webhook error:', err.message);
-  }
-  res.status(200).send('OK');
-}
-
-router.get('/tilopay-return', async (req: Request, res: Response) => {
-  await handleTilopayNotification(req.query, res);
-});
-
-router.post('/tilopay-return', async (req: Request, res: Response) => {
-  await handleTilopayNotification({ ...req.query, ...req.body }, res);
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  ONVO PAY — checkout-session webhook
-//  ONVO sends a POST to the registered webhook URL with:
-//  { type: 'checkout-session.succeeded' | 'payment-intent.succeeded' | ...,
-//    data: { id, metadata: { orderId }, status } }
-//  Register this URL in the ONVO dashboard → Developers → Webhooks
-// ─────────────────────────────────────────────────────────────────────────────
-router.post('/onvo-webhook', async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { type, data } = req.body;
-
-    if (!type || !data) {
-      return res.status(400).json({ error: 'Invalid webhook payload' });
-    }
-
-    if (type === 'checkout-session.succeeded' || type === 'payment-intent.succeeded') {
-      // orderId stored in metadata when session was created
-      const orderId = data.metadata?.orderId || data.id;
-      await paymentService.handlePaymentWebhook(orderId, 'paid');
-    } else if (type === 'payment-intent.failed') {
-      const orderId = data.metadata?.orderId || data.id;
-      await paymentService.handlePaymentWebhook(orderId, 'failed');
-    }
-    // Always respond 200 so ONVO doesn't retry
-    res.status(200).json({ received: true });
-  } catch (err) {
-    next(err);
-  }
-});
-
-// GET /api/payments/onvo-return - ONVO redirect after checkout
-router.get('/onvo-return', async (req: Request, res: Response) => {
-  // ONVO redirects here after payment. The session result comes via webhook.
-  // Just redirect the player to the app.
-  res.redirect('/app');
 });
 
 // GET /api/payments/:id - Get payment details

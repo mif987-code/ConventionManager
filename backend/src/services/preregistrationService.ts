@@ -33,6 +33,7 @@ export async function getPreregistrationStats(conventionId: number) {
      JOIN event_types et ON e.event_type_id = et.id
      LEFT JOIN event_participants ep ON ep.event_id = e.id
      WHERE e.convention_id = $1
+       AND e.preregistration_enabled = TRUE
      GROUP BY e.id, e.name, e.preregistration_enabled, e.status, et.category,
               e.schedule_day, e.start_time, e.end_time, e.track
      ORDER BY e.schedule_day NULLS LAST, e.start_time NULLS LAST, e.name`,

@@ -3,6 +3,7 @@ import bcrypt from 'bcrypt';
 import rateLimit from 'express-rate-limit';
 import axios from 'axios';
 import { pool } from '../config/db';
+import * as paymentService from '../services/paymentService';
 import { syncPreregistrationToSheet } from '../services/googleSheetsService';
 
 const router = Router();
@@ -200,6 +201,52 @@ router.post('/preregister', registrationLimiter, async (req: Request, res: Respo
       user: result.rows[0],
       package_total_cost: totalPackageCost,
       package_breakdown: packageBreakdown,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /public/payment - Create a payment for a registered user (no API key needed)
+// This is used by the registration form to redirect the player to Onvo/TiloPay.
+// Payment vouchers are awarded by the webhook when status becomes 'paid'.
+router.post('/payment', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { user_id } = req.body;
+    if (!user_id) {
+      return res.status(400).json({ error: 'user_id is required' });
+    }
+
+    // Re-calculate package total from the database so the amount can't be faked
+    const pkgRes = await pool.query(
+      `SELECT up.package_id, up.quantity, p.prereg_cost, p.cost, p.regular_voucher_amount
+       FROM user_packages up
+       JOIN packages p ON p.id = up.package_id
+       WHERE up.user_id = $1`,
+      [user_id]
+    );
+
+    if (pkgRes.rows.length === 0) {
+      return res.status(400).json({ error: 'No packages selected for this user' });
+    }
+
+    const total = pkgRes.rows.reduce((sum, pkg) => {
+      const unitCost = pkg.prereg_cost || pkg.cost;
+      return sum + (unitCost * (pkg.quantity || 1));
+    }, 0);
+
+    if (total <= 0) {
+      return res.status(400).json({ error: 'Package total is 0; no payment needed' });
+    }
+
+    const payment = await paymentService.createPayment(total);
+    await paymentService.storePayment(payment, parseInt(user_id, 10));
+
+    res.json({
+      success: true,
+      paymentId: payment.id,
+      paymentUrl: payment.paymentUrl,
+      amount: payment.amount,
     });
   } catch (err) {
     next(err);
