@@ -253,6 +253,24 @@ router.post('/payment', async (req: Request, res: Response, next: NextFunction) 
   }
 });
 
+// GET /public/payment/:id/status - Public payment status/receipt lookup
+router.get('/payment/:id/status', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const id = req.params.id;
+    if (!id) return res.status(400).json({ error: 'Payment ID required' });
+
+    const result = await pool.query(
+      `SELECT id, user_id, amount, status, created_at, updated_at FROM payments WHERE id = $1`,
+      [id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Payment not found' });
+
+    res.json({ success: true, payment: result.rows[0] });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // GET /public/preregister/check?email=... - Check if email already registered
 router.get('/preregister/check', async (req: Request, res: Response, next: NextFunction) => {
   try {

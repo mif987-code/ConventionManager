@@ -86,7 +86,7 @@ async function createTilopayPayment(amount: number): Promise<PaymentIntent> {
 // ─────────────────────────────────────────────────────────────────────────────
 async function createOnvoPayment(amount: number): Promise<PaymentIntent> {
   const secretKey = process.env.ONVO_SECRET_KEY;
-  const redirectUrl = process.env.ONVO_REDIRECT_URL || `${process.env.APP_URL || 'http://localhost:3000'}/webhooks/payments/onvo-return`;
+  const redirectBase = process.env.ONVO_REDIRECT_URL || `${process.env.APP_URL || 'http://localhost:3000'}/webhooks/payments/onvo-return`;
   const cancelUrl = process.env.ONVO_CANCEL_URL || `${process.env.APP_URL || 'http://localhost:3000'}/register`;
   const currency = process.env.ONVO_CURRENCY || 'CRC';
 
@@ -98,6 +98,11 @@ async function createOnvoPayment(amount: number): Promise<PaymentIntent> {
   const unitAmount = Math.round(amount * 100);
   const orderId = 'cm_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
 
+  // Include our internal payment/order ID in the return URL so the receipt page
+  // can look up the payment status without relying only on the webhook.
+  const redirectUrl = new URL(redirectBase);
+  redirectUrl.searchParams.set('paymentId', orderId);
+
   const res = await fetch('https://api.onvopay.com/v1/checkout/sessions/one-time-link', {
     method: 'POST',
     headers: {
@@ -106,7 +111,7 @@ async function createOnvoPayment(amount: number): Promise<PaymentIntent> {
     },
     body: JSON.stringify({
       lineItems: [{ quantity: 1, unitAmount, currency, description: `Convention payment ${orderId}` }],
-      redirectUrl,
+      redirectUrl: redirectUrl.toString(),
       cancelUrl,
       metadata: { orderId },
     }),
@@ -198,7 +203,7 @@ export async function handlePaymentWebhook(paymentId: string, status: string): P
 
     // Check if user has a package selected
     const packageRes = await pool.query(
-      `SELECT up.package_id, p.regular_voucher_amount, p.prereg_cost, p.cost
+      `SELECT up.package_id, up.quantity, p.regular_voucher_amount, p.prereg_cost, p.cost
        FROM user_packages up
        JOIN packages p ON p.id = up.package_id
        WHERE up.user_id = $1`,
@@ -207,10 +212,12 @@ export async function handlePaymentWebhook(paymentId: string, status: string): P
 
     if (packageRes.rows.length > 0) {
       const pkg = packageRes.rows[0];
-      const packageCost = pkg.prereg_cost || pkg.cost;
+      const quantity = pkg.quantity || 1;
+      const unitCost = pkg.prereg_cost || pkg.cost;
+      const packageTotal = unitCost * quantity;
 
-      // If payment matches package cost, award package vouchers
-      if (payment.amount === packageCost && pkg.regular_voucher_amount > 0) {
+      // If payment matches (or exceeds) the package total, award package vouchers
+      if (Math.abs(payment.amount - packageTotal) < 0.01 && pkg.regular_voucher_amount > 0) {
         await addTransaction({
           userId: payment.user_id,
           type: 'voucher',

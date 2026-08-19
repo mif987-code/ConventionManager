@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { CreditCard, Search, X, Loader2, Wifi, Gift, Plus, Trash2, QrCode, ScanLine, DollarSign, ExternalLink } from 'lucide-react';
 import { vouchers, tix, users, scan, specialVouchers, events, conventions } from '../api';
 
@@ -9,6 +10,7 @@ export default function VouchersPage() {
   const [user, setUser] = useState<any>(null);
   const [voucherHistory, setVoucherHistory] = useState<any[]>([]);
   const [tixHistory, setTixHistory] = useState<any[]>([]);
+  const [paymentHistory, setPaymentHistory] = useState<any[]>([]);
   const [topupAmount, setTopupAmount] = useState('');
   const [topupMode, setTopupMode] = useState<'manual' | 'purchase'>('manual');
   const [error, setError] = useState('');
@@ -17,7 +19,8 @@ export default function VouchersPage() {
   const [nfcStatus, setNfcStatus] = useState('');
   const [scanMode, setScanMode] = useState<'nfc' | 'qr'>('nfc');
   const [qrInput, setQrInput] = useState('');
-  const [activeTab, setActiveTab] = useState<'regular' | 'special'>('regular');
+  const [activeTab, setActiveTab] = useState<'payments' | 'regular' | 'special'>('payments');
+  const [searchParams, setSearchParams] = useSearchParams();
   const [specialVouchersList, setSpecialVouchersList] = useState<any[]>([]);
   const [openEvents, setOpenEvents] = useState<any[]>([]);
   const [showCreateVoucher, setShowCreateVoucher] = useState(false);
@@ -56,15 +59,17 @@ export default function VouchersPage() {
     setSuccess('');
     setSelectedSpecialVoucher(null);
     try {
-      const [balRes, tBalRes, vhRes, thRes] = await Promise.all([
+      const [balRes, tBalRes, vhRes, thRes, payRes] = await Promise.all([
         vouchers.balance(u.id),
         tix.balance(u.id),
         vouchers.history(u.id),
         tix.history(u.id),
+        users.payments(u.id),
       ]);
       setUser({ ...u, voucher_balance: balRes.balance ?? 0, tix_balance: tBalRes.balance ?? 0 });
       setVoucherHistory(vhRes.transactions || []);
       setTixHistory(thRes.transactions || []);
+      setPaymentHistory(payRes.payments || []);
       loadUserAwardedVouchers(u.id);
     } catch (err: any) { setError(err.message); }
   }
@@ -192,6 +197,23 @@ export default function VouchersPage() {
 
   useEffect(() => { loadSpecialVouchers(); }, []);
 
+  useEffect(() => {
+    const userIdParam = searchParams.get('userId');
+    const tabParam = searchParams.get('tab');
+    if (userIdParam) {
+      const userId = parseInt(userIdParam, 10);
+      if (!isNaN(userId)) {
+        users.get(userId).then((res) => {
+          if (res.user) selectUser(res.user);
+        }).catch((err: any) => setError(err.message));
+      }
+    }
+    if (tabParam === 'payments' || tabParam === 'regular' || tabParam === 'special') {
+      setActiveTab(tabParam);
+    }
+    setSearchParams({}, { replace: true });
+  }, []);
+
   async function handleCreateSpecialVoucher(e: React.FormEvent) {
     e.preventDefault();
     if (!newVoucher.name || !newVoucher.category || newVoucher.amount <= 0) return;
@@ -314,6 +336,14 @@ export default function VouchersPage() {
 
       {/* Tabs */}
       <div className="flex border-b border-gray-200 mb-6">
+        <button
+          onClick={() => setActiveTab('payments')}
+          className={`px-4 py-2.5 text-sm font-medium border-b-2 transition ${
+            activeTab === 'payments' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          Payments
+        </button>
         <button
           onClick={() => setActiveTab('regular')}
           className={`px-4 py-2.5 text-sm font-medium border-b-2 transition ${
@@ -593,6 +623,64 @@ export default function VouchersPage() {
         </div>
       )}
         </>
+      )}
+
+      {/* Payments Tab */}
+      {activeTab === 'payments' && (
+        <div className="space-y-6">
+          {!user ? (
+            <p className="text-gray-500">Select a player above to view their payments.</p>
+          ) : (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              <div className="px-6 py-4 border-b border-gray-200">
+                <h3 className="font-semibold text-gray-800">Payment History — {user.name}</h3>
+              </div>
+              <div className="max-h-96 overflow-auto">
+                <table className="w-full min-w-[480px]">
+                  <thead className="bg-gray-50 border-b border-gray-200 sticky top-0">
+                    <tr>
+                      <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase">Payment ID</th>
+                      <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase">Amount</th>
+                      <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase">Status</th>
+                      <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase">Created</th>
+                      <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase">Link</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {paymentHistory.map((p: any) => (
+                      <tr key={p.id}>
+                        <td className="px-4 py-2 text-sm font-mono text-gray-700 break-all max-w-[160px]">{p.id}</td>
+                        <td className="px-4 py-2 text-sm font-medium text-gray-800">${p.amount}</td>
+                        <td className="px-4 py-2 text-sm">
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                            p.status === 'paid' ? 'bg-green-100 text-green-700' :
+                            p.status === 'failed' ? 'bg-red-100 text-red-700' :
+                            'bg-yellow-100 text-yellow-700'
+                          }`}>
+                            {p.status}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2 text-sm text-gray-500">{new Date(p.created_at).toLocaleString()}</td>
+                        <td className="px-4 py-2 text-sm">
+                          {p.payment_link ? (
+                            <a href={p.payment_link} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:text-indigo-700 flex items-center gap-1">
+                              <ExternalLink size={12} /> View
+                            </a>
+                          ) : (
+                            <span className="text-gray-400">—</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                    {paymentHistory.length === 0 && (
+                      <tr><td colSpan={5} className="px-4 py-6 text-center text-gray-400">No payments found</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
       )}
 
       {/* Special Vouchers Tab */}

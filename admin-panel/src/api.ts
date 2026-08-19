@@ -117,6 +117,8 @@ export const users = {
     request<any>(`/users/${id}/deactivate`, { method: 'POST' }),
   delete: (id: number) =>
     request<any>(`/users/${id}`, { method: 'DELETE' }),
+  payments: (id: number) =>
+    request<any>(`/users/${id}/payments`),
 };
 
 // Vouchers

@@ -1,5 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import * as userService from '../services/userService';
+import * as paymentService from '../services/paymentService';
 import { addTransaction } from '../services/transactionService';
 import { generateQRToken } from '../services/qrTokenService';
 import { pool } from '../config/db';
@@ -104,6 +105,18 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
     const { conventionId } = req;
     const users = await userService.getAllUsers(conventionId);
     res.json({ success: true, users });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/users/:id/payments - Get payments for a user
+router.get('/:id/payments', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = parseInt(req.params.id, 10);
+    if (isNaN(userId)) return res.status(400).json({ error: 'Invalid user ID' });
+    const payments = await paymentService.getUserPayments(userId);
+    res.json({ success: true, payments });
   } catch (err) {
     next(err);
   }

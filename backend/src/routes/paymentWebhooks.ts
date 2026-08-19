@@ -135,9 +135,15 @@ router.post('/onvo-webhook', async (req: Request, res: Response, next: NextFunct
   }
 });
 
-// ONVO browser redirect after checkout — just send the player to the app
+// ONVO browser redirect after checkout — send the player to the receipt page
 router.get('/onvo-return', async (req: Request, res: Response) => {
-  res.redirect('/app');
+  const paymentId = req.query.paymentId as string | undefined;
+  const frontendUrl = process.env.FRONTEND_URL || 'https://register.sparkfestcr.com';
+  const receiptUrl = new URL(`${frontendUrl}/payment-success.html`);
+  if (paymentId) {
+    receiptUrl.searchParams.set('paymentId', paymentId);
+  }
+  res.redirect(receiptUrl.toString());
 });
 
 export default router;

@@ -1,8 +1,10 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { UserPlus, Search, Link, X, Wifi, QrCode, X as CloseIcon, RefreshCw, Calendar, ScanLine, Copy, Package, Trash2 } from 'lucide-react';
 import { users, conventions, scan, packages } from '../api';
 
 export default function UsersPage() {
+  const navigate = useNavigate();
   const [userList, setUserList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -453,9 +455,12 @@ export default function UsersPage() {
                 <tr key={u.id} className="hover:bg-gray-50">
                   <td className="px-6 py-3 text-sm text-gray-600">{u.id}</td>
                   <td className="px-6 py-3">
-                    <div className="text-sm font-medium text-gray-800">
+                    <button
+                      onClick={() => navigate(`/vouchers?userId=${u.id}&tab=payments`)}
+                      className="text-sm font-medium text-indigo-600 hover:text-indigo-800 hover:underline text-left"
+                    >
                       {u.name}{u.last_name ? ` ${u.last_name}` : ''}
-                    </div>
+                    </button>
                     {u.dob && <div className="text-xs text-gray-400">DOB: {u.dob?.slice(0, 10)}</div>}
                   </td>
                   <td className="px-6 py-3 text-sm font-mono">
