@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { UserPlus, Search, Link, X, Wifi, QrCode, X as CloseIcon, RefreshCw, Calendar, ScanLine, Copy, Package } from 'lucide-react';
+import { UserPlus, Search, Link, X, Wifi, QrCode, X as CloseIcon, RefreshCw, Calendar, ScanLine, Copy, Package, Trash2 } from 'lucide-react';
 import { users, conventions, scan, packages } from '../api';
 
 export default function UsersPage() {
@@ -232,6 +232,17 @@ export default function UsersPage() {
     try {
       await users.deactivate(userId);
       setSuccess('User deactivated.');
+      loadUsers();
+    } catch (err: any) {
+      setError(err.message);
+    }
+  }
+
+  async function handleDelete(userId: number, userName: string) {
+    if (!confirm(`Permanently delete ${userName}? This cannot be undone.`)) return;
+    try {
+      await users.delete(userId);
+      setSuccess('User deleted.');
       loadUsers();
     } catch (err: any) {
       setError(err.message);
@@ -545,6 +556,10 @@ export default function UsersPage() {
                           <ScanLine size={12} /> Activate
                         </button>
                       )}
+                      <button onClick={() => handleDelete(u.id, u.name)}
+                        className="flex items-center gap-1 text-xs text-red-600 hover:text-red-800 font-medium">
+                        <Trash2 size={12} /> Delete
+                      </button>
                     </div>
                   </td>
                 </tr>

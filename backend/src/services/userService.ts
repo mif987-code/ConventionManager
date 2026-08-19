@@ -165,3 +165,8 @@ export async function deactivateUser(userId: number): Promise<User | null> {
   );
   return result.rows[0] ?? null;
 }
+
+export async function deleteUser(userId: number): Promise<boolean> {
+  const result = await pool.query('DELETE FROM users WHERE id = $1', [userId]);
+  return (result.rowCount ?? 0) > 0;
+}
