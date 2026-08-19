@@ -186,15 +186,14 @@ router.get('/:id/qr-token', async (req: Request, res: Response, next: NextFuncti
 router.post('/:id/activate', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = parseInt(req.params.id);
-    const adminId = req.adminId;
-    if (!adminId) return res.status(403).json({ error: 'Admin authentication required' });
+    if (isNaN(userId)) return res.status(400).json({ error: 'Invalid user ID' });
 
-    const user = await userService.activateUser(userId, adminId);
+    const user = await userService.activateUser(userId, req.adminId ?? 0);
     if (!user) return res.status(404).json({ error: 'User not found' });
 
     await pool.query(
       `INSERT INTO admin_logs (action, details, user_id, admin_id) VALUES ($1, $2, $3, $4)`,
-      ['user_activated', `Admin activated user ${userId}`, userId, adminId]
+      ['user_activated', `Admin activated user ${userId}`, userId, req.adminId ?? null]
     );
 
     res.json({ success: true, user });
@@ -207,15 +206,14 @@ router.post('/:id/activate', async (req: Request, res: Response, next: NextFunct
 router.post('/:id/deactivate', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = parseInt(req.params.id);
-    const adminId = req.adminId;
-    if (!adminId) return res.status(403).json({ error: 'Admin authentication required' });
+    if (isNaN(userId)) return res.status(400).json({ error: 'Invalid user ID' });
 
     const user = await userService.deactivateUser(userId);
     if (!user) return res.status(404).json({ error: 'User not found' });
 
     await pool.query(
       `INSERT INTO admin_logs (action, details, user_id, admin_id) VALUES ($1, $2, $3, $4)`,
-      ['user_deactivated', `Admin deactivated user ${userId}`, userId, adminId]
+      ['user_deactivated', `Admin deactivated user ${userId}`, userId, req.adminId ?? null]
     );
 
     res.json({ success: true, user });
@@ -228,8 +226,6 @@ router.post('/:id/deactivate', async (req: Request, res: Response, next: NextFun
 router.delete('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = parseInt(req.params.id);
-    const adminId = req.adminId;
-    if (!adminId) return res.status(403).json({ error: 'Admin authentication required' });
     if (isNaN(userId)) return res.status(400).json({ error: 'Invalid user ID' });
 
     const deleted = await userService.deleteUser(userId);
@@ -237,7 +233,7 @@ router.delete('/:id', async (req: Request, res: Response, next: NextFunction) =>
 
     await pool.query(
       `INSERT INTO admin_logs (action, details, user_id, admin_id) VALUES ($1, $2, $3, $4)`,
-      ['user_deleted', `Admin deleted user ${userId}`, userId, adminId]
+      ['user_deleted', `Admin deleted user ${userId}`, userId, req.adminId ?? null]
     );
 
     res.json({ success: true, message: 'User deleted' });
