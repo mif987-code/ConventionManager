@@ -233,7 +233,7 @@ router.delete('/:id', async (req: Request, res: Response, next: NextFunction) =>
 
     await pool.query(
       `INSERT INTO admin_logs (action, details, user_id, admin_id) VALUES ($1, $2, $3, $4)`,
-      ['user_deleted', `Admin deleted user ${userId}`, userId, req.adminId ?? null]
+      ['user_deleted', `Admin deleted user ${userId}`, null, req.adminId ?? null]
     );
 
     res.json({ success: true, message: 'User deleted' });
