@@ -36,8 +36,9 @@ export default function VouchersPage() {
   const [awarding, setAwarding] = useState(false);
   const [userAwardedVouchers, setUserAwardedVouchers] = useState<any[]>([]);
 
-  const EVENT_CATEGORIES = ['Draft', 'Sealed', 'Constructed', 'Commander'];
+  const EVENT_CATEGORIES = ['Draft', 'Sealed', 'Constructed', 'Commander', 'On Demand'];
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const formatCRC = (cents: number) => new Intl.NumberFormat('es-CR', { style: 'currency', currency: 'CRC' }).format(cents / 100);
 
   const doSearch = useCallback(async (query: string) => {
     if (query.trim().length < 1) { setSearchResults([]); return; }
@@ -157,9 +158,9 @@ export default function VouchersPage() {
     setToppingUpCredit(true);
     try {
       const amountCents = Math.round(parseFloat(creditTopupAmount) * 100);
-      if (amountCents <= 0 || isNaN(amountCents)) throw new Error('Amount must be a positive number');
+      if (amountCents <= 0 || isNaN(amountCents)) throw new Error('Amount must be a positive number of colones');
       const res = await wallet.deposit(user.id, amountCents);
-      setSuccess(`Deposited ${creditTopupAmount} as credit. New balance: ${res.balance}`);
+      setSuccess(`Deposited ${formatCRC(res.transaction.amount_cents)}. New balance: ${formatCRC(res.balance)}`);
       setCreditTopupAmount('');
       setUser({ ...user, credit_balance: res.balance });
     } catch (err: any) {
@@ -499,7 +500,7 @@ export default function VouchersPage() {
                 </div>
                 <div className="bg-blue-50 rounded-lg p-4 text-center">
                   <p className="text-xs text-blue-600 font-medium">Credit</p>
-                  <p className="text-2xl font-bold text-blue-700">{user.credit_balance}</p>
+                  <p className="text-2xl font-bold text-blue-700">{formatCRC(user.credit_balance)}</p>
                 </div>
               </div>
             </div>
@@ -570,19 +571,19 @@ export default function VouchersPage() {
               <form onSubmit={handleCreditTopup} className="space-y-3">
                 <input
                   type="number"
-                  step="0.01"
-                  min="0.01"
-                  placeholder="Amount (e.g. 5.50)"
+                  step="1"
+                  min="1"
+                  placeholder="Amount in CRC (e.g. 5000)"
                   value={creditTopupAmount}
                   onChange={(e) => setCreditTopupAmount(e.target.value)}
                   required
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                 />
                 <div className="flex gap-2">
-                  {[5, 10, 20, 50].map((amt) => (
+                  {[5000, 10000, 25000, 50000].map((amt) => (
                     <button key={amt} type="button" onClick={() => setCreditTopupAmount(String(amt))}
                       className="flex-1 bg-gray-100 text-gray-700 py-1.5 rounded-lg hover:bg-gray-200 transition text-sm font-medium">
-                      +{amt}
+                      +{amt.toLocaleString('es-CR')}
                     </button>
                   ))}
                 </div>
@@ -700,7 +701,7 @@ export default function VouchersPage() {
                       {creditHistory.map((t: any) => (
                         <tr key={t.id}>
                           <td className={`px-4 py-2 text-sm font-medium ${t.amount_cents > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                            {t.amount_cents > 0 ? '+' : ''}{t.amount_cents}
+                            {t.amount_cents > 0 ? '+' : ''}{formatCRC(t.amount_cents)}
                           </td>
                           <td className="px-4 py-2 text-sm text-gray-600 capitalize">{t.type}</td>
                           <td className="px-4 py-2 text-sm text-gray-600">{t.reason || '—'}</td>
@@ -757,7 +758,7 @@ export default function VouchersPage() {
                     {paymentHistory.map((p: any) => (
                       <tr key={p.id}>
                         <td className="px-4 py-2 text-sm font-mono text-gray-700 break-all max-w-[160px]">{p.id}</td>
-                        <td className="px-4 py-2 text-sm font-medium text-gray-800">${p.amount}</td>
+                        <td className="px-4 py-2 text-sm font-medium text-gray-800">{formatCRC(Math.round(p.amount * 100))}</td>
                         <td className="px-4 py-2 text-sm">
                           <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
                             p.status === 'paid' ? 'bg-green-100 text-green-700' :

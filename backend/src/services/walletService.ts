@@ -73,7 +73,7 @@ export async function deposit(
   client?: PoolClient
 ): Promise<WalletTransaction> {
   if (!Number.isInteger(amountCents) || amountCents <= 0) {
-    throw new Error('Deposit amount must be a positive number of cents');
+    throw new Error('Deposit amount must be a positive number of CRC centavos');
   }
   return addWalletTransaction({
     userId,
@@ -97,7 +97,7 @@ export async function pay(
   client?: PoolClient
 ): Promise<WalletTransaction> {
   if (!Number.isInteger(amountCents) || amountCents <= 0) {
-    throw new Error('Payment amount must be a positive number of cents');
+    throw new Error('Payment amount must be a positive number of CRC centavos');
   }
   const balance = await getBalance(userId, conventionId, client);
   if (balance < amountCents) {
@@ -125,7 +125,7 @@ export async function refund(
   client?: PoolClient
 ): Promise<WalletTransaction> {
   if (!Number.isInteger(amountCents) || amountCents <= 0) {
-    throw new Error('Refund amount must be a positive number of cents');
+    throw new Error('Refund amount must be a positive number of CRC centavos');
   }
   return addWalletTransaction({
     userId,
@@ -148,7 +148,7 @@ export async function adjust(
   client?: PoolClient
 ): Promise<WalletTransaction> {
   if (!Number.isInteger(amountCents)) {
-    throw new Error('Adjustment amount must be a whole number of cents');
+    throw new Error('Adjustment amount must be a whole number of CRC centavos');
   }
   return addWalletTransaction({
     userId,
@@ -171,7 +171,7 @@ export async function awardPrize(
   client?: PoolClient
 ): Promise<WalletTransaction> {
   if (!Number.isInteger(amountCents) || amountCents <= 0) {
-    throw new Error('Prize amount must be a positive number of cents');
+    throw new Error('Prize amount must be a positive number of CRC centavos');
   }
   return addWalletTransaction({
     userId,

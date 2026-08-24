@@ -438,12 +438,12 @@ export async function registerToEvent(userId: number, eventId: number, createdBy
     if (countRes.rows[0].count >= event.max_players) throw new Error('Event is full');
 
     // 4. Check wallet credit (scoped to convention)
-    // Treat legacy entry_cost_vouchers as the dollar amount; credit is stored in cents.
+    // Treat legacy entry_cost_vouchers as the colones amount; credit is stored in centavos.
     const costCents = (event.entry_cost_vouchers || 0) * 100;
     if (costCents > 0) {
       const credit = await walletService.getBalance(userId, event.convention_id, client);
       if (credit < costCents) {
-        throw new Error(`Not enough credit. Need $${(costCents / 100).toFixed(2)}, have $${(credit / 100).toFixed(2)}`);
+        throw new Error(`Not enough credit. Need ${(costCents / 100).toLocaleString('es-CR')} CRC, have ${(credit / 100).toLocaleString('es-CR')} CRC`);
       }
 
       // 5. Deduct credit from wallet
