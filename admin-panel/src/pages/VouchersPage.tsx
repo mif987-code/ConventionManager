@@ -13,6 +13,8 @@ export default function VouchersPage() {
   const [paymentHistory, setPaymentHistory] = useState<any[]>([]);
   const [topupAmount, setTopupAmount] = useState('');
   const [topupMode, setTopupMode] = useState<'manual' | 'purchase'>('manual');
+  const [creditTopupAmount, setCreditTopupAmount] = useState('');
+  const [toppingUpCredit, setToppingUpCredit] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [nfcListening, setNfcListening] = useState(false);
@@ -142,6 +144,25 @@ export default function VouchersPage() {
       setVoucherHistory(vhRes.transactions || []);
     } catch (err: any) {
       setError(err.message);
+    }
+  }
+
+  async function handleCreditTopup(e: React.FormEvent) {
+    e.preventDefault();
+    if (!user || !creditTopupAmount) return;
+    setError('');
+    setToppingUpCredit(true);
+    try {
+      const amountCents = Math.round(parseFloat(creditTopupAmount) * 100);
+      if (amountCents <= 0 || isNaN(amountCents)) throw new Error('Amount must be a positive number');
+      const res = await wallet.deposit(user.id, amountCents);
+      setSuccess(`Deposited ${creditTopupAmount} as credit. New balance: ${res.balance}`);
+      setCreditTopupAmount('');
+      setUser({ ...user, credit_balance: res.balance });
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setToppingUpCredit(false);
     }
   }
 
@@ -537,6 +558,35 @@ export default function VouchersPage() {
                   ) : (
                     <><DollarSign size={16} /> Purchase Vouchers</>
                   )}
+                </button>
+              </form>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <h3 className="font-semibold text-gray-800 mb-4">Top Up Credit</h3>
+              <form onSubmit={handleCreditTopup} className="space-y-3">
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  placeholder="Amount (e.g. 5.50)"
+                  value={creditTopupAmount}
+                  onChange={(e) => setCreditTopupAmount(e.target.value)}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                />
+                <div className="flex gap-2">
+                  {[5, 10, 20, 50].map((amt) => (
+                    <button key={amt} type="button" onClick={() => setCreditTopupAmount(String(amt))}
+                      className="flex-1 bg-gray-100 text-gray-700 py-1.5 rounded-lg hover:bg-gray-200 transition text-sm font-medium">
+                      +{amt}
+                    </button>
+                  ))}
+                </div>
+                <button type="submit" disabled={toppingUpCredit}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition font-medium disabled:opacity-50">
+                  {toppingUpCredit ? <Loader2 size={16} className="animate-spin" /> : <CreditCard size={16} />}
+                  Add Credit
                 </button>
               </form>
             </div>
