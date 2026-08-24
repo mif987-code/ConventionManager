@@ -156,7 +156,7 @@ export const events = {
     request<any>('/events', { method: 'POST', body: JSON.stringify({ name, event_type_id, preregistration_enabled, ...schedule }) }),
   updateSchedule: (id: number, schedule: EventSchedule) =>
     request<any>(`/events/${id}/schedule`, { method: 'PATCH', body: JSON.stringify(schedule) }),
-  update: (id: number, fields: { name?: string; preregistration_enabled?: boolean }) =>
+  update: (id: number, fields: { name?: string; preregistration_enabled?: boolean; event_type_id?: number }) =>
     request<any>(`/events/${id}`, { method: 'PUT', body: JSON.stringify(fields) }),
   register: (eventId: number, user_id: number) =>
     request<any>(`/events/${eventId}/register`, { method: 'POST', body: JSON.stringify({ user_id }) }),

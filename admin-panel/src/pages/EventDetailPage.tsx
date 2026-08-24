@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Play, Trophy, XCircle, UserPlus, ChevronRight, Wifi, Search, Check, X, Loader2, QrCode, ScanLine, Pencil } from 'lucide-react';
-import { events, users, conventions, floorPlan, specialVouchers as specialVouchersApi } from '../api';
+import { events, users, conventions, floorPlan, specialVouchers as specialVouchersApi, eventTypes } from '../api';
 import FloorPlanPicker from '../components/FloorPlanPicker';
 
 const STATUS_COLORS: Record<string, string> = {
@@ -49,6 +49,8 @@ export default function EventDetailPage() {
   const [editingDetails, setEditingDetails] = useState(false);
   const [editName, setEditName] = useState('');
   const [editPreregEnabled, setEditPreregEnabled] = useState(false);
+  const [editEventTypeId, setEditEventTypeId] = useState<number | null>(null);
+  const [eventTypesList, setEventTypesList] = useState<any[]>([]);
   const [savingDetails, setSavingDetails] = useState(false);
 
   async function loadEvent() {
@@ -106,8 +108,12 @@ export default function EventDetailPage() {
     try {
       const conventionId = localStorage.getItem('cm_convention_id');
       if (conventionId) {
-        const res = await conventions.get(parseInt(conventionId));
+        const [res, typesRes] = await Promise.all([
+          conventions.get(parseInt(conventionId)),
+          eventTypes.list(),
+        ]);
         setConvention(res.convention);
+        setEventTypesList(typesRes.event_types || []);
         if (res.convention?.scan_mode) {
           setScanMode(res.convention.scan_mode);
         }
@@ -320,6 +326,7 @@ export default function EventDetailPage() {
   function startEditingDetails() {
     setEditName(event.name);
     setEditPreregEnabled(!!event.preregistration_enabled);
+    setEditEventTypeId(event.event_type_id);
     setEditingDetails(true);
   }
 
@@ -327,7 +334,7 @@ export default function EventDetailPage() {
     if (!editName.trim()) { setError('Event name cannot be empty'); return; }
     setSavingDetails(true);
     try {
-      await events.update(parseInt(id!), { name: editName.trim(), preregistration_enabled: editPreregEnabled });
+      await events.update(parseInt(id!), { name: editName.trim(), preregistration_enabled: editPreregEnabled, event_type_id: editEventTypeId! });
       setEditingDetails(false);
       loadEvent();
     } catch (err: any) { setError(err.message); }
@@ -384,6 +391,21 @@ export default function EventDetailPage() {
                   />
                   Preregistration enabled
                 </label>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Event Type / Prize Structure</label>
+                  <select
+                    value={editEventTypeId ?? ''}
+                    onChange={(e) => setEditEventTypeId(parseInt(e.target.value))}
+                    className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                  >
+                    <option value="">Select an event type...</option>
+                    {eventTypesList.map((t: any) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name} ({t.category}{t.format ? ` / ${t.format}` : ''}) · {t.entry_cost_vouchers} vouchers · {t.tournament_structure === 'single_elimination' ? 'Single Elim' : 'Swiss'}
+                      </option>
+                    ))}
+                  </select>
+                </div>
                 <div className="flex gap-2">
                   <button
                     onClick={handleSaveDetails}

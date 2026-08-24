@@ -138,12 +138,12 @@ router.patch('/:id/schedule', async (req: Request, res: Response, next: NextFunc
   }
 });
 
-// PUT /api/events/:id - Edit an open event's name and/or preregistration_enabled flag
+// PUT /api/events/:id - Edit an open event's name, preregistration flag, or event type
 router.put('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const id = parseInt(req.params.id);
     const fields: Record<string, any> = {};
-    for (const key of ['name', 'preregistration_enabled']) {
+    for (const key of ['name', 'preregistration_enabled', 'event_type_id']) {
       if (key in req.body) fields[key] = req.body[key];
     }
     const event = await eventService.updateEventDetails(id, fields);

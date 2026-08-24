@@ -15,7 +15,7 @@ const LEGACY_MIGRATIONS = [
 // as already-applied when a migration was previously run by hand outside this
 // tracking table (several older migration files create indexes/triggers without
 // IF NOT EXISTS guards, so a raw re-run would otherwise fail).
-const ALREADY_EXISTS_CODES = new Set(['42710', '42P07', '42P16', '42723']);
+const ALREADY_EXISTS_CODES = new Set(['42701', '42710', '42P07', '42P16', '42723']);
 
 async function ensureMigrationsTable() {
   await pool.query(`

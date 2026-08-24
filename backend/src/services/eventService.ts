@@ -211,8 +211,8 @@ export async function updateEventSchedule(id: number, fields: EventScheduleField
   return result.rows[0];
 }
 
-export async function updateEventDetails(id: number, fields: { name?: string; preregistration_enabled?: boolean }): Promise<Event> {
-  const existing = await pool.query(`SELECT id, status FROM events WHERE id = $1`, [id]);
+export async function updateEventDetails(id: number, fields: { name?: string; preregistration_enabled?: boolean; event_type_id?: number }): Promise<Event> {
+  const existing = await pool.query(`SELECT id, status, convention_id FROM events WHERE id = $1`, [id]);
   if (existing.rows.length === 0) throw new Error('Event not found');
   if (existing.rows[0].status !== 'open') throw new Error('Only open events can be edited');
 
@@ -228,6 +228,15 @@ export async function updateEventDetails(id: number, fields: { name?: string; pr
   if (fields.preregistration_enabled !== undefined) {
     sets.push(`preregistration_enabled = $${idx++}`);
     params.push(fields.preregistration_enabled);
+  }
+  if (fields.event_type_id !== undefined) {
+    const typeRes = await pool.query(
+      `SELECT id FROM event_types WHERE id = $1 AND convention_id = $2`,
+      [fields.event_type_id, existing.rows[0].convention_id]
+    );
+    if (typeRes.rows.length === 0) throw new Error('Event type not found or does not belong to this convention');
+    sets.push(`event_type_id = $${idx++}`);
+    params.push(fields.event_type_id);
   }
 
   if (sets.length === 0) {
