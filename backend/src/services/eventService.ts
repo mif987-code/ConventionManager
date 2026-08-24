@@ -1,5 +1,6 @@
 import { pool } from '../config/db';
 import { addTransaction, getBalance } from './transactionService';
+import * as walletService from './walletService';
 
 export type TournamentStructure = 'swiss' | 'single_elimination';
 export type TeamMode = 'single' | '2hg';
@@ -436,23 +437,18 @@ export async function registerToEvent(userId: number, eventId: number, createdBy
     );
     if (countRes.rows[0].count >= event.max_players) throw new Error('Event is full');
 
-    // 4. Check voucher balance (scoped to convention)
-    const balance = await getBalance(userId, 'voucher', client, event.convention_id);
-    if (balance < event.entry_cost_vouchers) {
-      throw new Error(`Not enough vouchers. Need ${event.entry_cost_vouchers}, have ${balance}`);
-    }
+    // 4. Check wallet credit (scoped to convention)
+    // Treat legacy entry_cost_vouchers as the dollar amount; credit is stored in cents.
+    const costCents = (event.entry_cost_vouchers || 0) * 100;
+    if (costCents > 0) {
+      const credit = await walletService.getBalance(userId, event.convention_id, client);
+      if (credit < costCents) {
+        throw new Error(`Not enough credit. Need $${(costCents / 100).toFixed(2)}, have $${(credit / 100).toFixed(2)}`);
+      }
 
-    // 5. Deduct vouchers via ledger
-    await addTransaction({
-      userId,
-      type: 'voucher',
-      amount: -event.entry_cost_vouchers,
-      reason: 'event_entry',
-      eventId,
-      createdBy,
-      client,
-      conventionId: event.convention_id,
-    });
+      // 5. Deduct credit from wallet
+      await walletService.pay(userId, event.convention_id, costCents, createdBy, eventId, 'event_entry', client);
+    }
 
     // 6. Add participant
     await client.query(

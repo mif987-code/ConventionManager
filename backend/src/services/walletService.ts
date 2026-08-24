@@ -43,8 +43,9 @@ async function addWalletTransaction(params: AddWalletTransactionParams): Promise
   return result.rows[0];
 }
 
-export async function getBalance(userId: number, conventionId: number): Promise<number> {
-  const result = await pool.query(
+export async function getBalance(userId: number, conventionId: number, client?: PoolClient): Promise<number> {
+  const executor = client ?? pool;
+  const result = await executor.query(
     `SELECT COALESCE(SUM(amount_cents), 0)::int AS balance
      FROM wallet_transactions
      WHERE user_id = $1 AND convention_id = $2`,
@@ -59,7 +60,7 @@ export async function hasEnoughCredit(
   amountCents: number,
   client?: PoolClient
 ): Promise<boolean> {
-  const balance = await getBalance(userId, conventionId);
+  const balance = await getBalance(userId, conventionId, client);
   return balance >= amountCents;
 }
 
@@ -98,7 +99,7 @@ export async function pay(
   if (!Number.isInteger(amountCents) || amountCents <= 0) {
     throw new Error('Payment amount must be a positive number of cents');
   }
-  const balance = await getBalance(userId, conventionId);
+  const balance = await getBalance(userId, conventionId, client);
   if (balance < amountCents) {
     throw new Error('Insufficient credit');
   }
