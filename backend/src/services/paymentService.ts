@@ -1,5 +1,5 @@
 import { pool } from '../config/db';
-import { addTransaction } from './transactionService';
+import * as walletService from './walletService';
 
 export interface PaymentIntent {
   id: string;
@@ -178,85 +178,99 @@ export async function handlePaymentWebhook(paymentId: string, status: string): P
     throw new Error(`Invalid payment status: ${status}`);
   }
 
-  // Atomically claim this payment only if it is still pending. This makes the
-  // webhook idempotent and prevents double-awarding from concurrent/replayed
-  // notifications.
-  const updateRes = await pool.query(
-    `UPDATE payments SET status = $1, updated_at = NOW() WHERE id = $2 AND status = 'pending' RETURNING *`,
-    [status, paymentId]
-  );
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
 
-  if (updateRes.rowCount === 0) {
-    // Either the payment doesn't exist or was already processed.
-    const payment = await getPayment(paymentId);
-    if (!payment) {
-      throw new Error('Payment not found');
-    }
-    return;
-  }
-
-  const payment = updateRes.rows[0];
-
-  if (status === 'paid') {
-    // Payment row is already atomically marked as 'paid' above.
-    // Award vouchers based on the stored package / amount.
-
-    // Check if user has a package selected
-    const packageRes = await pool.query(
-      `SELECT up.package_id, up.quantity, p.regular_voucher_amount, p.prereg_cost, p.cost
-       FROM user_packages up
-       JOIN packages p ON p.id = up.package_id
-       WHERE up.user_id = $1`,
-      [payment.user_id]
+    // Atomically claim this payment only if it is still pending. This makes the
+    // webhook idempotent and prevents double-crediting from concurrent/replayed
+    // notifications.
+    const updateRes = await client.query(
+      `UPDATE payments SET status = $1, updated_at = NOW() WHERE id = $2 AND status = 'pending' RETURNING *`,
+      [status, paymentId]
     );
 
-    if (packageRes.rows.length > 0) {
-      const pkg = packageRes.rows[0];
-      const quantity = pkg.quantity || 1;
-      const unitCost = pkg.prereg_cost || pkg.cost;
-      const packageTotal = unitCost * quantity;
+    if (updateRes.rowCount === 0) {
+      await client.query('ROLLBACK');
+      // Either the payment doesn't exist or was already processed.
+      const payment = await getPayment(paymentId);
+      if (!payment) {
+        throw new Error('Payment not found');
+      }
+      return;
+    }
 
-      // If payment matches (or exceeds) the package total, award package vouchers
-      if (Math.abs(payment.amount - packageTotal) < 0.01 && pkg.regular_voucher_amount > 0) {
-        await addTransaction({
-          userId: payment.user_id,
-          type: 'voucher',
-          amount: pkg.regular_voucher_amount,
-          reason: 'purchase',
-          createdBy: 'payment',
-          paymentLink: payment.payment_link,
-        });
+    const payment = updateRes.rows[0];
 
-        // Award special vouchers for this package
-        const specialVouchersRes = await pool.query(
-          `SELECT sv.id, sv.amount, sv.name
-           FROM package_special_vouchers psv
-           JOIN special_vouchers sv ON sv.id = psv.special_voucher_id
-           WHERE psv.package_id = $1`,
-          [pkg.package_id]
+    if (status === 'paid') {
+      // Resolve the convention for this payment: use the package's convention
+      // if a matching package exists, otherwise fall back to the user's home convention.
+      const packageRes = await client.query(
+        `SELECT up.package_id, up.quantity, p.convention_id, p.prereg_cost, p.cost
+         FROM user_packages up
+         JOIN packages p ON p.id = up.package_id
+         WHERE up.user_id = $1
+         LIMIT 1`,
+        [payment.user_id]
+      );
+
+      let conventionId: number | null = packageRes.rows[0]?.convention_id;
+      if (!conventionId) {
+        const userRes = await client.query(
+          `SELECT convention_id FROM users WHERE id = $1`,
+          [payment.user_id]
         );
+        conventionId = userRes.rows[0]?.convention_id ?? null;
+      }
 
-        for (const sv of specialVouchersRes.rows) {
-          await pool.query(
-            `INSERT INTO special_voucher_awards (user_id, special_voucher_id, event_id, awarded_by)
-             VALUES ($1, $2, NULL, 'package_payment')`,
-            [payment.user_id, sv.id]
+      if (!conventionId) {
+        throw new Error('Cannot deposit credit without a convention');
+      }
+
+      // payment.amount is stored in the major currency unit (USD, CRC), wallet stores cents.
+      const amountCents = Math.round(payment.amount * 100);
+      await walletService.deposit(
+        payment.user_id,
+        conventionId,
+        amountCents,
+        'payment',
+        payment.payment_link,
+        client
+      );
+
+      // If the paid amount matches a package, award any linked special vouchers.
+      if (packageRes.rows.length > 0) {
+        const pkg = packageRes.rows[0];
+        const quantity = pkg.quantity || 1;
+        const unitCost = pkg.prereg_cost || pkg.cost;
+        const packageTotal = unitCost * quantity;
+
+        if (Math.abs(payment.amount - packageTotal) < 0.01) {
+          const specialVouchersRes = await client.query(
+            `SELECT sv.id, sv.amount, sv.name
+             FROM package_special_vouchers psv
+             JOIN special_vouchers sv ON sv.id = psv.special_voucher_id
+             WHERE psv.package_id = $1`,
+            [pkg.package_id]
           );
+
+          for (const sv of specialVouchersRes.rows) {
+            await client.query(
+              `INSERT INTO special_voucher_awards (user_id, special_voucher_id, event_id, awarded_by)
+               VALUES ($1, $2, NULL, 'package_payment')`,
+              [payment.user_id, sv.id]
+            );
+          }
         }
       }
-    } else {
-      // No package, add vouchers directly (for top-up purchases)
-      await addTransaction({
-        userId: payment.user_id,
-        type: 'voucher',
-        amount: payment.amount,
-        reason: 'purchase',
-        createdBy: 'payment',
-        paymentLink: payment.payment_link,
-      });
     }
-  } else if (status === 'failed') {
-    await updatePaymentStatus(paymentId, 'failed');
+
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
   }
 }
 

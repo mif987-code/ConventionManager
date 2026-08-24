@@ -139,7 +139,7 @@ router.get('/search', async (req: Request, res: Response, next: NextFunction) =>
 // GET /api/users/:id - Get user with balances
 router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const user = await userService.getUserWithBalances(parseInt(req.params.id));
+    const user = await userService.getUserWithBalances(parseInt(req.params.id), req.conventionId);
     if (!user) return res.status(404).json({ error: 'User not found' });
 
     res.json({ success: true, user });

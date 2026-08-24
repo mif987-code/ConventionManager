@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { CreditCard, Search, X, Loader2, Wifi, Gift, Plus, Trash2, QrCode, ScanLine, DollarSign, ExternalLink } from 'lucide-react';
-import { vouchers, tix, users, scan, specialVouchers, events, conventions } from '../api';
+import { vouchers, tix, wallet, users, scan, specialVouchers, events, conventions } from '../api';
 
 export default function VouchersPage() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -59,14 +59,15 @@ export default function VouchersPage() {
     setSuccess('');
     setSelectedSpecialVoucher(null);
     try {
-      const [balRes, tBalRes, vhRes, thRes, payRes] = await Promise.all([
+      const [balRes, tBalRes, creditRes, vhRes, thRes, payRes] = await Promise.all([
         vouchers.balance(u.id),
         tix.balance(u.id),
+        wallet.balance(u.id),
         vouchers.history(u.id),
         tix.history(u.id),
         users.payments(u.id),
       ]);
-      setUser({ ...u, voucher_balance: balRes.balance ?? 0, tix_balance: tBalRes.balance ?? 0 });
+      setUser({ ...u, voucher_balance: balRes.balance ?? 0, tix_balance: tBalRes.balance ?? 0, credit_balance: creditRes.balance ?? 0 });
       setVoucherHistory(vhRes.transactions || []);
       setTixHistory(thRes.transactions || []);
       setPaymentHistory(payRes.payments || []);
@@ -463,7 +464,7 @@ export default function VouchersPage() {
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <h2 className="font-semibold text-gray-800 mb-2">{user.name}</h2>
               <p className="text-sm text-gray-500 font-mono mb-4">{user.nfc_uid}</p>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div className="bg-emerald-50 rounded-lg p-4 text-center">
                   <p className="text-xs text-emerald-600 font-medium">Vouchers</p>
                   <p className="text-2xl font-bold text-emerald-700">{user.voucher_balance}</p>
@@ -471,6 +472,10 @@ export default function VouchersPage() {
                 <div className="bg-purple-50 rounded-lg p-4 text-center">
                   <p className="text-xs text-purple-600 font-medium">Tix</p>
                   <p className="text-2xl font-bold text-purple-700">{user.tix_balance}</p>
+                </div>
+                <div className="bg-blue-50 rounded-lg p-4 text-center">
+                  <p className="text-xs text-blue-600 font-medium">Credit</p>
+                  <p className="text-2xl font-bold text-blue-700">{user.credit_balance}</p>
                 </div>
               </div>
             </div>

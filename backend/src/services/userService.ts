@@ -1,5 +1,6 @@
 import { pool } from '../config/db';
 import { getBalance } from './transactionService';
+import { getBalance as getWalletBalance } from './walletService';
 import { setUserAttendance } from './attendanceService';
 import { issueQRCode } from '../utils/qr';
 
@@ -81,24 +82,26 @@ export async function getAllUsers(conventionId?: number): Promise<User[]> {
   return result.rows;
 }
 
-export async function getUserWithBalances(userId: number) {
+export async function getUserWithBalances(userId: number, conventionId?: number) {
   const user = await getUserById(userId);
   if (!user) return null;
-  const [voucherBalance, tixBalance] = await Promise.all([
+  const [voucherBalance, tixBalance, creditBalance] = await Promise.all([
     getBalance(userId, 'voucher'),
     getBalance(userId, 'tix'),
+    getWalletBalance(userId, conventionId ?? (user.convention_id as number)),
   ]);
-  return { ...user, voucher_balance: voucherBalance, tix_balance: tixBalance };
+  return { ...user, voucher_balance: voucherBalance, tix_balance: tixBalance, credit_balance: creditBalance };
 }
 
-export async function getUserByNfcUidWithBalances(nfcUid: string) {
+export async function getUserByNfcUidWithBalances(nfcUid: string, conventionId?: number) {
   const user = await getUserByNfcUid(nfcUid);
   if (!user) return null;
-  const [voucherBalance, tixBalance] = await Promise.all([
+  const [voucherBalance, tixBalance, creditBalance] = await Promise.all([
     getBalance(user.id, 'voucher'),
     getBalance(user.id, 'tix'),
+    getWalletBalance(user.id, conventionId ?? (user.convention_id as number)),
   ]);
-  return { ...user, voucher_balance: voucherBalance, tix_balance: tixBalance };
+  return { ...user, voucher_balance: voucherBalance, tix_balance: tixBalance, credit_balance: creditBalance };
 }
 
 export async function updateUser(
