@@ -2,7 +2,7 @@ import { useState, useEffect, Fragment } from 'react';
 import { Plus, Pencil, Save, Trash2, Copy, Table, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { eventTypes, prizeTemplates, specialVouchers as specialVouchersApi } from '../api';
 
-const CATEGORIES = ['Draft', 'Sealed', 'Constructed', 'Commander'];
+const CATEGORIES = ['Draft', 'Sealed', 'Constructed', 'Commander', 'On Demand'];
 const FORMATS = ['Standard', 'Modern', 'Pioneer', 'PreModern', 'Pauper', 'Special Event'];
 const TOURNAMENT_STRUCTURES = [
   { value: 'swiss', label: 'Swiss' },
@@ -556,8 +556,8 @@ export default function EventTypesPage() {
               required className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
           </div>
           <div>
-            <label className="text-xs font-medium text-gray-500 mb-1 block">Entry Cost *</label>
-            <input type="number" min="0" step="0.01" value={f.entry_cost_vouchers} onChange={(e) => setF({ ...f, entry_cost_vouchers: e.target.value })}
+            <label className="text-xs font-medium text-gray-500 mb-1 block">Entry Cost (CRC colones) *</label>
+            <input type="number" min="0" step="1" value={f.entry_cost_vouchers} onChange={(e) => setF({ ...f, entry_cost_vouchers: e.target.value })}
               required className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
           </div>
           <div>
