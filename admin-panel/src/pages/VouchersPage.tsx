@@ -10,6 +10,7 @@ export default function VouchersPage() {
   const [user, setUser] = useState<any>(null);
   const [voucherHistory, setVoucherHistory] = useState<any[]>([]);
   const [tixHistory, setTixHistory] = useState<any[]>([]);
+  const [creditHistory, setCreditHistory] = useState<any[]>([]);
   const [paymentHistory, setPaymentHistory] = useState<any[]>([]);
   const [topupAmount, setTopupAmount] = useState('');
   const [topupMode, setTopupMode] = useState<'manual' | 'purchase'>('manual');
@@ -61,17 +62,19 @@ export default function VouchersPage() {
     setSuccess('');
     setSelectedSpecialVoucher(null);
     try {
-      const [balRes, tBalRes, creditRes, vhRes, thRes, payRes] = await Promise.all([
+      const [balRes, tBalRes, creditRes, vhRes, thRes, payRes, chRes] = await Promise.all([
         vouchers.balance(u.id),
         tix.balance(u.id),
         wallet.balance(u.id),
         vouchers.history(u.id),
         tix.history(u.id),
         users.payments(u.id),
+        wallet.history(u.id),
       ]);
       setUser({ ...u, voucher_balance: balRes.balance ?? 0, tix_balance: tBalRes.balance ?? 0, credit_balance: creditRes.balance ?? 0 });
       setVoucherHistory(vhRes.transactions || []);
       setTixHistory(thRes.transactions || []);
+      setCreditHistory(chRes.history || []);
       setPaymentHistory(payRes.payments || []);
       loadUserAwardedVouchers(u.id);
     } catch (err: any) { setError(err.message); }
@@ -671,6 +674,55 @@ export default function VouchersPage() {
                     )}
                   </tbody>
                 </table>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              <div className="px-6 py-4 border-b border-gray-200">
+                <h3 className="font-semibold text-gray-800">Credit History</h3>
+              </div>
+              <div className="max-h-64 overflow-auto">
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[540px]">
+                    <thead className="bg-gray-50 border-b border-gray-200 sticky top-0">
+                      <tr>
+                        <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase">Amount</th>
+                        <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase">Type</th>
+                        <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase">Reason</th>
+                        <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase">By</th>
+                        <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase">Event</th>
+                        <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase">Date</th>
+                        <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase">Proof</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {creditHistory.map((t: any) => (
+                        <tr key={t.id}>
+                          <td className={`px-4 py-2 text-sm font-medium ${t.amount_cents > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {t.amount_cents > 0 ? '+' : ''}{t.amount_cents}
+                          </td>
+                          <td className="px-4 py-2 text-sm text-gray-600 capitalize">{t.type}</td>
+                          <td className="px-4 py-2 text-sm text-gray-600">{t.reason || '—'}</td>
+                          <td className="px-4 py-2 text-sm text-gray-600">{t.created_by || '—'}</td>
+                          <td className="px-4 py-2 text-sm text-gray-600">{t.event_name || '—'}</td>
+                          <td className="px-4 py-2 text-sm text-gray-400">{new Date(t.created_at).toLocaleString()}</td>
+                          <td className="px-4 py-2 text-sm">
+                            {t.payment_link ? (
+                              <a href={t.payment_link} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:text-indigo-700 flex items-center gap-1">
+                                <ExternalLink size={12} /> View
+                              </a>
+                            ) : (
+                              <span className="text-gray-400">—</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                      {creditHistory.length === 0 && (
+                        <tr><td colSpan={7} className="px-4 py-6 text-center text-gray-400">No credit transactions</td></tr>
+                      )}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             </div>
