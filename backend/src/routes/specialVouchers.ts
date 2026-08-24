@@ -21,7 +21,7 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
 // POST /api/special-vouchers - Create a special voucher (tied to an Event Type category + entry cost)
 router.post('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { convention_id, category, entry_cost, name, amount, description, icon, color, max_awards } = req.body;
+    const { convention_id, category, entry_cost, name, amount, description, icon, color, max_awards, voucher_type } = req.body;
 
     if (!convention_id || !category || entry_cost === undefined || !name || amount === undefined) {
       return res.status(400).json({ error: 'convention_id, category, entry_cost, name, and amount are required' });
@@ -36,7 +36,8 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
       description,
       icon,
       color,
-      max_awards
+      max_awards,
+      voucher_type
     );
     res.status(201).json({ success: true, special_voucher: voucher });
   } catch (err) {

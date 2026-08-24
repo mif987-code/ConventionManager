@@ -12,6 +12,7 @@ export interface SpecialVoucher {
   color: string;
   max_awards: number;
   awarded_count: number;
+  voucher_type: string;
   created_at: Date;
   updated_at: Date;
 }
@@ -36,13 +37,14 @@ export async function createSpecialVoucher(
   description?: string,
   icon: string = 'star',
   color: string = '#6366f1',
-  maxAwards: number = 1
+  maxAwards: number = 1,
+  voucherType: string = 'static'
 ): Promise<SpecialVoucher> {
   const result = await pool.query(
-    `INSERT INTO special_vouchers (convention_id, category, entry_cost, name, description, amount, icon, color, max_awards)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+    `INSERT INTO special_vouchers (convention_id, category, entry_cost, name, description, amount, icon, color, max_awards, voucher_type)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
      RETURNING *`,
-    [conventionId, category, entryCost, name, description || null, amount, icon, color, maxAwards]
+    [conventionId, category, entryCost, name, description || null, amount, icon, color, maxAwards, voucherType]
   );
   return result.rows[0];
 }
@@ -98,6 +100,7 @@ export async function updateSpecialVoucher(
     icon?: string;
     color?: string;
     max_awards?: number;
+    voucher_type?: string;
   }
 ): Promise<SpecialVoucher> {
   const sets: string[] = [];
@@ -112,6 +115,7 @@ export async function updateSpecialVoucher(
   if (fields.icon !== undefined) { sets.push(`icon = $${idx++}`); params.push(fields.icon); }
   if (fields.color !== undefined) { sets.push(`color = $${idx++}`); params.push(fields.color); }
   if (fields.max_awards !== undefined) { sets.push(`max_awards = $${idx++}`); params.push(fields.max_awards); }
+  if (fields.voucher_type !== undefined) { sets.push(`voucher_type = $${idx++}`); params.push(fields.voucher_type); }
 
   sets.push(`updated_at = NOW()`);
   params.push(id);

@@ -272,7 +272,7 @@ export const conventions = {
 // Special Vouchers
 export const specialVouchers = {
   list: (conventionId: number) => request<any>(`/special-vouchers?convention_id=${conventionId}`),
-  create: (data: { convention_id: number; category: string; entry_cost: number; name: string; amount: number; description?: string; icon?: string; color?: string; max_awards?: number }) =>
+  create: (data: { convention_id: number; category: string; entry_cost: number; name: string; amount: number; description?: string; icon?: string; color?: string; max_awards?: number; voucher_type?: string }) =>
     request<any>('/special-vouchers', { method: 'POST', body: JSON.stringify(data) }),
   getByEvent: (eventId: number) => request<any>(`/special-vouchers/event/${eventId}`),
   get: (id: number) => request<any>(`/special-vouchers/${id}`),

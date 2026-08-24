@@ -411,7 +411,7 @@ export async function registerToEvent(userId: number, eventId: number, createdBy
 
     // 1. Check event exists and is open
     const eventRes = await client.query(
-      `SELECT e.*, et.entry_cost_vouchers, et.max_players
+      `SELECT e.*, et.entry_cost_vouchers, et.max_players, et.category
        FROM events e
        JOIN event_types et ON e.event_type_id = et.id
        WHERE e.id = $1
@@ -438,16 +438,42 @@ export async function registerToEvent(userId: number, eventId: number, createdBy
     if (countRes.rows[0].count >= event.max_players) throw new Error('Event is full');
 
     // 4. Check wallet credit (scoped to convention)
-    // Treat legacy entry_cost_vouchers as the colones amount; credit is stored in centavos.
-    const costCents = (event.entry_cost_vouchers || 0) * 100;
-    if (costCents > 0) {
-      const credit = await walletService.getBalance(userId, event.convention_id, client);
-      if (credit < costCents) {
-        throw new Error(`Not enough credit. Need ${(costCents / 100).toLocaleString('es-CR')} CRC, have ${(credit / 100).toLocaleString('es-CR')} CRC`);
+    if (event.category === 'On Demand') {
+      // On Demand events require an unconsumed on-demand special voucher instead of credit.
+      const voucherRes = await client.query(
+        `SELECT sva.id
+         FROM special_voucher_awards sva
+         JOIN special_vouchers sv ON sv.id = sva.special_voucher_id
+         WHERE sva.user_id = $1
+           AND sv.voucher_type = 'on_demand'
+           AND sva.consumed_at IS NULL
+         ORDER BY sva.created_at
+         LIMIT 1
+         FOR UPDATE`,
+        [userId]
+      );
+
+      if (voucherRes.rows.length === 0) {
+        throw new Error('No unused On Demand special voucher available');
       }
 
-      // 5. Deduct credit from wallet
-      await walletService.pay(userId, event.convention_id, costCents, createdBy, eventId, 'event_entry', client);
+      // 5. Consume the on-demand special voucher
+      await client.query(
+        `UPDATE special_voucher_awards SET consumed_at = NOW() WHERE id = $1`,
+        [voucherRes.rows[0].id]
+      );
+    } else {
+      // Treat legacy entry_cost_vouchers as the colones amount; credit is stored in centavos.
+      const costCents = (event.entry_cost_vouchers || 0) * 100;
+      if (costCents > 0) {
+        const credit = await walletService.getBalance(userId, event.convention_id, client);
+        if (credit < costCents) {
+          throw new Error(`Not enough credit. Need ${(costCents / 100).toLocaleString('es-CR')} CRC, have ${(credit / 100).toLocaleString('es-CR')} CRC`);
+        }
+
+        // 5. Deduct credit from wallet
+        await walletService.pay(userId, event.convention_id, costCents, createdBy, eventId, 'event_entry', client);
+      }
     }
 
     // 6. Add participant

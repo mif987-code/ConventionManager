@@ -27,7 +27,7 @@ export default function VouchersPage() {
   const [specialVouchersList, setSpecialVouchersList] = useState<any[]>([]);
   const [openEvents, setOpenEvents] = useState<any[]>([]);
   const [showCreateVoucher, setShowCreateVoucher] = useState(false);
-  const [newVoucher, setNewVoucher] = useState({ name: '', amount: 5, description: '', category: '', entry_cost: 0, max_awards: 1 });
+  const [newVoucher, setNewVoucher] = useState({ name: '', amount: 5, description: '', category: '', entry_cost: 0, max_awards: 1, voucher_type: 'static' });
   const [creatingVoucher, setCreatingVoucher] = useState(false);
   const [editingVoucher, setEditingVoucher] = useState<any | null>(null);
   const [savingVoucherEdit, setSavingVoucherEdit] = useState(false);
@@ -256,9 +256,10 @@ export default function VouchersPage() {
         amount: newVoucher.amount,
         description: newVoucher.description,
         max_awards: newVoucher.max_awards,
+        voucher_type: newVoucher.voucher_type,
       });
       setSuccess('Special voucher created successfully!');
-      setNewVoucher({ name: '', amount: 5, description: '', category: '', entry_cost: 0, max_awards: 1 });
+      setNewVoucher({ name: '', amount: 5, description: '', category: '', entry_cost: 0, max_awards: 1, voucher_type: 'static' });
       setShowCreateVoucher(false);
       loadSpecialVouchers();
     } catch (err: any) {
@@ -281,6 +282,7 @@ export default function VouchersPage() {
         amount: editingVoucher.amount,
         description: editingVoucher.description,
         max_awards: editingVoucher.max_awards,
+        voucher_type: editingVoucher.voucher_type || 'static',
       });
       setSuccess('Special voucher updated successfully!');
       setEditingVoucher(null);
@@ -1034,6 +1036,18 @@ export default function VouchersPage() {
                   </select>
                 </div>
                 <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Voucher Type</label>
+                  <select
+                    value={newVoucher.voucher_type}
+                    onChange={(e) => setNewVoucher({ ...newVoucher, voucher_type: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                    required
+                  >
+                    <option value="static">Static (prize/bonus)</option>
+                    <option value="on_demand">On Demand (event entry)</option>
+                  </select>
+                </div>
+                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Entry Cost (vouchers)</label>
                   <input
                     type="number"
@@ -1121,6 +1135,18 @@ export default function VouchersPage() {
                     {EVENT_CATEGORIES.map((cat) => (
                       <option key={cat} value={cat}>{cat}</option>
                     ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Voucher Type</label>
+                  <select
+                    value={editingVoucher.voucher_type || 'static'}
+                    onChange={(e) => setEditingVoucher({ ...editingVoucher, voucher_type: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                    required
+                  >
+                    <option value="static">Static (prize/bonus)</option>
+                    <option value="on_demand">On Demand (event entry)</option>
                   </select>
                 </div>
                 <div>
