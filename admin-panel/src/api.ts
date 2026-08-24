@@ -343,6 +343,21 @@ export const preregistrations = {
   stats: () => request<any>('/preregistrations/stats'),
 };
 
+// Wallet / Credit
+export const wallet = {
+  balance: (userId: number) => request<any>(`/wallet/${userId}/balance`),
+  history: (userId: number, params?: { limit?: number; offset?: number }) =>
+    request<any>(`/wallet/${userId}/history${params ? `?limit=${params.limit ?? 50}&offset=${params.offset ?? 0}` : ''}`),
+  deposit: (userId: number, amountCents: number, paymentLink?: string | null) =>
+    request<any>(`/wallet/${userId}/deposit`, { method: 'POST', body: JSON.stringify({ amount_cents: amountCents, payment_link: paymentLink }) }),
+  pay: (userId: number, amountCents: number, eventId?: number | null, reason?: string) =>
+    request<any>(`/wallet/${userId}/pay`, { method: 'POST', body: JSON.stringify({ amount_cents: amountCents, event_id: eventId, reason }) }),
+  refund: (userId: number, amountCents: number, eventId?: number | null, reason?: string) =>
+    request<any>(`/wallet/${userId}/refund`, { method: 'POST', body: JSON.stringify({ amount_cents: amountCents, event_id: eventId, reason }) }),
+  adjust: (userId: number, amountCents: number, reason?: string) =>
+    request<any>(`/wallet/${userId}/adjust`, { method: 'POST', body: JSON.stringify({ amount_cents: amountCents, reason }) }),
+};
+
 // Floor Plan
 export const floorPlan = {
   get: () => request<any>('/floor-plan'),
