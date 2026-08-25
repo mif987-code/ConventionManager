@@ -176,6 +176,9 @@ async function renderEvents(el) {
                 ${ev.category ? `<span>${esc(ev.category)}${ev.format ? ' (' + esc(ev.format) + ')' : ''}</span>` : ''}
                 <span>${ev.preregistered_count}${ev.max_players ? '/' + ev.max_players : ''}</span>
               </div>
+              <div class="evt-meta" style="margin-top:2px">
+                ${ev.entry_cost_cents !== undefined && ev.entry_cost_cents !== null ? `<span>${formatCRC(ev.entry_cost_cents)}${ev.category === 'On Demand' ? ' (On Demand voucher)' : ' entry'}</span>` : ''}
+              </div>
               ${schedule ? `<div class="evt-meta" style="margin-top:4px;color:var(--accent-light);">${esc(schedule)}</div>` : ''}
             </div>
             ${ev.preregistered_by_me
@@ -346,6 +349,10 @@ async function renderProfile(el) {
         <div class="bal-label">Tix</div>
         <div class="bal-value">${player.tix_balance}</div>
       </div>
+      <div class="bal-card" style="background:linear-gradient(135deg,#dbeafe,#eff6ff);border-left:3px solid #2563eb">
+        <div class="bal-label" style="color:#1d4ed8">Credit</div>
+        <div class="bal-value" style="color:#1e40af">${formatCRC(player.credit_balance || 0)}</div>
+      </div>
     </div>
     <div class="card">
       <div class="profile-field"><span class="profile-key">Name</span><span class="profile-val">${esc(player.name)}${player.last_name ? ' ' + esc(player.last_name) : ''}</span></div>
@@ -367,7 +374,7 @@ async function renderProfile(el) {
 
     <div class="card" style="margin-top:12px">
       <h3 style="font-size:0.85rem;font-weight:700;margin-bottom:10px;">Purchase Vouchers</h3>
-      <input class="login-input" id="purchase-amount" type="number" placeholder="Amount" min="1" style="margin-bottom:8px;">
+      <input class="login-input" id="purchase-amount" type="number" placeholder="Amount in CRC colones" min="1" style="margin-bottom:8px;">
       <button class="btn btn-accent" onclick="purchaseVouchers()">Purchase</button>
     </div>
 
@@ -459,14 +466,19 @@ function unlockHint(c) {
   if (c.unlock_type === 'event_count') return `Play ${c.unlock_threshold} event(s)`;
   if (c.unlock_type === 'category') return `${c.unlock_threshold}× ${esc(c.unlock_value || '')}`;
   if (c.unlock_type === 'event_type') return `${c.unlock_threshold}× specific event`;
+  if (c.unlock_type === 'crc_cost') return `Cost: ${formatCRC(c.unlock_threshold)}`;
   return '';
 }
 
 // ---- Helpers ----
-function esc(s) {
-  if (!s) return '';
+function formatCRC(cents) {
+  return new Intl.NumberFormat('es-CR', { style: 'currency', currency: 'CRC' }).format(cents / 100);
+}
+
+function esc(str) {
+  if (!str) return '';
   const d = document.createElement('div');
-  d.textContent = s;
+  d.textContent = str;
   return d.innerHTML;
 }
 

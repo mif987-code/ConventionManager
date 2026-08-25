@@ -124,6 +124,7 @@ router.get('/me', playerAuth, async (req: Request, res: Response, next: NextFunc
         id: user.id, name: user.name, last_name: user.last_name, email: user.email,
         nfc_uid: user.nfc_uid, age: user.age, dob: user.dob, days_playing: user.days_playing,
         voucher_balance: user.voucher_balance, tix_balance: user.tix_balance,
+        credit_balance: user.credit_balance,
         qr_code: user.qr_code,
         created_at: user.created_at,
       },
@@ -289,7 +290,7 @@ router.get('/preregistrations', playerAuth, async (req: Request, res: Response, 
 
     const result = await pool.query(
       `SELECT e.id, e.name, e.status, e.schedule_day, e.start_time, e.end_time, e.track,
-              et.name AS event_type_name, et.category, et.format, et.max_players, et.entry_cost_vouchers,
+              et.name AS event_type_name, et.category, et.format, et.max_players, et.entry_cost_vouchers, et.entry_cost_cents,
               (ep.id IS NOT NULL AND ep.preregistered = TRUE) AS preregistered_by_me,
               (SELECT COUNT(*)::int FROM event_participants ep2 WHERE ep2.event_id = e.id AND ep2.preregistered = TRUE) AS preregistered_count
        FROM events e
