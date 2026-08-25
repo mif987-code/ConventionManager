@@ -15,7 +15,7 @@ router.post('/types', async (req: Request, res: Response, next: NextFunction) =>
       return res.status(400).json({ error: 'name, category, entry_cost_vouchers, and prize_structure are required' });
     }
 
-    const VALID_CATEGORIES = ['Draft', 'Sealed', 'Constructed', 'Commander'];
+    const VALID_CATEGORIES = ['Draft', 'Sealed', 'Constructed', 'Commander', 'On Demand'];
     if (!VALID_CATEGORIES.includes(category)) {
       return res.status(400).json({ error: `category must be one of: ${VALID_CATEGORIES.join(', ')}` });
     }
