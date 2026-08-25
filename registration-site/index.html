@@ -225,12 +225,12 @@
           <div class="flex-1">
             <div class="flex items-center justify-between">
               <span class="font-medium text-gray-800">${pkg.name}</span>
-              <span class="font-bold text-indigo-600">$${pkg.prereg_cost || pkg.cost}${isMultiplierType ? ' each' : ''}</span>
+              <span class="font-bold text-indigo-600">${formatCRC(pkg.prereg_cost || pkg.cost)}${isMultiplierType ? ' each' : ''}</span>
             </div>
             ${pkg.description ? `<p class="text-sm text-gray-500 mt-1">${pkg.description}</p>` : ''}
             ${pkg.days > 0 ? `<p class="text-xs text-gray-400 mt-1">${pkg.days} day${pkg.days !== 1 ? 's' : ''} included</p>` : ''}
             ${pkg.prereg_cost && pkg.regular_voucher_amount ? `<p class="text-xs text-green-600 mt-1">Includes ${pkg.regular_voucher_amount} voucher${pkg.regular_voucher_amount !== 1 ? 's' : ''}</p>` : ''}
-            ${pkg.prereg_cost && !pkg.regular_voucher_amount && pkg.prereg_cost !== pkg.cost ? `<p class="text-xs text-orange-600 mt-1">Pre-registration price (regularly $${pkg.cost})</p>` : ''}
+            ${pkg.prereg_cost && !pkg.regular_voucher_amount && pkg.prereg_cost !== pkg.cost ? `<p class="text-xs text-orange-600 mt-1">Pre-registration price (regularly ${formatCRC(pkg.cost)})</p>` : ''}
             ${isMultiplierType ? `
               <div id="qty-wrap-${pkg.id}" class="hidden mt-2 flex items-center gap-2" onclick="event.preventDefault()">
                 <label class="text-xs text-gray-500">Quantity:</label>
@@ -265,6 +265,10 @@
       });
     }
 
+    function formatCRC(amount) {
+      return new Intl.NumberFormat('es-CR', { style: 'currency', currency: 'CRC' }).format(amount);
+    }
+
     function formatTime(t) {
       if (!t) return '';
       const [h, m] = t.split(':');
@@ -286,7 +290,7 @@
             <p class="text-sm text-gray-500 mt-1">
               ${evt.category ? `${evt.category}${evt.format ? ` (${evt.format})` : ''} • ` : ''}
               ${evt.max_players ? `Max ${evt.max_players} participants` : ''}
-              ${evt.entry_cost_vouchers ? ` • ${evt.entry_cost_vouchers} vouchers entry` : ''}
+              ${evt.entry_cost_colones ? ` • ${formatCRC(evt.entry_cost_colones)} entry` : ''}
               ${evt.track ? ` • ${evt.track}` : ''}
             </p>
           </div>
@@ -480,7 +484,7 @@
         ${userData.dob ? `<p><span class="font-medium text-gray-700">Date of Birth:</span> ${userData.dob}</p>` : ''}
         ${userData.age ? `<p><span class="font-medium text-gray-700">Age:</span> ${userData.age}</p>` : ''}
         ${userData.attendanceDates?.length > 0 ? `<p><span class="font-medium text-gray-700">Attending:</span> ${userData.attendanceDates.length} day(s)</p>` : ''}
-        ${selectedPackageDetails?.length > 0 ? selectedPackageDetails.map(d => `<p><span class="font-medium text-gray-700">Package:</span> ${d.pkg?.name || 'Package'}${d.quantity > 1 ? ` x${d.quantity}` : ''} ($${d.lineCost})</p>`).join('') : ''}
+        ${selectedPackageDetails?.length > 0 ? selectedPackageDetails.map(d => `<p><span class="font-medium text-gray-700">Package:</span> ${d.pkg?.name || 'Package'}${d.quantity > 1 ? ` x${d.quantity}` : ''} (${formatCRC(d.lineCost)})</p>`).join('') : ''}
         ${selectedEventNames?.length > 0 ? `<p><span class="font-medium text-gray-700">Pre-registered Events:</span> ${selectedEventNames.join(', ')}</p>` : ''}
         <p class="mt-2 text-indigo-600 font-medium">Registration ID: #${userData.id}</p>
         <p class="mt-2 text-sm text-gray-600">You can log into the <a href="/app" class="text-indigo-600 hover:underline font-medium">player app</a> now with your email and password to review or change your event pre-registrations.</p>

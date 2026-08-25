@@ -238,7 +238,7 @@ router.delete('/events/:id/register', playerAuth, async (req: Request, res: Resp
     const eventId = parseInt(req.params.id);
 
     const partRes = await pool.query(
-      `SELECT ep.id, ep.wins, ep.losses, ep.draws, ep.result_position, e.convention_id, et.category, et.entry_cost_cents
+      `SELECT ep.id, ep.wins, ep.losses, ep.draws, ep.result_position, e.convention_id, et.category, et.entry_cost_colones
        FROM event_participants ep
        JOIN events e ON e.id = ep.event_id
        JOIN event_types et ON et.id = e.event_type_id
@@ -251,12 +251,12 @@ router.delete('/events/:id/register', playerAuth, async (req: Request, res: Resp
     const hasPlayed = participant.wins > 0 || participant.losses > 0 || participant.draws > 0 || participant.result_position !== null;
     if (hasPlayed) return res.status(400).json({ error: 'Cannot unregister — this event has already started for you' });
 
-    const costCents = participant.entry_cost_cents || 0;
-    if (costCents > 0 && participant.category !== 'On Demand') {
+    const costColones = participant.entry_cost_colones || 0;
+    if (costColones > 0 && participant.category !== 'On Demand') {
       // Refund the original payment amount if a charge exists.
       const txRes = await pool.query(
-        `SELECT amount_cents FROM wallet_transactions
-         WHERE user_id = $1 AND related_event_id = $2 AND type = 'event_entry' AND amount_cents < 0
+        `SELECT amount_colones FROM wallet_transactions
+         WHERE user_id = $1 AND related_event_id = $2 AND type = 'event_entry' AND amount_colones < 0
          ORDER BY created_at
          LIMIT 1`,
         [userId, eventId]
@@ -265,7 +265,7 @@ router.delete('/events/:id/register', playerAuth, async (req: Request, res: Resp
         await walletService.refund(
           userId,
           participant.convention_id,
-          Math.abs(txRes.rows[0].amount_cents),
+          Math.abs(txRes.rows[0].amount_colones),
           `player:${userId}`,
           eventId,
           'event_refund'
@@ -290,7 +290,7 @@ router.get('/preregistrations', playerAuth, async (req: Request, res: Response, 
 
     const result = await pool.query(
       `SELECT e.id, e.name, e.status, e.schedule_day, e.start_time, e.end_time, e.track,
-              et.name AS event_type_name, et.category, et.format, et.max_players, et.entry_cost_vouchers, et.entry_cost_cents,
+              et.name AS event_type_name, et.category, et.format, et.max_players, et.entry_cost_vouchers, et.entry_cost_colones,
               (ep.id IS NOT NULL AND ep.preregistered = TRUE) AS preregistered_by_me,
               (SELECT COUNT(*)::int FROM event_participants ep2 WHERE ep2.event_id = e.id AND ep2.preregistered = TRUE) AS preregistered_count
        FROM events e

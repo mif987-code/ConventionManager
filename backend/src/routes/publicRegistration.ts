@@ -333,7 +333,7 @@ router.get('/convention', async (req: Request, res: Response, next: NextFunction
     try {
       eventsRes = await pool.query(
         `SELECT e.id, e.name, e.schedule_day, e.start_time, e.end_time, e.track,
-                et.max_players, et.entry_cost_vouchers, et.category, et.format
+                et.max_players, et.entry_cost_colones, et.category, et.format
          FROM events e
          JOIN event_types et ON e.event_type_id = et.id
          WHERE e.convention_id = $1 AND e.preregistration_enabled = TRUE

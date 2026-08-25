@@ -7,6 +7,7 @@ const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
 const path_1 = __importDefault(require("path"));
 const dotenv_1 = __importDefault(require("dotenv"));
+const express_rate_limit_1 = __importDefault(require("express-rate-limit"));
 const db_1 = require("./config/db");
 const auth_1 = require("./middleware/auth");
 const backupService_1 = require("./services/backupService");
@@ -29,7 +30,11 @@ const attendance_1 = __importDefault(require("./routes/attendance"));
 const specialVouchers_1 = __importDefault(require("./routes/specialVouchers"));
 const packages_1 = __importDefault(require("./routes/packages"));
 const payments_1 = __importDefault(require("./routes/payments"));
+const paymentWebhooks_1 = __importDefault(require("./routes/paymentWebhooks"));
+const wallet_1 = __importDefault(require("./routes/wallet"));
 const floorPlan_1 = __importDefault(require("./routes/floorPlan"));
+const collectibles_1 = __importDefault(require("./routes/collectibles"));
+const preregistrations_1 = __importDefault(require("./routes/preregistrations"));
 dotenv_1.default.config();
 const app = (0, express_1.default)();
 const PORT = parseInt(process.env.PORT || '3000');
@@ -44,9 +49,21 @@ app.use((0, cors_1.default)({
     credentials: false,
 }));
 app.use(express_1.default.json({ limit: '1mb' }));
+// Global backstop rate limit: guards against any single IP hammering any
+// endpoint (registration bots, scripted abuse, etc.) hard enough to exhaust
+// the DB connection pool or CPU. Individual sensitive endpoints (login,
+// registration) have their own stricter limits on top of this.
+app.use((0, express_rate_limit_1.default)({
+    windowMs: 15 * 60 * 1000,
+    max: 300,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many requests. Please try again later.' },
+}));
 // Public routes (no API key required)
 app.use('/public', publicRegistration_1.default);
 app.use('/player', player_1.default);
+app.use('/webhooks/payments', paymentWebhooks_1.default); // payment provider webhooks
 app.use('/api/sets', sets_1.default); // Sets lookup (public, no auth needed)
 app.use('/api/cards', cards_1.default); // Cards lookup (public, no auth needed)
 // API Key auth on all /api routes
@@ -68,7 +85,12 @@ app.use('/api/attendance', attendance_1.default);
 app.use('/api/special-vouchers', specialVouchers_1.default);
 app.use('/api/packages', packages_1.default);
 app.use('/api/payments', payments_1.default);
+app.use('/api/wallet', wallet_1.default);
 app.use('/api/floor-plan', floorPlan_1.default);
+app.use('/api/collectibles', collectibles_1.default);
+app.use('/api/preregistrations', preregistrations_1.default);
+// Serve uploaded images
+app.use('/uploads', express_1.default.static(path_1.default.join(__dirname, '../../uploads')));
 // Serve registration site static files
 app.use('/register', express_1.default.static(path_1.default.join(__dirname, '../../registration-site')));
 // Serve NFC registration PWA
@@ -77,9 +99,10 @@ app.use('/nfc', express_1.default.static(path_1.default.join(__dirname, '../../n
 app.use('/store', express_1.default.static(path_1.default.join(__dirname, '../../store-app')));
 // Serve Player App PWA (player-facing)
 app.use('/app', express_1.default.static(path_1.default.join(__dirname, '../../player-app')));
-// Redirect root to NFC admin app
+// Redirect root to the public registration form (NFC/admin apps stay reachable
+// only at their explicit paths, e.g. /nfc, and are not linked from root).
 app.get('/', (_req, res) => {
-    res.redirect('/nfc/');
+    res.redirect('/register/');
 });
 // Health check (no auth required)
 app.get('/health', (_req, res) => {

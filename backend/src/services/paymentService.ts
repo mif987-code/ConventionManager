@@ -227,12 +227,11 @@ export async function handlePaymentWebhook(paymentId: string, status: string): P
         throw new Error('Cannot deposit credit without a convention');
       }
 
-      // payment.amount is stored in the major currency unit (USD, CRC), wallet stores cents.
-      const amountCents = Math.round(payment.amount * 100);
+      // Wallet stores whole CRC colones; payment.amount is already in colones.
       await walletService.deposit(
         payment.user_id,
         conventionId,
-        amountCents,
+        Math.round(payment.amount),
         'payment',
         payment.payment_link,
         client

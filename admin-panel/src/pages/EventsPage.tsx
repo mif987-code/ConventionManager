@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { Plus, Check, X } from 'lucide-react';
 import { events, eventTypes } from '../api';
 
+const formatCRC = (amount: number) => new Intl.NumberFormat('es-CR', { style: 'currency', currency: 'CRC' }).format(amount);
+
 const STATUS_COLORS: Record<string, string> = {
   open: 'bg-green-100 text-green-700',
   ongoing: 'bg-yellow-100 text-yellow-700',
@@ -110,7 +112,7 @@ export default function EventsPage() {
                     </span>
                   </div>
                   <div className="text-sm text-gray-500">
-                    {t.entry_cost_vouchers} vouchers · Max {t.max_players} players
+                    {formatCRC(Number(t.entry_cost_vouchers))} · Max {t.max_players} players
                   </div>
                 </div>
                 <button className="flex items-center gap-1 bg-indigo-600 text-white px-3 py-1.5 rounded-lg hover:bg-indigo-700 transition text-sm font-medium">
@@ -158,7 +160,7 @@ export default function EventsPage() {
               </div>
               <div>
                 <span className="text-gray-500">Entry Cost:</span>
-                <div className="font-medium text-gray-800">{selectedType.entry_cost_vouchers} vouchers</div>
+                <div className="font-medium text-gray-800">{formatCRC(Number(selectedType.entry_cost_vouchers))}</div>
               </div>
               <div>
                 <span className="text-gray-500">Max Players:</span>
@@ -243,7 +245,7 @@ export default function EventsPage() {
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="text-sm text-gray-500">
-                    {ev.entry_cost_vouchers} vouchers
+                    {formatCRC(Number(ev.entry_cost_vouchers))}
                   </span>
                   <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${STATUS_COLORS[ev.status] || ''}`}>
                     {ev.status}

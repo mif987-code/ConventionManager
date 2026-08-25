@@ -348,14 +348,14 @@ export const wallet = {
   balance: (userId: number) => request<any>(`/wallet/${userId}/balance`),
   history: (userId: number, params?: { limit?: number; offset?: number }) =>
     request<any>(`/wallet/${userId}/history${params ? `?limit=${params.limit ?? 50}&offset=${params.offset ?? 0}` : ''}`),
-  deposit: (userId: number, amountCents: number, paymentLink?: string | null) =>
-    request<any>(`/wallet/${userId}/deposit`, { method: 'POST', body: JSON.stringify({ amount_cents: amountCents, payment_link: paymentLink }) }),
-  pay: (userId: number, amountCents: number, eventId?: number | null, reason?: string) =>
-    request<any>(`/wallet/${userId}/pay`, { method: 'POST', body: JSON.stringify({ amount_cents: amountCents, event_id: eventId, reason }) }),
-  refund: (userId: number, amountCents: number, eventId?: number | null, reason?: string) =>
-    request<any>(`/wallet/${userId}/refund`, { method: 'POST', body: JSON.stringify({ amount_cents: amountCents, event_id: eventId, reason }) }),
-  adjust: (userId: number, amountCents: number, reason?: string) =>
-    request<any>(`/wallet/${userId}/adjust`, { method: 'POST', body: JSON.stringify({ amount_cents: amountCents, reason }) }),
+  deposit: (userId: number, amountColones: number, paymentLink?: string | null) =>
+    request<any>(`/wallet/${userId}/deposit`, { method: 'POST', body: JSON.stringify({ amount_colones: amountColones, payment_link: paymentLink }) }),
+  pay: (userId: number, amountColones: number, eventId?: number | null, reason?: string) =>
+    request<any>(`/wallet/${userId}/pay`, { method: 'POST', body: JSON.stringify({ amount_colones: amountColones, event_id: eventId, reason }) }),
+  refund: (userId: number, amountColones: number, eventId?: number | null, reason?: string) =>
+    request<any>(`/wallet/${userId}/refund`, { method: 'POST', body: JSON.stringify({ amount_colones: amountColones, event_id: eventId, reason }) }),
+  adjust: (userId: number, amountColones: number, reason?: string) =>
+    request<any>(`/wallet/${userId}/adjust`, { method: 'POST', body: JSON.stringify({ amount_colones: amountColones, reason }) }),
 };
 
 // Floor Plan

@@ -12,8 +12,10 @@ exports.searchUsers = searchUsers;
 exports.regenerateQRCode = regenerateQRCode;
 exports.activateUser = activateUser;
 exports.deactivateUser = deactivateUser;
+exports.deleteUser = deleteUser;
 const db_1 = require("../config/db");
 const transactionService_1 = require("./transactionService");
+const walletService_1 = require("./walletService");
 const attendanceService_1 = require("./attendanceService");
 const qr_1 = require("../utils/qr");
 async function createUser(name, nfcUid, email, isAdmin = false, conventionId, attendanceDates) {
@@ -55,25 +57,27 @@ async function getAllUsers(conventionId) {
     const result = await db_1.pool.query(query, params);
     return result.rows;
 }
-async function getUserWithBalances(userId) {
+async function getUserWithBalances(userId, conventionId) {
     const user = await getUserById(userId);
     if (!user)
         return null;
-    const [voucherBalance, tixBalance] = await Promise.all([
+    const [voucherBalance, tixBalance, creditBalance] = await Promise.all([
         (0, transactionService_1.getBalance)(userId, 'voucher'),
         (0, transactionService_1.getBalance)(userId, 'tix'),
+        (0, walletService_1.getBalance)(userId, conventionId ?? user.convention_id),
     ]);
-    return { ...user, voucher_balance: voucherBalance, tix_balance: tixBalance };
+    return { ...user, voucher_balance: voucherBalance, tix_balance: tixBalance, credit_balance: creditBalance };
 }
-async function getUserByNfcUidWithBalances(nfcUid) {
+async function getUserByNfcUidWithBalances(nfcUid, conventionId) {
     const user = await getUserByNfcUid(nfcUid);
     if (!user)
         return null;
-    const [voucherBalance, tixBalance] = await Promise.all([
+    const [voucherBalance, tixBalance, creditBalance] = await Promise.all([
         (0, transactionService_1.getBalance)(user.id, 'voucher'),
         (0, transactionService_1.getBalance)(user.id, 'tix'),
+        (0, walletService_1.getBalance)(user.id, conventionId ?? user.convention_id),
     ]);
-    return { ...user, voucher_balance: voucherBalance, tix_balance: tixBalance };
+    return { ...user, voucher_balance: voucherBalance, tix_balance: tixBalance, credit_balance: creditBalance };
 }
 async function updateUser(id, fields) {
     const setClauses = [];
@@ -129,5 +133,9 @@ async function deactivateUser(userId) {
     const result = await db_1.pool.query(`UPDATE users SET is_active = FALSE, activated_at = NULL, activated_by = NULL, updated_at = NOW()
      WHERE id = $1 RETURNING *`, [userId]);
     return result.rows[0] ?? null;
+}
+async function deleteUser(userId) {
+    const result = await db_1.pool.query('DELETE FROM users WHERE id = $1', [userId]);
+    return (result.rowCount ?? 0) > 0;
 }
 //# sourceMappingURL=userService.js.map

@@ -7,10 +7,10 @@ exports.getAllPrizeTemplates = getAllPrizeTemplates;
 exports.getPrizeTemplatesByRounds = getPrizeTemplatesByRounds;
 exports.getPrizeTemplateById = getPrizeTemplateById;
 const db_1 = require("../config/db");
-async function createPrizeTemplate(name, rounds, prizeStructure, prizeStructureTies) {
-    const result = await db_1.pool.query(`INSERT INTO prize_templates (name, rounds, prize_structure, prize_structure_ties)
-     VALUES ($1, $2, $3, $4)
-     RETURNING *`, [name, rounds, JSON.stringify(prizeStructure), JSON.stringify(prizeStructureTies)]);
+async function createPrizeTemplate(name, rounds, prizeStructure, prizeStructureTies, isPlacement = false) {
+    const result = await db_1.pool.query(`INSERT INTO prize_templates (name, rounds, prize_structure, prize_structure_ties, is_placement)
+     VALUES ($1, $2, $3, $4, $5)
+     RETURNING *`, [name, rounds, JSON.stringify(prizeStructure), JSON.stringify(prizeStructureTies), isPlacement]);
     return result.rows[0];
 }
 async function updatePrizeTemplate(id, fields) {
@@ -32,6 +32,10 @@ async function updatePrizeTemplate(id, fields) {
     if (fields.prize_structure_ties !== undefined) {
         sets.push(`prize_structure_ties = $${idx++}`);
         params.push(JSON.stringify(fields.prize_structure_ties));
+    }
+    if (fields.is_placement !== undefined) {
+        sets.push(`is_placement = $${idx++}`);
+        params.push(fields.is_placement);
     }
     if (sets.length === 0)
         throw new Error('No fields to update');

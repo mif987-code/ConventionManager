@@ -9,6 +9,8 @@ import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-
 import { CSS } from '@dnd-kit/utilities';
 import { events as eventsApi } from '../api';
 
+const formatCRC = (amount: number) => new Intl.NumberFormat('es-CR', { style: 'currency', currency: 'CRC' }).format(amount);
+
 const UNSCHEDULED = '__unscheduled__';
 const DEFAULT_DAYS = ['saturday', 'sunday'];
 const DEFAULT_TRACKS = ['Featured / Main Event', 'Panels & Special Events', 'Rotating'];
@@ -54,7 +56,7 @@ function EventCard({ ev, onColorChange, onTimeChange, onRemove }: {
         </button>
       </div>
       <div className="text-[10px] text-gray-400 mb-1">
-        {ev.event_type_name} &middot; {ev.category} &middot; {ev.entry_cost_vouchers} vouchers
+        {ev.event_type_name} &middot; {ev.category} &middot; {formatCRC(Number(ev.entry_cost_vouchers))}
       </div>
       <div className="flex items-center gap-1">
         <input

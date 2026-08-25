@@ -23,9 +23,10 @@ export declare function getUserByNfcUid(nfcUid: string, conventionId?: number): 
 export declare function getUserByQrCode(qrCode: string, conventionId?: number): Promise<User | null>;
 export declare function getUserById(id: number): Promise<User | null>;
 export declare function getAllUsers(conventionId?: number): Promise<User[]>;
-export declare function getUserWithBalances(userId: number): Promise<{
+export declare function getUserWithBalances(userId: number, conventionId?: number): Promise<{
     voucher_balance: number;
     tix_balance: number;
+    credit_balance: number;
     id: number;
     name: string;
     last_name: string | null;
@@ -45,9 +46,10 @@ export declare function getUserWithBalances(userId: number): Promise<{
     created_at: Date;
     updated_at: Date;
 } | null>;
-export declare function getUserByNfcUidWithBalances(nfcUid: string): Promise<{
+export declare function getUserByNfcUidWithBalances(nfcUid: string, conventionId?: number): Promise<{
     voucher_balance: number;
     tix_balance: number;
+    credit_balance: number;
     id: number;
     name: string;
     last_name: string | null;
@@ -72,4 +74,5 @@ export declare function searchUsers(query: string, conventionId?: number): Promi
 export declare function regenerateQRCode(userId: number): Promise<User>;
 export declare function activateUser(userId: number, adminId: number): Promise<User | null>;
 export declare function deactivateUser(userId: number): Promise<User | null>;
+export declare function deleteUser(userId: number): Promise<boolean>;
 //# sourceMappingURL=userService.d.ts.map

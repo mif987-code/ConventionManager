@@ -35,6 +35,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const userService = __importStar(require("../services/userService"));
+const paymentService = __importStar(require("../services/paymentService"));
 const qrTokenService_1 = require("../services/qrTokenService");
 const db_1 = require("../config/db");
 const router = (0, express_1.Router)();
@@ -115,6 +116,19 @@ router.get('/', async (req, res, next) => {
         next(err);
     }
 });
+// GET /api/users/:id/payments - Get payments for a user
+router.get('/:id/payments', async (req, res, next) => {
+    try {
+        const userId = parseInt(req.params.id, 10);
+        if (isNaN(userId))
+            return res.status(400).json({ error: 'Invalid user ID' });
+        const payments = await paymentService.getUserPayments(userId);
+        res.json({ success: true, payments });
+    }
+    catch (err) {
+        next(err);
+    }
+});
 // GET /api/users/search?q=... - Search users by name or NFC UID
 router.get('/search', async (req, res, next) => {
     try {
@@ -133,7 +147,7 @@ router.get('/search', async (req, res, next) => {
 // GET /api/users/:id - Get user with balances
 router.get('/:id', async (req, res, next) => {
     try {
-        const user = await userService.getUserWithBalances(parseInt(req.params.id));
+        const user = await userService.getUserWithBalances(parseInt(req.params.id), req.conventionId);
         if (!user)
             return res.status(404).json({ error: 'User not found' });
         res.json({ success: true, user });
@@ -186,13 +200,12 @@ router.get('/:id/qr-token', async (req, res, next) => {
 router.post('/:id/activate', async (req, res, next) => {
     try {
         const userId = parseInt(req.params.id);
-        const adminId = req.adminId;
-        if (!adminId)
-            return res.status(403).json({ error: 'Admin authentication required' });
-        const user = await userService.activateUser(userId, adminId);
+        if (isNaN(userId))
+            return res.status(400).json({ error: 'Invalid user ID' });
+        const user = await userService.activateUser(userId, req.adminId ?? 0);
         if (!user)
             return res.status(404).json({ error: 'User not found' });
-        await db_1.pool.query(`INSERT INTO admin_logs (action, details, user_id, admin_id) VALUES ($1, $2, $3, $4)`, ['user_activated', `Admin activated user ${userId}`, userId, adminId]);
+        await db_1.pool.query(`INSERT INTO admin_logs (action, details, user_id, admin_id) VALUES ($1, $2, $3, $4)`, ['user_activated', `Admin activated user ${userId}`, userId, req.adminId ?? null]);
         res.json({ success: true, user });
     }
     catch (err) {
@@ -203,14 +216,29 @@ router.post('/:id/activate', async (req, res, next) => {
 router.post('/:id/deactivate', async (req, res, next) => {
     try {
         const userId = parseInt(req.params.id);
-        const adminId = req.adminId;
-        if (!adminId)
-            return res.status(403).json({ error: 'Admin authentication required' });
+        if (isNaN(userId))
+            return res.status(400).json({ error: 'Invalid user ID' });
         const user = await userService.deactivateUser(userId);
         if (!user)
             return res.status(404).json({ error: 'User not found' });
-        await db_1.pool.query(`INSERT INTO admin_logs (action, details, user_id, admin_id) VALUES ($1, $2, $3, $4)`, ['user_deactivated', `Admin deactivated user ${userId}`, userId, adminId]);
+        await db_1.pool.query(`INSERT INTO admin_logs (action, details, user_id, admin_id) VALUES ($1, $2, $3, $4)`, ['user_deactivated', `Admin deactivated user ${userId}`, userId, req.adminId ?? null]);
         res.json({ success: true, user });
+    }
+    catch (err) {
+        next(err);
+    }
+});
+// DELETE /api/users/:id - Permanently delete a user
+router.delete('/:id', async (req, res, next) => {
+    try {
+        const userId = parseInt(req.params.id);
+        if (isNaN(userId))
+            return res.status(400).json({ error: 'Invalid user ID' });
+        const deleted = await userService.deleteUser(userId);
+        if (!deleted)
+            return res.status(404).json({ error: 'User not found' });
+        await db_1.pool.query(`INSERT INTO admin_logs (action, details, user_id, admin_id) VALUES ($1, $2, $3, $4)`, ['user_deleted', `Admin deleted user ${userId}`, null, req.adminId ?? null]);
+        res.json({ success: true, message: 'User deleted' });
     }
     catch (err) {
         next(err);

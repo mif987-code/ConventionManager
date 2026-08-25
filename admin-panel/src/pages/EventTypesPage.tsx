@@ -2,6 +2,8 @@ import { useState, useEffect, Fragment } from 'react';
 import { Plus, Pencil, Save, Trash2, Copy, Table, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { eventTypes, prizeTemplates, specialVouchers as specialVouchersApi } from '../api';
 
+const formatCRC = (amount: number) => new Intl.NumberFormat('es-CR', { style: 'currency', currency: 'CRC' }).format(amount);
+
 const CATEGORIES = ['Draft', 'Sealed', 'Constructed', 'Commander', 'On Demand'];
 const FORMATS = ['Standard', 'Modern', 'Pioneer', 'PreModern', 'Pauper', 'Special Event'];
 const TOURNAMENT_STRUCTURES = [
@@ -869,7 +871,7 @@ export default function EventTypesPage() {
                       </div>
                       <h3 className="font-semibold text-gray-800">{t.name}</h3>
                       <p className="text-sm text-gray-500 mt-1">
-                        Entry: {Number(t.entry_cost_vouchers)} vouchers &middot; Max {t.max_players} players
+                        Entry: {formatCRC(Number(t.entry_cost_vouchers))} &middot; Max {t.max_players} players
                       </p>
                     </div>
                     <div className="flex items-center gap-2">

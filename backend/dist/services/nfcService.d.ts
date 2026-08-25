@@ -7,6 +7,7 @@ export declare function handleNfcScan(nfcUid: string): Promise<{
     user: {
         voucher_balance: number;
         tix_balance: number;
+        credit_balance: number;
         id: number;
         name: string;
         last_name: string | null;

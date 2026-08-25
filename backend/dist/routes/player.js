@@ -39,12 +39,25 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const bcrypt_1 = __importDefault(require("bcrypt"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
+const express_rate_limit_1 = __importDefault(require("express-rate-limit"));
 const db_1 = require("../config/db");
 const userService = __importStar(require("../services/userService"));
 const storeService = __importStar(require("../services/storeService"));
 const eventService = __importStar(require("../services/eventService"));
 const transactionService_1 = require("../services/transactionService");
+const walletService = __importStar(require("../services/walletService"));
+const googleSheetsService_1 = require("../services/googleSheetsService");
 const router = (0, express_1.Router)();
+// Login attempts are CPU-expensive (bcrypt.compare) and unauthenticated, so a
+// flood of requests here can pin the server's CPU far more effectively than
+// most other endpoints. Cap attempts per IP.
+const authLimiter = (0, express_rate_limit_1.default)({
+    windowMs: 15 * 60 * 1000,
+    max: 20,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many login attempts. Please try again later.' },
+});
 if (!process.env.JWT_SECRET) {
     console.error('[Auth] JWT_SECRET environment variable is required');
     process.exit(1);
@@ -73,7 +86,7 @@ function playerAuth(req, res, next) {
 //  PUBLIC (no auth)
 // =============================================
 // POST /player/auth/nfc - Login by NFC UID
-router.post('/auth/nfc', async (req, res, next) => {
+router.post('/auth/nfc', authLimiter, async (req, res, next) => {
     try {
         const { nfc_uid } = req.body;
         if (!nfc_uid)
@@ -94,7 +107,7 @@ router.post('/auth/nfc', async (req, res, next) => {
     }
 });
 // POST /player/auth/login - Login by email + password
-router.post('/auth/login', async (req, res, next) => {
+router.post('/auth/login', authLimiter, async (req, res, next) => {
     try {
         const { email, password } = req.body;
         if (!email || !password)
@@ -144,6 +157,7 @@ router.get('/me', playerAuth, async (req, res, next) => {
                 id: user.id, name: user.name, last_name: user.last_name, email: user.email,
                 nfc_uid: user.nfc_uid, age: user.age, dob: user.dob, days_playing: user.days_playing,
                 voucher_balance: user.voucher_balance, tix_balance: user.tix_balance,
+                credit_balance: user.credit_balance,
                 qr_code: user.qr_code,
                 created_at: user.created_at,
             },
@@ -248,6 +262,112 @@ router.post('/events/:id/register', playerAuth, async (req, res, next) => {
         next(err);
     }
 });
+// DELETE /player/events/:id/register - Unregister from an event and refund wallet credit
+router.delete('/events/:id/register', playerAuth, async (req, res, next) => {
+    try {
+        const userId = req.playerId;
+        const eventId = parseInt(req.params.id);
+        const partRes = await db_1.pool.query(`SELECT ep.id, ep.wins, ep.losses, ep.draws, ep.result_position, e.convention_id, et.category, et.entry_cost_colones
+       FROM event_participants ep
+       JOIN events e ON e.id = ep.event_id
+       JOIN event_types et ON et.id = e.event_type_id
+       WHERE ep.event_id = $1 AND ep.user_id = $2`, [eventId, userId]);
+        const participant = partRes.rows[0];
+        if (!participant)
+            return res.status(404).json({ error: 'You are not registered for this event' });
+        const hasPlayed = participant.wins > 0 || participant.losses > 0 || participant.draws > 0 || participant.result_position !== null;
+        if (hasPlayed)
+            return res.status(400).json({ error: 'Cannot unregister — this event has already started for you' });
+        const costColones = participant.entry_cost_colones || 0;
+        if (costColones > 0 && participant.category !== 'On Demand') {
+            // Refund the original payment amount if a charge exists.
+            const txRes = await db_1.pool.query(`SELECT amount_colones FROM wallet_transactions
+         WHERE user_id = $1 AND related_event_id = $2 AND type = 'event_entry' AND amount_colones < 0
+         ORDER BY created_at
+         LIMIT 1`, [userId, eventId]);
+            if (txRes.rows.length > 0) {
+                await walletService.refund(userId, participant.convention_id, Math.abs(txRes.rows[0].amount_colones), `player:${userId}`, eventId, 'event_refund');
+            }
+        }
+        await db_1.pool.query(`DELETE FROM event_participants WHERE id = $1`, [participant.id]);
+        res.json({ success: true, message: 'Unregistered and refunded' });
+    }
+    catch (err) {
+        next(err);
+    }
+});
+// GET /player/preregistrations - List events open for pre-registration in the
+// player's convention (regardless of 'open' status), flagging which ones the
+// player has already pre-registered for.
+router.get('/preregistrations', playerAuth, async (req, res, next) => {
+    try {
+        const userId = req.playerId;
+        const userRes = await db_1.pool.query(`SELECT convention_id FROM users WHERE id = $1`, [userId]);
+        const conventionId = userRes.rows[0]?.convention_id;
+        if (!conventionId)
+            return res.json({ success: true, events: [] });
+        const result = await db_1.pool.query(`SELECT e.id, e.name, e.status, e.schedule_day, e.start_time, e.end_time, e.track,
+              et.name AS event_type_name, et.category, et.format, et.max_players, et.entry_cost_vouchers, et.entry_cost_colones,
+              (ep.id IS NOT NULL AND ep.preregistered = TRUE) AS preregistered_by_me,
+              (SELECT COUNT(*)::int FROM event_participants ep2 WHERE ep2.event_id = e.id AND ep2.preregistered = TRUE) AS preregistered_count
+       FROM events e
+       JOIN event_types et ON e.event_type_id = et.id
+       LEFT JOIN event_participants ep ON ep.event_id = e.id AND ep.user_id = $1
+       WHERE e.convention_id = $2 AND e.preregistration_enabled = TRUE AND e.status != 'cancelled'
+       ORDER BY e.schedule_day ASC NULLS LAST, e.start_time ASC NULLS LAST, e.name ASC`, [userId, conventionId]);
+        res.json({ success: true, events: result.rows });
+    }
+    catch (err) {
+        next(err);
+    }
+});
+// POST /player/preregistrations/:id - Pre-register for an event (no voucher cost, mirrors public site)
+router.post('/preregistrations/:id', playerAuth, async (req, res, next) => {
+    try {
+        const userId = req.playerId;
+        const eventId = parseInt(req.params.id);
+        const eventRes = await db_1.pool.query(`SELECT e.id, e.name AS event_name, e.preregistration_enabled, e.status, e.convention_id,
+              u.convention_id AS user_convention_id, u.name AS user_name, u.last_name AS user_last_name, u.email AS user_email
+       FROM events e, users u
+       WHERE e.id = $1 AND u.id = $2`, [eventId, userId]);
+        const row = eventRes.rows[0];
+        if (!row)
+            return res.status(404).json({ error: 'Event not found' });
+        if (!row.preregistration_enabled)
+            return res.status(400).json({ error: 'Pre-registration is not enabled for this event' });
+        if (row.status === 'cancelled')
+            return res.status(400).json({ error: 'This event has been cancelled' });
+        if (row.convention_id !== row.user_convention_id)
+            return res.status(403).json({ error: 'This event is not part of your convention' });
+        await db_1.pool.query(`INSERT INTO event_participants (user_id, event_id, preregistered, convention_id)
+       VALUES ($1, $2, true, $3)
+       ON CONFLICT (event_id, user_id) DO UPDATE SET preregistered = true`, [userId, eventId, row.convention_id]);
+        await (0, googleSheetsService_1.syncPreregistrationToSheet)(row.event_name, `${row.user_name} ${row.user_last_name}`.trim(), row.user_email);
+        res.json({ success: true, message: 'Pre-registered successfully' });
+    }
+    catch (err) {
+        next(err);
+    }
+});
+// DELETE /player/preregistrations/:id - Cancel a pre-registration (only before the player has actually played)
+router.delete('/preregistrations/:id', playerAuth, async (req, res, next) => {
+    try {
+        const userId = req.playerId;
+        const eventId = parseInt(req.params.id);
+        const partRes = await db_1.pool.query(`SELECT id, wins, losses, draws, result_position FROM event_participants WHERE event_id = $1 AND user_id = $2 AND preregistered = TRUE`, [eventId, userId]);
+        const participant = partRes.rows[0];
+        if (!participant)
+            return res.status(404).json({ error: 'You are not pre-registered for this event' });
+        const hasPlayed = participant.wins > 0 || participant.losses > 0 || participant.draws > 0 || participant.result_position !== null;
+        if (hasPlayed)
+            return res.status(400).json({ error: 'Cannot cancel — this event has already started for you' });
+        await db_1.pool.query(`DELETE FROM event_participants WHERE id = $1`, [participant.id]);
+        res.json({ success: true, message: 'Pre-registration cancelled' });
+    }
+    catch (err) {
+        next(err);
+    }
+});
 // GET /player/store/items - List active store items
 router.get('/store/items', playerAuth, async (req, res, next) => {
     try {
@@ -278,6 +398,30 @@ router.get('/store/orders', playerAuth, async (req, res, next) => {
         const userId = req.playerId;
         const orders = await storeService.getUserOrders(userId);
         res.json({ success: true, orders });
+    }
+    catch (err) {
+        next(err);
+    }
+});
+// GET /player/collection - Get all collectibles for current convention with earned status
+router.get('/collection', playerAuth, async (req, res, next) => {
+    try {
+        const userId = req.playerId;
+        // Derive convention_id from the convention active for the player's registration
+        const convRes = await db_1.pool.query(`SELECT DISTINCT e.convention_id FROM event_participants ep
+       JOIN events e ON e.id = ep.event_id WHERE ep.user_id = $1 ORDER BY 1 DESC LIMIT 1`, [userId]);
+        const conventionId = convRes.rows[0]?.convention_id ?? null;
+        const allRes = await db_1.pool.query(`SELECT c.*,
+        (SELECT earned_at FROM player_collectibles pc WHERE pc.collectible_id = c.id AND pc.user_id = $1 LIMIT 1) AS earned_at
+       FROM collectibles c
+       WHERE c.convention_id = $2
+       ORDER BY c.created_at ASC`, [userId, conventionId]);
+        const setsRes = await db_1.pool.query(`SELECT cs.*, COALESCE(json_agg(csi.collectible_id) FILTER (WHERE csi.collectible_id IS NOT NULL), '[]') AS collectible_ids
+       FROM collection_sets cs
+       LEFT JOIN collection_set_items csi ON csi.set_id = cs.id
+       WHERE cs.convention_id = $1
+       GROUP BY cs.id ORDER BY cs.created_at ASC`, [conventionId]);
+        res.json({ success: true, collectibles: allRes.rows, sets: setsRes.rows });
     }
     catch (err) {
         next(err);

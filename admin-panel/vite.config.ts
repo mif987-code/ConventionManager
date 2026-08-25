@@ -2,6 +2,8 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import basicSsl from '@vitejs/plugin-basic-ssl';
 
+const proxyTarget = process.env.API_PROXY_TARGET || 'http://localhost:3000';
+
 export default defineConfig({
   plugins: [react(), basicSsl()],
   server: {
@@ -10,11 +12,11 @@ export default defineConfig({
     https: true,
     proxy: {
       '/api': {
-        target: 'http://localhost:3000',
+        target: proxyTarget,
         changeOrigin: true,
       },
       '/public': {
-        target: 'http://localhost:3000',
+        target: proxyTarget,
         changeOrigin: true,
       },
     },

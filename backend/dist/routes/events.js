@@ -40,12 +40,12 @@ const router = (0, express_1.Router)();
 // POST /api/events/types - Create event type
 router.post('/types', async (req, res, next) => {
     try {
-        const { name, category, format, entry_cost_vouchers, max_players, prize_structure, prize_structure_ties, tournament_structure } = req.body;
+        const { name, category, format, entry_cost_vouchers, max_players, tix_per_player, prize_structure, prize_structure_ties, tournament_structure, team_mode } = req.body;
         const { conventionId } = req;
         if (!name || !category || entry_cost_vouchers === undefined || !prize_structure) {
             return res.status(400).json({ error: 'name, category, entry_cost_vouchers, and prize_structure are required' });
         }
-        const VALID_CATEGORIES = ['Draft', 'Sealed', 'Constructed', 'Commander'];
+        const VALID_CATEGORIES = ['Draft', 'Sealed', 'Constructed', 'Commander', 'On Demand'];
         if (!VALID_CATEGORIES.includes(category)) {
             return res.status(400).json({ error: `category must be one of: ${VALID_CATEGORIES.join(', ')}` });
         }
@@ -53,8 +53,12 @@ router.post('/types', async (req, res, next) => {
         if (tournament_structure && !VALID_STRUCTURES.includes(tournament_structure)) {
             return res.status(400).json({ error: `tournament_structure must be one of: ${VALID_STRUCTURES.join(', ')}` });
         }
-        if (typeof entry_cost_vouchers !== 'number' || entry_cost_vouchers < 0 || !Number.isInteger(entry_cost_vouchers)) {
-            return res.status(400).json({ error: 'entry_cost_vouchers must be a non-negative integer' });
+        const VALID_TEAM_MODES = ['single', '2hg'];
+        if (team_mode && !VALID_TEAM_MODES.includes(team_mode)) {
+            return res.status(400).json({ error: `team_mode must be one of: ${VALID_TEAM_MODES.join(', ')}` });
+        }
+        if (typeof entry_cost_vouchers !== 'number' || entry_cost_vouchers < 0 || Math.round(entry_cost_vouchers * 100) !== entry_cost_vouchers * 100) {
+            return res.status(400).json({ error: 'entry_cost_vouchers must be a non-negative number with at most 2 decimal places' });
         }
         const resolvedMaxPlayers = max_players ?? 8;
         if (!Number.isInteger(resolvedMaxPlayers) || resolvedMaxPlayers < 2 || resolvedMaxPlayers > 512) {
@@ -63,7 +67,7 @@ router.post('/types', async (req, res, next) => {
         if (typeof prize_structure !== 'object' || Array.isArray(prize_structure)) {
             return res.status(400).json({ error: 'prize_structure must be an object' });
         }
-        const eventType = await eventService.createEventType(name, category, format || null, entry_cost_vouchers, resolvedMaxPlayers, prize_structure, prize_structure_ties, tournament_structure || 'swiss', conventionId);
+        const eventType = await eventService.createEventType(name, category, format || null, entry_cost_vouchers, resolvedMaxPlayers, prize_structure, prize_structure_ties, tournament_structure || 'swiss', conventionId, tix_per_player ?? null, team_mode || 'single');
         res.status(201).json({ success: true, event_type: eventType });
     }
     catch (err) {
@@ -74,6 +78,12 @@ router.post('/types', async (req, res, next) => {
 router.put('/types/:id', async (req, res, next) => {
     try {
         const id = parseInt(req.params.id);
+        if (req.body.team_mode) {
+            const VALID_TEAM_MODES = ['single', '2hg'];
+            if (!VALID_TEAM_MODES.includes(req.body.team_mode)) {
+                return res.status(400).json({ error: `team_mode must be one of: ${VALID_TEAM_MODES.join(', ')}` });
+            }
+        }
         const eventType = await eventService.updateEventType(id, req.body);
         res.json({ success: true, event_type: eventType });
     }
@@ -118,13 +128,47 @@ router.get('/types', async (req, res, next) => {
 // POST /api/events - Create a new event
 router.post('/', async (req, res, next) => {
     try {
-        const { name, event_type_id, preregistration_enabled } = req.body;
+        const { name, event_type_id, preregistration_enabled, schedule_day, start_time, end_time, track, schedule_color, sort_order } = req.body;
         const { conventionId } = req;
         if (!name || !event_type_id) {
             return res.status(400).json({ error: 'name and event_type_id are required' });
         }
-        const event = await eventService.createEvent(name, event_type_id, conventionId, preregistration_enabled);
+        const event = await eventService.createEvent(name, event_type_id, conventionId, preregistration_enabled, {
+            schedule_day, start_time, end_time, track, schedule_color, sort_order,
+        });
         res.status(201).json({ success: true, event });
+    }
+    catch (err) {
+        next(err);
+    }
+});
+// PATCH /api/events/:id/schedule - Update an event's position on the schedule grid (day/time/track/color/order)
+router.patch('/:id/schedule', async (req, res, next) => {
+    try {
+        const id = parseInt(req.params.id);
+        const fields = {};
+        for (const key of ['schedule_day', 'start_time', 'end_time', 'track', 'schedule_color', 'sort_order']) {
+            if (key in req.body)
+                fields[key] = req.body[key];
+        }
+        const event = await eventService.updateEventSchedule(id, fields);
+        res.json({ success: true, event });
+    }
+    catch (err) {
+        next(err);
+    }
+});
+// PUT /api/events/:id - Edit an open event's name, preregistration flag, or event type
+router.put('/:id', async (req, res, next) => {
+    try {
+        const id = parseInt(req.params.id);
+        const fields = {};
+        for (const key of ['name', 'preregistration_enabled', 'event_type_id']) {
+            if (key in req.body)
+                fields[key] = req.body[key];
+        }
+        const event = await eventService.updateEventDetails(id, fields);
+        res.json({ success: true, event });
     }
     catch (err) {
         next(err);
@@ -163,6 +207,42 @@ router.get('/:id/rounds/:round', async (req, res, next) => {
     try {
         const matches = await eventService.getRoundMatches(parseInt(req.params.id), parseInt(req.params.round));
         res.json({ success: true, matches });
+    }
+    catch (err) {
+        next(err);
+    }
+});
+// --- 2HG Team Pairing ---
+// GET /api/events/:id/teams - List teams for an event
+router.get('/:id/teams', async (req, res, next) => {
+    try {
+        const teams = await eventService.getEventTeams(parseInt(req.params.id));
+        res.json({ success: true, teams });
+    }
+    catch (err) {
+        next(err);
+    }
+});
+// POST /api/events/:id/teams - Link two registered players into a 2HG team
+router.post('/:id/teams', async (req, res, next) => {
+    try {
+        const eventId = parseInt(req.params.id);
+        const { user1_id, user2_id } = req.body;
+        if (!user1_id || !user2_id) {
+            return res.status(400).json({ error: 'user1_id and user2_id are required' });
+        }
+        const team = await eventService.createEventTeam(eventId, user1_id, user2_id);
+        res.status(201).json({ success: true, team });
+    }
+    catch (err) {
+        next(err);
+    }
+});
+// DELETE /api/events/:id/teams/:teamId - Unlink a 2HG team
+router.delete('/:id/teams/:teamId', async (req, res, next) => {
+    try {
+        const result = await eventService.deleteEventTeam(parseInt(req.params.id), parseInt(req.params.teamId));
+        res.json(result);
     }
     catch (err) {
         next(err);
@@ -256,7 +336,8 @@ router.post('/:id/results', async (req, res, next) => {
 // POST /api/events/:id/finish - Finish event and distribute prizes by W/L record
 router.post('/:id/finish', async (req, res, next) => {
     try {
-        const result = await eventService.finishEvent(parseInt(req.params.id), 'admin');
+        const { tie_scenario } = req.body || {};
+        const result = await eventService.finishEvent(parseInt(req.params.id), 'admin', tie_scenario);
         res.json(result);
     }
     catch (err) {

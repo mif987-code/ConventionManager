@@ -35,6 +35,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const adminSettingsService = __importStar(require("../services/adminSettingsService"));
+const backupService_1 = require("../services/backupService");
 const router = (0, express_1.Router)();
 // GET /api/admin/settings - Get all settings (admin only)
 router.get('/', async (req, res, next) => {
@@ -82,6 +83,16 @@ router.put('/qr-secret-key', async (req, res, next) => {
         }
         await adminSettingsService.setQRSecretKey(value, undefined);
         res.json({ success: true, message: 'QR secret key updated' });
+    }
+    catch (err) {
+        next(err);
+    }
+});
+// POST /api/admin/settings/backup-now - Trigger an immediate full DB backup + Dropbox upload
+router.post('/backup-now', async (req, res, next) => {
+    try {
+        const result = await (0, backupService_1.runFullBackup)();
+        res.json({ success: true, message: 'Backup completed', filename: result.filename });
     }
     catch (err) {
         next(err);

@@ -7,7 +7,7 @@ export interface WalletTransaction {
   id: number;
   user_id: number;
   convention_id: number;
-  amount_cents: number;
+  amount_colones: number;
   type: WalletTransactionType;
   reason: string | null;
   event_id: number | null;
@@ -19,7 +19,7 @@ export interface WalletTransaction {
 interface AddWalletTransactionParams {
   userId: number;
   conventionId: number;
-  amountCents: number;
+  amountColones: number;
   type: WalletTransactionType;
   reason?: string | null;
   eventId?: number | null;
@@ -29,15 +29,15 @@ interface AddWalletTransactionParams {
 }
 
 async function addWalletTransaction(params: AddWalletTransactionParams): Promise<WalletTransaction> {
-  const { userId, conventionId, amountCents, type, reason, eventId, paymentLink, createdBy, client } = params;
+  const { userId, conventionId, amountColones, type, reason, eventId, paymentLink, createdBy, client } = params;
   const executor = client ?? pool;
 
   const result = await executor.query(
     `INSERT INTO wallet_transactions
-       (user_id, convention_id, amount_cents, type, reason, event_id, payment_link, created_by)
+       (user_id, convention_id, amount_colones, type, reason, event_id, payment_link, created_by)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
      RETURNING *`,
-    [userId, conventionId, amountCents, type, reason ?? null, eventId ?? null, paymentLink ?? null, createdBy]
+    [userId, conventionId, amountColones, type, reason ?? null, eventId ?? null, paymentLink ?? null, createdBy]
   );
 
   return result.rows[0];
@@ -46,7 +46,7 @@ async function addWalletTransaction(params: AddWalletTransactionParams): Promise
 export async function getBalance(userId: number, conventionId: number, client?: PoolClient): Promise<number> {
   const executor = client ?? pool;
   const result = await executor.query(
-    `SELECT COALESCE(SUM(amount_cents), 0)::int AS balance
+    `SELECT COALESCE(SUM(amount_colones), 0)::int AS balance
      FROM wallet_transactions
      WHERE user_id = $1 AND convention_id = $2`,
     [userId, conventionId]
@@ -57,28 +57,28 @@ export async function getBalance(userId: number, conventionId: number, client?: 
 export async function hasEnoughCredit(
   userId: number,
   conventionId: number,
-  amountCents: number,
+  amountColones: number,
   client?: PoolClient
 ): Promise<boolean> {
   const balance = await getBalance(userId, conventionId, client);
-  return balance >= amountCents;
+  return balance >= amountColones;
 }
 
 export async function deposit(
   userId: number,
   conventionId: number,
-  amountCents: number,
+  amountColones: number,
   createdBy: string,
   paymentLink?: string | null,
   client?: PoolClient
 ): Promise<WalletTransaction> {
-  if (!Number.isInteger(amountCents) || amountCents <= 0) {
-    throw new Error('Deposit amount must be a positive number of CRC centavos');
+  if (!Number.isInteger(amountColones) || amountColones <= 0) {
+    throw new Error('Deposit amount must be a positive number of CRC colones');
   }
   return addWalletTransaction({
     userId,
     conventionId,
-    amountCents,
+    amountColones,
     type: 'deposit',
     reason: 'Wallet top-up',
     paymentLink,
@@ -90,23 +90,23 @@ export async function deposit(
 export async function pay(
   userId: number,
   conventionId: number,
-  amountCents: number,
+  amountColones: number,
   createdBy: string,
   eventId?: number | null,
   reason?: string,
   client?: PoolClient
 ): Promise<WalletTransaction> {
-  if (!Number.isInteger(amountCents) || amountCents <= 0) {
-    throw new Error('Payment amount must be a positive number of CRC centavos');
+  if (!Number.isInteger(amountColones) || amountColones <= 0) {
+    throw new Error('Payment amount must be a positive number of CRC colones');
   }
   const balance = await getBalance(userId, conventionId, client);
-  if (balance < amountCents) {
+  if (balance < amountColones) {
     throw new Error('Insufficient credit');
   }
   return addWalletTransaction({
     userId,
     conventionId,
-    amountCents: -amountCents,
+    amountColones: -amountColones,
     type: 'payment',
     reason: reason ?? 'Event payment',
     eventId,
@@ -118,19 +118,19 @@ export async function pay(
 export async function refund(
   userId: number,
   conventionId: number,
-  amountCents: number,
+  amountColones: number,
   createdBy: string,
   eventId?: number | null,
   reason?: string,
   client?: PoolClient
 ): Promise<WalletTransaction> {
-  if (!Number.isInteger(amountCents) || amountCents <= 0) {
-    throw new Error('Refund amount must be a positive number of CRC centavos');
+  if (!Number.isInteger(amountColones) || amountColones <= 0) {
+    throw new Error('Refund amount must be a positive number of CRC colones');
   }
   return addWalletTransaction({
     userId,
     conventionId,
-    amountCents,
+    amountColones,
     type: 'refund',
     reason: reason ?? 'Refund',
     eventId,
@@ -142,18 +142,18 @@ export async function refund(
 export async function adjust(
   userId: number,
   conventionId: number,
-  amountCents: number,
+  amountColones: number,
   createdBy: string,
   reason?: string,
   client?: PoolClient
 ): Promise<WalletTransaction> {
-  if (!Number.isInteger(amountCents)) {
-    throw new Error('Adjustment amount must be a whole number of CRC centavos');
+  if (!Number.isInteger(amountColones)) {
+    throw new Error('Adjustment amount must be a whole number of CRC colones');
   }
   return addWalletTransaction({
     userId,
     conventionId,
-    amountCents,
+    amountColones,
     type: 'adjustment',
     reason: reason ?? 'Admin adjustment',
     createdBy,
@@ -164,19 +164,19 @@ export async function adjust(
 export async function awardPrize(
   userId: number,
   conventionId: number,
-  amountCents: number,
+  amountColones: number,
   createdBy: string,
   eventId?: number | null,
   reason?: string,
   client?: PoolClient
 ): Promise<WalletTransaction> {
-  if (!Number.isInteger(amountCents) || amountCents <= 0) {
-    throw new Error('Prize amount must be a positive number of CRC centavos');
+  if (!Number.isInteger(amountColones) || amountColones <= 0) {
+    throw new Error('Prize amount must be a positive number of CRC colones');
   }
   return addWalletTransaction({
     userId,
     conventionId,
-    amountCents,
+    amountColones,
     type: 'prize',
     reason: reason ?? 'Prize',
     eventId,

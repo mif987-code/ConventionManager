@@ -34,14 +34,14 @@ router.post('/:userId/deposit', async (req: Request, res: Response, next: NextFu
   try {
     const userId = parseInt(req.params.userId);
     const conventionId = req.conventionId as number;
-    const { amount_cents, payment_link } = req.body;
+    const { amount_colones, payment_link } = req.body;
     const createdBy = req.adminId ? String(req.adminId) : 'system';
 
-    if (!Number.isInteger(amount_cents) || amount_cents <= 0) {
-      return res.status(400).json({ error: 'amount_cents must be a positive integer' });
+    if (!Number.isInteger(amount_colones) || amount_colones <= 0) {
+      return res.status(400).json({ error: 'amount_colones must be a positive integer' });
     }
 
-    const transaction = await walletService.deposit(userId, conventionId, amount_cents, createdBy, payment_link);
+    const transaction = await walletService.deposit(userId, conventionId, amount_colones, createdBy, payment_link);
     res.status(201).json({ success: true, transaction, balance: await walletService.getBalance(userId, conventionId) });
   } catch (err) {
     next(err);
@@ -53,14 +53,14 @@ router.post('/:userId/pay', async (req: Request, res: Response, next: NextFuncti
   try {
     const userId = parseInt(req.params.userId);
     const conventionId = req.conventionId as number;
-    const { amount_cents, event_id, reason } = req.body;
+    const { amount_colones, event_id, reason } = req.body;
     const createdBy = req.adminId ? String(req.adminId) : 'system';
 
-    if (!Number.isInteger(amount_cents) || amount_cents <= 0) {
-      return res.status(400).json({ error: 'amount_cents must be a positive integer' });
+    if (!Number.isInteger(amount_colones) || amount_colones <= 0) {
+      return res.status(400).json({ error: 'amount_colones must be a positive integer' });
     }
 
-    const transaction = await walletService.pay(userId, conventionId, amount_cents, createdBy, event_id, reason);
+    const transaction = await walletService.pay(userId, conventionId, amount_colones, createdBy, event_id, reason);
     res.status(201).json({ success: true, transaction, balance: await walletService.getBalance(userId, conventionId) });
   } catch (err) {
     next(err);
@@ -72,14 +72,14 @@ router.post('/:userId/refund', async (req: Request, res: Response, next: NextFun
   try {
     const userId = parseInt(req.params.userId);
     const conventionId = req.conventionId as number;
-    const { amount_cents, event_id, reason } = req.body;
+    const { amount_colones, event_id, reason } = req.body;
     const createdBy = req.adminId ? String(req.adminId) : 'system';
 
-    if (!Number.isInteger(amount_cents) || amount_cents <= 0) {
-      return res.status(400).json({ error: 'amount_cents must be a positive integer' });
+    if (!Number.isInteger(amount_colones) || amount_colones <= 0) {
+      return res.status(400).json({ error: 'amount_colones must be a positive integer' });
     }
 
-    const transaction = await walletService.refund(userId, conventionId, amount_cents, createdBy, event_id, reason);
+    const transaction = await walletService.refund(userId, conventionId, amount_colones, createdBy, event_id, reason);
     res.status(201).json({ success: true, transaction, balance: await walletService.getBalance(userId, conventionId) });
   } catch (err) {
     next(err);
@@ -91,14 +91,14 @@ router.post('/:userId/adjust', async (req: Request, res: Response, next: NextFun
   try {
     const userId = parseInt(req.params.userId);
     const conventionId = req.conventionId as number;
-    const { amount_cents, reason } = req.body;
+    const { amount_colones, reason } = req.body;
     const createdBy = req.adminId ? String(req.adminId) : 'system';
 
-    if (!Number.isInteger(amount_cents)) {
-      return res.status(400).json({ error: 'amount_cents must be an integer' });
+    if (!Number.isInteger(amount_colones)) {
+      return res.status(400).json({ error: 'amount_colones must be an integer' });
     }
 
-    const transaction = await walletService.adjust(userId, conventionId, amount_cents, createdBy, reason);
+    const transaction = await walletService.adjust(userId, conventionId, amount_colones, createdBy, reason);
     res.status(201).json({ success: true, transaction, balance: await walletService.getBalance(userId, conventionId) });
   } catch (err) {
     next(err);

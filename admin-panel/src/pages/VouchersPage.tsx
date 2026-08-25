@@ -38,7 +38,7 @@ export default function VouchersPage() {
 
   const EVENT_CATEGORIES = ['Draft', 'Sealed', 'Constructed', 'Commander', 'On Demand'];
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const formatCRC = (cents: number) => new Intl.NumberFormat('es-CR', { style: 'currency', currency: 'CRC' }).format(cents / 100);
+  const formatCRC = (amount: number) => new Intl.NumberFormat('es-CR', { style: 'currency', currency: 'CRC' }).format(amount);
 
   const doSearch = useCallback(async (query: string) => {
     if (query.trim().length < 1) { setSearchResults([]); return; }
@@ -157,10 +157,10 @@ export default function VouchersPage() {
     setError('');
     setToppingUpCredit(true);
     try {
-      const amountCents = Math.round(parseFloat(creditTopupAmount) * 100);
-      if (amountCents <= 0 || isNaN(amountCents)) throw new Error('Amount must be a positive number of colones');
-      const res = await wallet.deposit(user.id, amountCents);
-      setSuccess(`Deposited ${formatCRC(res.transaction.amount_cents)}. New balance: ${formatCRC(res.balance)}`);
+      const amountColones = Math.round(parseFloat(creditTopupAmount));
+      if (amountColones <= 0 || isNaN(amountColones)) throw new Error('Amount must be a positive number of colones');
+      const res = await wallet.deposit(user.id, amountColones);
+      setSuccess(`Deposited ${formatCRC(res.transaction.amount_colones)}. New balance: ${formatCRC(res.balance)}`);
       setCreditTopupAmount('');
       setUser({ ...user, credit_balance: res.balance });
     } catch (err: any) {
@@ -702,8 +702,8 @@ export default function VouchersPage() {
                     <tbody className="divide-y divide-gray-100">
                       {creditHistory.map((t: any) => (
                         <tr key={t.id}>
-                          <td className={`px-4 py-2 text-sm font-medium ${t.amount_cents > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                            {t.amount_cents > 0 ? '+' : ''}{formatCRC(t.amount_cents)}
+                          <td className={`px-4 py-2 text-sm font-medium ${t.amount_colones > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {t.amount_colones > 0 ? '+' : ''}{formatCRC(t.amount_colones)}
                           </td>
                           <td className="px-4 py-2 text-sm text-gray-600 capitalize">{t.type}</td>
                           <td className="px-4 py-2 text-sm text-gray-600">{t.reason || '—'}</td>
@@ -760,7 +760,7 @@ export default function VouchersPage() {
                     {paymentHistory.map((p: any) => (
                       <tr key={p.id}>
                         <td className="px-4 py-2 text-sm font-mono text-gray-700 break-all max-w-[160px]">{p.id}</td>
-                        <td className="px-4 py-2 text-sm font-medium text-gray-800">{formatCRC(Math.round(p.amount * 100))}</td>
+                        <td className="px-4 py-2 text-sm font-medium text-gray-800">{formatCRC(Math.round(p.amount))}</td>
                         <td className="px-4 py-2 text-sm">
                           <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
                             p.status === 'paid' ? 'bg-green-100 text-green-700' :

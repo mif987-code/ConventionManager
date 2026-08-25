@@ -4,6 +4,8 @@ import { ArrowLeft, Play, Trophy, XCircle, UserPlus, ChevronRight, Wifi, Search,
 import { events, users, conventions, floorPlan, specialVouchers as specialVouchersApi, eventTypes } from '../api';
 import FloorPlanPicker from '../components/FloorPlanPicker';
 
+const formatCRC = (amount: number) => new Intl.NumberFormat('es-CR', { style: 'currency', currency: 'CRC' }).format(amount);
+
 const STATUS_COLORS: Record<string, string> = {
   open: 'bg-green-100 text-green-700',
   ongoing: 'bg-yellow-100 text-yellow-700',
@@ -401,7 +403,7 @@ export default function EventDetailPage() {
                     <option value="">Select an event type...</option>
                     {eventTypesList.map((t: any) => (
                       <option key={t.id} value={t.id}>
-                        {t.name} ({t.category}{t.format ? ` / ${t.format}` : ''}) · {t.entry_cost_vouchers} vouchers · {t.tournament_structure === 'single_elimination' ? 'Single Elim' : 'Swiss'}
+                        {t.name} ({t.category}{t.format ? ` / ${t.format}` : ''}) · {formatCRC(Number(t.entry_cost_vouchers))} · {t.tournament_structure === 'single_elimination' ? 'Single Elim' : 'Swiss'}
                       </option>
                     ))}
                   </select>
@@ -437,7 +439,7 @@ export default function EventDetailPage() {
               <p className="text-gray-500 mt-1">
                 {event.category && <span className="font-medium">{event.category}</span>}
                 {event.format && <span> / {event.format}</span>}
-                {' '}&middot; {Number(event.entry_cost_vouchers)} vouchers &middot; Max {event.max_players} players
+                {' '}&middot; {formatCRC(Number(event.entry_cost_vouchers))} &middot; Max {event.max_players} players
                 {' '}&middot;{' '}
                 <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${event.tournament_structure === 'single_elimination' ? 'bg-red-100 text-red-700' : 'bg-cyan-100 text-cyan-700'}`}>
                   {event.tournament_structure === 'single_elimination' ? 'Single Elim' : 'Swiss'}

@@ -57,11 +57,11 @@ async function getStats(conventionId) {
      WHERE so.order_type = 'purchase' AND so.status != 'cancelled'
        AND si.cost > 0 AND so.convention_id = $1`, [conventionId]);
     // 7. Vouchers sold and unused
-    const vouchersSold = await db_1.pool.query(`SELECT COALESCE(SUM(amount), 0)::int AS total
+    const vouchersSold = await db_1.pool.query(`SELECT COALESCE(SUM(amount), 0)::numeric AS total
      FROM transactions 
      WHERE type = 'voucher' AND reason = 'topup' AND convention_id = $1`, [conventionId]);
     // Calculate unused vouchers: total topped up - total used for events
-    const vouchersUsed = await db_1.pool.query(`SELECT COALESCE(SUM(ABS(amount)), 0)::int AS total
+    const vouchersUsed = await db_1.pool.query(`SELECT COALESCE(SUM(ABS(amount)), 0)::numeric AS total
      FROM transactions 
      WHERE type = 'voucher' AND reason = 'event_entry' AND convention_id = $1`, [conventionId]);
     const vouchersUnused = vouchersSold.rows[0].total - vouchersUsed.rows[0].total;

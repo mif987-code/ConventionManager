@@ -16,7 +16,7 @@ export interface EventType {
   format: string | null;
   tournament_structure: TournamentStructure;
   entry_cost_vouchers: number;
-  entry_cost_cents: number;
+  entry_cost_colones: number;
   max_players: number;
   tix_per_player: number | null;
   prize_structure: Record<string, PrizeEntry>;
@@ -79,10 +79,10 @@ export async function createEventType(
   teamMode: TeamMode = 'single'
 ): Promise<EventType> {
   const result = await pool.query(
-    `INSERT INTO event_types (name, category, format, entry_cost_vouchers, entry_cost_cents, max_players, tix_per_player, prize_structure, prize_structure_ties, tournament_structure, convention_id, team_mode)
+    `INSERT INTO event_types (name, category, format, entry_cost_vouchers, entry_cost_colones, max_players, tix_per_player, prize_structure, prize_structure_ties, tournament_structure, convention_id, team_mode)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
      RETURNING *`,
-    [name, category, format, entryCostVouchers, Math.round(entryCostVouchers * 100), maxPlayers, tixPerPlayer ?? null, JSON.stringify(prizeStructure), JSON.stringify(prizeStructureTies || {}), tournamentStructure, conventionId || null, teamMode]
+    [name, category, format, entryCostVouchers, Math.round(entryCostVouchers), maxPlayers, tixPerPlayer ?? null, JSON.stringify(prizeStructure), JSON.stringify(prizeStructureTies || {}), tournamentStructure, conventionId || null, teamMode]
   );
   return result.rows[0];
 }
@@ -98,7 +98,7 @@ export async function updateEventType(
   if (fields.name !== undefined) { sets.push(`name = $${idx++}`); params.push(fields.name); }
   if (fields.category !== undefined) { sets.push(`category = $${idx++}`); params.push(fields.category); }
   if (fields.format !== undefined) { sets.push(`format = $${idx++}`); params.push(fields.format); }
-  if (fields.entry_cost_vouchers !== undefined) { sets.push(`entry_cost_vouchers = $${idx++}`); params.push(fields.entry_cost_vouchers); sets.push(`entry_cost_cents = $${idx++}`); params.push(Math.round(fields.entry_cost_vouchers * 100)); }
+  if (fields.entry_cost_vouchers !== undefined) { sets.push(`entry_cost_vouchers = $${idx++}`); params.push(fields.entry_cost_vouchers); sets.push(`entry_cost_colones = $${idx++}`); params.push(Math.round(fields.entry_cost_vouchers)); }
   if (fields.max_players !== undefined) { sets.push(`max_players = $${idx++}`); params.push(fields.max_players); }
   if ('tix_per_player' in fields) { sets.push(`tix_per_player = $${idx++}`); params.push(fields.tix_per_player ?? null); }
   if (fields.prize_structure !== undefined) { sets.push(`prize_structure = $${idx++}`); params.push(JSON.stringify(fields.prize_structure)); }
@@ -412,7 +412,7 @@ export async function registerToEvent(userId: number, eventId: number, createdBy
 
     // 1. Check event exists and is open
     const eventRes = await client.query(
-      `SELECT e.*, et.entry_cost_vouchers, et.entry_cost_cents, et.max_players, et.category
+      `SELECT e.*, et.entry_cost_vouchers, et.entry_cost_colones, et.max_players, et.category
        FROM events e
        JOIN event_types et ON e.event_type_id = et.id
        WHERE e.id = $1
@@ -439,6 +439,8 @@ export async function registerToEvent(userId: number, eventId: number, createdBy
     if (countRes.rows[0].count >= event.max_players) throw new Error('Event is full');
 
     // 4. Check wallet credit (scoped to convention)
+    let costDeducted = 0;
+
     if (event.category === 'On Demand') {
       // On Demand events require an unconsumed on-demand special voucher instead of credit.
       const voucherRes = await client.query(
@@ -464,16 +466,16 @@ export async function registerToEvent(userId: number, eventId: number, createdBy
         [voucherRes.rows[0].id]
       );
     } else {
-      // Use proper centavo column when available, fall back to legacy colones field.
-      const costCents = event.entry_cost_cents ?? (event.entry_cost_vouchers || 0) * 100;
-      if (costCents > 0) {
+      // Event cost is stored in whole CRC colones.
+      costDeducted = (event.entry_cost_colones ?? event.entry_cost_vouchers) || 0;
+      if (costDeducted > 0) {
         const credit = await walletService.getBalance(userId, event.convention_id, client);
-        if (credit < costCents) {
-          throw new Error(`Not enough credit. Need ${(costCents / 100).toLocaleString('es-CR')} CRC, have ${(credit / 100).toLocaleString('es-CR')} CRC`);
+        if (credit < costDeducted) {
+          throw new Error(`Not enough credit. Need ${costDeducted.toLocaleString('es-CR')} CRC, have ${credit.toLocaleString('es-CR')} CRC`);
         }
 
         // 5. Deduct credit from wallet
-        await walletService.pay(userId, event.convention_id, costCents, createdBy, eventId, 'event_entry', client);
+        await walletService.pay(userId, event.convention_id, costDeducted, createdBy, eventId, 'event_entry', client);
       }
     }
 
@@ -484,7 +486,7 @@ export async function registerToEvent(userId: number, eventId: number, createdBy
     );
 
     await client.query('COMMIT');
-    return { success: true, message: 'Registered successfully', costDeducted: event.entry_cost_vouchers };
+    return { success: true, message: 'Registered successfully', costDeducted };
   } catch (err) {
     await client.query('ROLLBACK');
     throw err;
