@@ -7,6 +7,7 @@ import * as userService from '../services/userService';
 import * as storeService from '../services/storeService';
 import * as eventService from '../services/eventService';
 import { getBalance } from '../services/transactionService';
+import * as walletService from '../services/walletService';
 import { syncPreregistrationToSheet } from '../services/googleSheetsService';
 
 const router = Router();
@@ -226,6 +227,53 @@ router.post('/events/:id/register', playerAuth, async (req: Request, res: Respon
     const eventId = parseInt(req.params.id);
     const result = await eventService.registerToEvent(userId, eventId, `player:${userId}`);
     res.json(result);
+  } catch (err) { next(err); }
+});
+
+// DELETE /player/events/:id/register - Unregister from an event and refund wallet credit
+router.delete('/events/:id/register', playerAuth, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = (req as any).playerId;
+    const eventId = parseInt(req.params.id);
+
+    const partRes = await pool.query(
+      `SELECT ep.id, ep.wins, ep.losses, ep.draws, ep.result_position, e.convention_id, et.category, et.entry_cost_cents
+       FROM event_participants ep
+       JOIN events e ON e.id = ep.event_id
+       JOIN event_types et ON et.id = e.event_type_id
+       WHERE ep.event_id = $1 AND ep.user_id = $2`,
+      [eventId, userId]
+    );
+    const participant = partRes.rows[0];
+    if (!participant) return res.status(404).json({ error: 'You are not registered for this event' });
+
+    const hasPlayed = participant.wins > 0 || participant.losses > 0 || participant.draws > 0 || participant.result_position !== null;
+    if (hasPlayed) return res.status(400).json({ error: 'Cannot unregister — this event has already started for you' });
+
+    const costCents = participant.entry_cost_cents || 0;
+    if (costCents > 0 && participant.category !== 'On Demand') {
+      // Refund the original payment amount if a charge exists.
+      const txRes = await pool.query(
+        `SELECT amount_cents FROM wallet_transactions
+         WHERE user_id = $1 AND related_event_id = $2 AND type = 'event_entry' AND amount_cents < 0
+         ORDER BY created_at
+         LIMIT 1`,
+        [userId, eventId]
+      );
+      if (txRes.rows.length > 0) {
+        await walletService.refund(
+          userId,
+          participant.convention_id,
+          Math.abs(txRes.rows[0].amount_cents),
+          `player:${userId}`,
+          eventId,
+          'event_refund'
+        );
+      }
+    }
+
+    await pool.query(`DELETE FROM event_participants WHERE id = $1`, [participant.id]);
+    res.json({ success: true, message: 'Unregistered and refunded' });
   } catch (err) { next(err); }
 });
 
