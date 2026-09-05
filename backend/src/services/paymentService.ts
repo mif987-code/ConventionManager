@@ -122,7 +122,7 @@ async function createOnvoPayment(amount: number): Promise<PaymentIntent> {
   }
 
   return {
-    id: data.id || orderId,
+    id: orderId,
     status: 'pending',
     paymentUrl: data.url,
     paymentLink: data.url,
