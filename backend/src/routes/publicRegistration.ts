@@ -347,7 +347,7 @@ router.get('/convention', async (req: Request, res: Response, next: NextFunction
       eventsRes = { rows: [] };
     }
 
-    res.json({ convention, available_dates: dates, packages: packagesRes.rows, events: eventsRes.rows });
+    res.json({ convention, available_dates: dates, packages: packagesRes.rows, events: eventsRes.rows, payment_provider: paymentService.PROVIDER });
   } catch (err) {
     console.error('Error in /public/convention:', err);
     next(err);

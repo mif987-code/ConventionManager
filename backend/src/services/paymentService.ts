@@ -13,7 +13,8 @@ export interface PaymentIntent {
 //  PROVIDER SELECTION
 //  Set PAYMENT_PROVIDER=tilopay | onvopay | mock in .env
 // ─────────────────────────────────────────────────────────────────────────────
-const PROVIDER = (process.env.PAYMENT_PROVIDER || 'mock').toLowerCase();
+export const PROVIDER = (process.env.PAYMENT_PROVIDER || 'mock').trim().replace(/^['"]|['"]$/g, '').toLowerCase();
+console.log(`[Payments] Active provider: ${PROVIDER}`);
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  TILOPAY  (Central America / Costa Rica)
