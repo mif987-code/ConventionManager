@@ -177,7 +177,7 @@ async function renderEvents(el) {
                 <span>${ev.preregistered_count}${ev.max_players ? '/' + ev.max_players : ''}</span>
               </div>
               <div class="evt-meta" style="margin-top:2px">
-                ${ev.entry_cost_colones !== undefined && ev.entry_cost_colones !== null ? `<span>${formatCRC(ev.entry_cost_colones)}${ev.category === 'On Demand' ? ' (On Demand voucher)' : ' entry'}</span>` : ''}
+                ${ev.entry_cost_colones !== undefined && ev.entry_cost_colones !== null ? `<span>${formatCRC(ev.entry_cost_colones)} entry</span>` : ''}
               </div>
               ${schedule ? `<div class="evt-meta" style="margin-top:4px;color:var(--accent-light);">${esc(schedule)}</div>` : ''}
             </div>

@@ -3,8 +3,9 @@ import { pool } from '../config/db';
 export interface SpecialVoucher {
   id: number;
   convention_id: number;
-  category: string;
-  entry_cost: number;
+  category: string | null;
+  format: string | null;
+  entry_cost: number | null;
   name: string;
   description: string | null;
   amount: number;
@@ -21,38 +22,39 @@ export interface SpecialVoucherAward {
   id: number;
   special_voucher_id: number;
   user_id: number;
-  event_id: number;
+  event_id: number | null;
   awarded_by: string;
   awarded_at: Date;
+  consumed_at?: Date | null;
 }
 
-// Create a special voucher for an Event Type category + entry cost combo
-// (e.g. category='Constructed', entryCost=1 -> matches any Constructed event costing 1 voucher to enter)
+// Create a special voucher for a convention, optionally restricted by Category and Format
 export async function createSpecialVoucher(
   conventionId: number,
-  category: string,
-  entryCost: number,
+  category: string | null,
+  entryCost: number | null,
   name: string,
   amount: number,
   description?: string,
   icon: string = 'star',
   color: string = '#6366f1',
   maxAwards: number = 1,
-  voucherType: string = 'static'
+  voucherType: string = 'static',
+  format?: string | null
 ): Promise<SpecialVoucher> {
   const result = await pool.query(
-    `INSERT INTO special_vouchers (convention_id, category, entry_cost, name, description, amount, icon, color, max_awards, voucher_type)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+    `INSERT INTO special_vouchers (convention_id, category, format, entry_cost, name, description, amount, icon, color, max_awards, voucher_type)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
      RETURNING *`,
-    [conventionId, category, entryCost, name, description || null, amount, icon, color, maxAwards, voucherType]
+    [conventionId, category || null, format || null, entryCost ?? null, name, description || null, amount, icon, color, maxAwards, voucherType]
   );
   return result.rows[0];
 }
 
-// Get all special vouchers that match a specific live event's category + entry cost
+// Get all special vouchers that match a specific live event's category + format
 export async function getSpecialVouchersMatchingEvent(eventId: number): Promise<SpecialVoucher[]> {
   const eventRes = await pool.query(
-    `SELECT e.convention_id, et.category, et.entry_cost_vouchers
+    `SELECT e.convention_id, et.category, et.format, et.entry_cost_vouchers, et.entry_cost_colones
      FROM events e
      JOIN event_types et ON e.event_type_id = et.id
      WHERE e.id = $1`,
@@ -63,9 +65,11 @@ export async function getSpecialVouchersMatchingEvent(eventId: number): Promise<
 
   const result = await pool.query(
     `SELECT * FROM special_vouchers
-     WHERE convention_id = $1 AND category = $2 AND entry_cost = $3
+     WHERE convention_id = $1
+       AND (category IS NULL OR category = $2)
+       AND (format IS NULL OR format = $3)
      ORDER BY created_at DESC`,
-    [event.convention_id, event.category, event.entry_cost_vouchers]
+    [event.convention_id, event.category, event.format]
   );
   return result.rows;
 }
@@ -92,8 +96,9 @@ export async function getSpecialVoucherById(id: number): Promise<SpecialVoucher 
 export async function updateSpecialVoucher(
   id: number,
   fields: {
-    category?: string;
-    entry_cost?: number;
+    category?: string | null;
+    format?: string | null;
+    entry_cost?: number | null;
     name?: string;
     description?: string | null;
     amount?: number;
@@ -108,6 +113,7 @@ export async function updateSpecialVoucher(
   let idx = 1;
 
   if (fields.category !== undefined) { sets.push(`category = $${idx++}`); params.push(fields.category); }
+  if (fields.format !== undefined) { sets.push(`format = $${idx++}`); params.push(fields.format); }
   if (fields.entry_cost !== undefined) { sets.push(`entry_cost = $${idx++}`); params.push(fields.entry_cost); }
   if (fields.name !== undefined) { sets.push(`name = $${idx++}`); params.push(fields.name); }
   if (fields.description !== undefined) { sets.push(`description = $${idx++}`); params.push(fields.description); }

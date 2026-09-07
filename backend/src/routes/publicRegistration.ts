@@ -240,7 +240,7 @@ router.post('/payment', async (req: Request, res: Response, next: NextFunction) 
     }
 
     const payment = await paymentService.createPayment(total);
-    await paymentService.storePayment(payment, parseInt(user_id, 10));
+    await paymentService.storePayment(payment, parseInt(user_id, 10), 'package');
 
     res.json({
       success: true,

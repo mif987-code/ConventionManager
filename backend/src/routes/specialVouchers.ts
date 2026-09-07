@@ -18,26 +18,27 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
   }
 });
 
-// POST /api/special-vouchers - Create a special voucher (tied to an Event Type category + entry cost)
+// POST /api/special-vouchers - Create a special voucher (tied to an Event Type category and/or format)
 router.post('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { convention_id, category, entry_cost, name, amount, description, icon, color, max_awards, voucher_type } = req.body;
+    const { convention_id, category, format, entry_cost, name, amount, description, icon, color, max_awards, voucher_type } = req.body;
 
-    if (!convention_id || !category || entry_cost === undefined || !name || amount === undefined) {
-      return res.status(400).json({ error: 'convention_id, category, entry_cost, name, and amount are required' });
+    if (!convention_id || !name || amount === undefined) {
+      return res.status(400).json({ error: 'convention_id, name, and amount are required' });
     }
 
     const voucher = await specialVoucherService.createSpecialVoucher(
       convention_id,
-      category,
-      entry_cost,
+      category || null,
+      entry_cost !== undefined && entry_cost !== null ? entry_cost : null,
       name,
       amount,
       description,
       icon,
       color,
-      max_awards,
-      voucher_type
+      max_awards || 1,
+      voucher_type || 'static',
+      format || null
     );
     res.status(201).json({ success: true, special_voucher: voucher });
   } catch (err) {

@@ -1,6 +1,8 @@
 import { pool } from '../config/db';
 import * as walletService from './walletService';
 
+export type PaymentPurpose = 'topup' | 'package';
+
 export interface PaymentIntent {
   id: string;
   status: 'pending' | 'paid' | 'failed';
@@ -151,11 +153,11 @@ export async function createPayment(amount: number): Promise<PaymentIntent> {
   return createMockPayment(amount);
 }
 
-export async function storePayment(payment: PaymentIntent, userId: number): Promise<void> {
+export async function storePayment(payment: PaymentIntent, userId: number, purpose: PaymentPurpose = 'topup'): Promise<void> {
   await pool.query(
-    `INSERT INTO payments (id, user_id, amount, status, payment_url, payment_link)
-     VALUES ($1, $2, $3, $4, $5, $6)`,
-    [payment.id, userId, payment.amount, payment.status, payment.paymentUrl, payment.paymentLink]
+    `INSERT INTO payments (id, user_id, amount, status, payment_url, payment_link, purpose)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+    [payment.id, userId, payment.amount, payment.status, payment.paymentUrl, payment.paymentLink, purpose]
   );
 }
 
@@ -204,64 +206,27 @@ export async function handlePaymentWebhook(paymentId: string, status: string): P
     const payment = updateRes.rows[0];
 
     if (status === 'paid') {
-      // Resolve the convention for this payment: use the package's convention
-      // if a matching package exists, otherwise fall back to the user's home convention.
-      const packageRes = await client.query(
-        `SELECT up.package_id, up.quantity, p.convention_id, p.prereg_cost, p.cost
-         FROM user_packages up
-         JOIN packages p ON p.id = up.package_id
-         WHERE up.user_id = $1
-         LIMIT 1`,
-        [payment.user_id]
-      );
-
-      let conventionId: number | null = packageRes.rows[0]?.convention_id;
-      if (!conventionId) {
+      if (payment.purpose === 'package') {
+        await awardPaidPackages(client, payment.user_id);
+      } else {
         const userRes = await client.query(
           `SELECT convention_id FROM users WHERE id = $1`,
           [payment.user_id]
         );
-        conventionId = userRes.rows[0]?.convention_id ?? null;
-      }
-
-      if (!conventionId) {
-        throw new Error('Cannot deposit credit without a convention');
-      }
-
-      // Wallet stores whole CRC colones; payment.amount is already in colones.
-      await walletService.deposit(
-        payment.user_id,
-        conventionId,
-        Math.round(payment.amount),
-        'payment',
-        payment.payment_link,
-        client
-      );
-
-      // If the paid amount matches a package, award any linked special vouchers.
-      if (packageRes.rows.length > 0) {
-        const pkg = packageRes.rows[0];
-        const quantity = pkg.quantity || 1;
-        const unitCost = pkg.prereg_cost || pkg.cost;
-        const packageTotal = unitCost * quantity;
-
-        if (Math.abs(payment.amount - packageTotal) < 0.01) {
-          const specialVouchersRes = await client.query(
-            `SELECT sv.id, sv.amount, sv.name
-             FROM package_special_vouchers psv
-             JOIN special_vouchers sv ON sv.id = psv.special_voucher_id
-             WHERE psv.package_id = $1`,
-            [pkg.package_id]
-          );
-
-          for (const sv of specialVouchersRes.rows) {
-            await client.query(
-              `INSERT INTO special_voucher_awards (user_id, special_voucher_id, event_id, awarded_by)
-               VALUES ($1, $2, NULL, 'package_payment')`,
-              [payment.user_id, sv.id]
-            );
-          }
+        const conventionId: number | null = userRes.rows[0]?.convention_id ?? null;
+        if (!conventionId) {
+          throw new Error('Cannot deposit credit without a convention');
         }
+
+        // Wallet stores whole CRC colones; payment.amount is already in colones.
+        await walletService.deposit(
+          payment.user_id,
+          conventionId,
+          Math.round(payment.amount),
+          'payment',
+          payment.payment_link,
+          client
+        );
       }
     }
 
@@ -271,6 +236,52 @@ export async function handlePaymentWebhook(paymentId: string, status: string): P
     throw err;
   } finally {
     client.release();
+  }
+}
+
+// A paid package grants the same benefits a free package grants at registration
+// (see publicRegistration.ts): regular vouchers and linked special vouchers, per
+// unit purchased. Package purchases never add wallet credit.
+async function awardPaidPackages(client: any, userId: number): Promise<void> {
+  const pkgRes = await client.query(
+    `SELECT up.package_id, up.quantity, p.name, p.regular_voucher_amount, p.prereg_cost, p.cost
+     FROM user_packages up
+     JOIN packages p ON p.id = up.package_id
+     WHERE up.user_id = $1`,
+    [userId]
+  );
+
+  for (const pkg of pkgRes.rows) {
+    const quantity = pkg.quantity || 1;
+    const unitCost = pkg.prereg_cost || pkg.cost;
+    // Free packages were already awarded at registration time.
+    if (!unitCost || unitCost <= 0) continue;
+
+    if (pkg.regular_voucher_amount > 0) {
+      await client.query(
+        `INSERT INTO voucher_transactions (user_id, amount, description)
+         VALUES ($1, $2, $3)`,
+        [userId, pkg.regular_voucher_amount * quantity, `Package purchase (${pkg.name} x${quantity})`]
+      );
+    }
+
+    const specialVouchersRes = await client.query(
+      `SELECT sv.id
+       FROM package_special_vouchers psv
+       JOIN special_vouchers sv ON sv.id = psv.special_voucher_id
+       WHERE psv.package_id = $1`,
+      [pkg.package_id]
+    );
+
+    for (const sv of specialVouchersRes.rows) {
+      for (let i = 0; i < quantity; i++) {
+        await client.query(
+          `INSERT INTO special_voucher_awards (user_id, special_voucher_id, event_id, awarded_by)
+           VALUES ($1, $2, NULL, 'package_payment')`,
+          [userId, sv.id]
+        );
+      }
+    }
   }
 }
 

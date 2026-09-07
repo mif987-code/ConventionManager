@@ -27,7 +27,7 @@ export default function VouchersPage() {
   const [specialVouchersList, setSpecialVouchersList] = useState<any[]>([]);
   const [openEvents, setOpenEvents] = useState<any[]>([]);
   const [showCreateVoucher, setShowCreateVoucher] = useState(false);
-  const [newVoucher, setNewVoucher] = useState({ name: '', amount: 5, description: '', category: '', entry_cost: 0, max_awards: 1, voucher_type: 'static' });
+  const [newVoucher, setNewVoucher] = useState({ name: '', amount: 5, description: '', category: '', format: '', entry_cost: 0, max_awards: 1, voucher_type: 'static' });
   const [creatingVoucher, setCreatingVoucher] = useState(false);
   const [editingVoucher, setEditingVoucher] = useState<any | null>(null);
   const [savingVoucherEdit, setSavingVoucherEdit] = useState(false);
@@ -37,6 +37,7 @@ export default function VouchersPage() {
   const [userAwardedVouchers, setUserAwardedVouchers] = useState<any[]>([]);
 
   const EVENT_CATEGORIES = ['Draft', 'Sealed', 'Constructed', 'Commander', 'On Demand'];
+  const EVENT_FORMATS = ['Standard', 'Modern', 'Pioneer', 'PreModern', 'Pauper', 'Special Event'];
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const formatCRC = (amount: number) => new Intl.NumberFormat('es-CR', { style: 'currency', currency: 'CRC' }).format(amount);
 
@@ -242,15 +243,18 @@ export default function VouchersPage() {
 
   async function handleCreateSpecialVoucher(e: React.FormEvent) {
     e.preventDefault();
-    if (!newVoucher.name || !newVoucher.category || newVoucher.amount <= 0) return;
     const conventionId = localStorage.getItem('cm_convention_id');
-    if (!conventionId) return;
+    if (!conventionId) {
+      setError('Please select a convention first');
+      return;
+    }
     setCreatingVoucher(true);
     setError('');
     try {
       await specialVouchers.create({
         convention_id: parseInt(conventionId),
-        category: newVoucher.category,
+        category: newVoucher.category || null,
+        format: newVoucher.format || null,
         entry_cost: newVoucher.entry_cost,
         name: newVoucher.name,
         amount: newVoucher.amount,
@@ -259,7 +263,7 @@ export default function VouchersPage() {
         voucher_type: newVoucher.voucher_type,
       });
       setSuccess('Special voucher created successfully!');
-      setNewVoucher({ name: '', amount: 5, description: '', category: '', entry_cost: 0, max_awards: 1, voucher_type: 'static' });
+      setNewVoucher({ name: '', amount: 5, description: '', category: '', format: '', entry_cost: 0, max_awards: 1, voucher_type: 'static' });
       setShowCreateVoucher(false);
       loadSpecialVouchers();
     } catch (err: any) {
@@ -277,7 +281,8 @@ export default function VouchersPage() {
     try {
       await specialVouchers.update(editingVoucher.id, {
         name: editingVoucher.name,
-        category: editingVoucher.category,
+        category: editingVoucher.category || null,
+        format: editingVoucher.format || null,
         entry_cost: editingVoucher.entry_cost,
         amount: editingVoucher.amount,
         description: editingVoucher.description,
@@ -315,11 +320,15 @@ export default function VouchersPage() {
     }
   }
 
-  // Open events matching the currently selected special voucher's category + entry cost
+  // Open events matching the currently selected special voucher's category + format
   const matchingEventsForSelectedVoucher = (() => {
     const voucher = specialVouchersList.find((v: any) => v.id === selectedSpecialVoucher);
     if (!voucher) return [];
-    return openEvents.filter((e: any) => e.category === voucher.category && e.entry_cost_vouchers === voucher.entry_cost);
+    return openEvents.filter((e: any) => {
+      const matchCat = !voucher.category || e.category === voucher.category;
+      const matchFmt = !voucher.format || e.format === voucher.format;
+      return matchCat && matchFmt;
+    });
   })();
 
   async function handleAwardSpecialVoucher() {
@@ -403,8 +412,6 @@ export default function VouchersPage() {
         </div>
       )}
 
-      {activeTab === 'regular' && (
-        <>
       {/* NFC Status */}
       {nfcStatus && (
         <div className={`text-sm px-3 py-2 rounded-lg mb-4 ${nfcStatus.startsWith('Error') || nfcStatus.startsWith('NFC error') || nfcStatus.startsWith('Web NFC')
@@ -485,6 +492,8 @@ export default function VouchersPage() {
         )}
       </div>
 
+      {activeTab === 'regular' && (
+        <>
       {user && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-1 space-y-6">
@@ -739,7 +748,7 @@ export default function VouchersPage() {
       {activeTab === 'payments' && (
         <div className="space-y-6">
           {!user ? (
-            <p className="text-gray-500">Select a player above to view their payments.</p>
+            <p className="text-gray-500">Search for or scan a player above to view their payments.</p>
           ) : (
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
               <div className="px-6 py-4 border-b border-gray-200">
@@ -750,6 +759,7 @@ export default function VouchersPage() {
                   <thead className="bg-gray-50 border-b border-gray-200 sticky top-0">
                     <tr>
                       <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase">Payment ID</th>
+                      <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase">Type</th>
                       <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase">Amount</th>
                       <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase">Status</th>
                       <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase">Created</th>
@@ -760,6 +770,7 @@ export default function VouchersPage() {
                     {paymentHistory.map((p: any) => (
                       <tr key={p.id}>
                         <td className="px-4 py-2 text-sm font-mono text-gray-700 break-all max-w-[160px]">{p.id}</td>
+                        <td className="px-4 py-2 text-sm text-gray-600">{p.purpose === 'package' ? 'Package' : 'Top-up'}</td>
                         <td className="px-4 py-2 text-sm font-medium text-gray-800">{formatCRC(Math.round(p.amount))}</td>
                         <td className="px-4 py-2 text-sm">
                           <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
@@ -783,7 +794,7 @@ export default function VouchersPage() {
                       </tr>
                     ))}
                     {paymentHistory.length === 0 && (
-                      <tr><td colSpan={5} className="px-4 py-6 text-center text-gray-400">No payments found</td></tr>
+                      <tr><td colSpan={6} className="px-4 py-6 text-center text-gray-400">No payments found</td></tr>
                     )}
                   </tbody>
                 </table>
@@ -800,76 +811,9 @@ export default function VouchersPage() {
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <h2 className="font-semibold text-gray-800 mb-4">Award Special Voucher to User</h2>
 
-            {/* Search bar */}
-            <div className="flex gap-2 mb-4 items-start">
-              <div className="relative flex-1">
-                <Search size={18} className="absolute left-3 top-3.5 text-gray-400" />
-                <input
-                  placeholder="Search by player name or NFC UID..."
-                  value={searchQuery}
-                  onChange={(e) => handleSearchInput(e.target.value)}
-                  className="w-full pl-10 pr-8 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-lg"
-                />
-                {searchQuery && (
-                  <button onClick={() => { setSearchQuery(''); setSearchResults([]); setSelectedSpecialVoucher(null); setUserAwardedVouchers([]); setUser(null); }}
-                    className="absolute right-3 top-3.5 text-gray-400 hover:text-gray-600">
-                    <X size={16} />
-                  </button>
-                )}
-                {searching && <Loader2 size={18} className="absolute right-10 top-3.5 text-indigo-500 animate-spin" />}
-
-                {/* Autocomplete dropdown */}
-                {searchResults.length > 0 && (
-                  <div className="absolute z-10 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-y-auto">
-                    {searchResults.map((u: any) => (
-                      <button key={u.id} onClick={() => selectUser(u)}
-                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-indigo-50 transition text-left border-b border-gray-100 last:border-0">
-                        <div className="flex-1 min-w-0">
-                          <span className="font-medium text-gray-800">{u.name}</span>
-                          <span className="text-gray-400 text-sm ml-2 font-mono">{u.nfc_uid}</span>
-                          {u.email && <span className="text-gray-400 text-sm ml-2">{u.email}</span>}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                )}
-                {searchQuery.length >= 1 && !searching && searchResults.length === 0 && (
-                  <div className="absolute z-10 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg px-4 py-3">
-                    <p className="text-sm text-gray-400 italic">No players found.</p>
-                  </div>
-                )}
-              </div>
-
-              {/* Scan */}
-              {scanMode === 'nfc' ? (
-                nfcListening ? (
-                  <button onClick={() => { setNfcListening(false); setNfcStatus(''); }}
-                    className="flex items-center gap-2 bg-red-100 text-red-700 px-5 py-3 rounded-lg hover:bg-red-200 transition font-medium animate-pulse whitespace-nowrap">
-                    <Wifi size={18} /> Stop
-                  </button>
-                ) : (
-                  <button onClick={handleNfcScan}
-                    className="flex items-center gap-2 bg-emerald-100 text-emerald-700 px-5 py-3 rounded-lg hover:bg-emerald-200 transition font-medium whitespace-nowrap">
-                    <Wifi size={18} /> Scan NFC
-                  </button>
-                )
-              ) : (
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    placeholder="Enter QR code..."
-                    value={qrInput}
-                    onChange={(e) => setQrInput(e.target.value)}
-                    className="px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none w-48"
-                    onKeyPress={(e) => e.key === 'Enter' && handleQrScan()}
-                  />
-                  <button onClick={handleQrScan}
-                    className="flex items-center gap-2 bg-emerald-100 text-emerald-700 px-5 py-3 rounded-lg hover:bg-emerald-200 transition font-medium whitespace-nowrap">
-                    <QrCode size={18} /> Scan QR
-                  </button>
-                </div>
-              )}
-            </div>
+            {!user && (
+              <p className="text-sm text-gray-500">Search for or scan a player above to award a special voucher.</p>
+            )}
 
             {user && (
               <div className="border-t border-gray-200 pt-4">
@@ -896,7 +840,9 @@ export default function VouchersPage() {
                     >
                       <option value="">Choose a voucher...</option>
                       {specialVouchersList.map((v: any) => (
-                        <option key={v.id} value={v.id}>{v.name} ({v.amount} vouchers) — {v.category}, {v.entry_cost} entry</option>
+                        <option key={v.id} value={v.id}>
+                          {v.name} ({v.category || 'Any'}{v.format ? ` / ${v.format}` : ''})
+                        </option>
                       ))}
                     </select>
                   </div>
@@ -934,12 +880,17 @@ export default function VouchersPage() {
                         <div key={v.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
                           <div>
                             <p className="font-medium text-gray-800 text-sm">{v.voucher_name}</p>
-                            <p className="text-xs text-gray-500">{v.amount} vouchers • {v.category}, {v.entry_cost} entry</p>
+                            <p className="text-xs text-gray-500">
+                              {v.category || 'Any category'}{v.format ? ` • Format: ${v.format}` : ''}
+                              {v.consumed_at ? ' • (Used)' : ' • (Available)'}
+                            </p>
                           </div>
-                          <button onClick={() => handleRemoveSpecialVoucherAward(v.id)}
-                            className="text-red-500 hover:text-red-600 text-sm">
-                            Remove
-                          </button>
+                          {!v.consumed_at && (
+                            <button onClick={() => handleRemoveSpecialVoucherAward(v.id)}
+                              className="text-red-500 hover:text-red-600 text-sm">
+                              Remove
+                            </button>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -977,11 +928,14 @@ export default function VouchersPage() {
                       </div>
                       <div>
                         <h3 className="font-semibold text-gray-800">{voucher.name}</h3>
-                        <p className="text-sm text-indigo-600 mt-1">{voucher.category} events • {voucher.entry_cost} voucher{voucher.entry_cost !== 1 ? 's' : ''} entry</p>
+                        <p className="text-sm text-indigo-600 mt-1">
+                          {voucher.category ? `${voucher.category} events` : 'Any category'}
+                          {voucher.format ? ` • Format: ${voucher.format}` : ''}
+                          {voucher.voucher_type === 'on_demand' ? ' • On Demand entry' : ''}
+                        </p>
                         {voucher.description && <p className="text-sm text-gray-500 mt-1">{voucher.description}</p>}
                         <div className="flex items-center gap-4 mt-2 text-sm">
-                          <span className="text-indigo-600 font-semibold">{voucher.amount} vouchers</span>
-                          <span className="text-gray-500">{voucher.awarded_count}/{voucher.max_awards} awarded</span>
+                          <span className="text-gray-500">{voucher.awarded_count}/{voucher.max_awards} available / awarded</span>
                         </div>
                       </div>
                     </div>
@@ -1011,13 +965,13 @@ export default function VouchersPage() {
             <form onSubmit={handleCreateSpecialVoucher}>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
                   <input
                     type="text"
                     value={newVoucher.name}
                     onChange={(e) => setNewVoucher({ ...newVoucher, name: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
-                    placeholder="e.g., First Place Bonus"
+                    placeholder="e.g., On Demand Draft Pass"
                     required
                   />
                 </div>
@@ -1027,11 +981,23 @@ export default function VouchersPage() {
                     value={newVoucher.category}
                     onChange={(e) => setNewVoucher({ ...newVoucher, category: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
-                    required
                   >
-                    <option value="">Select a category</option>
+                    <option value="">Any Category</option>
                     {EVENT_CATEGORIES.map((cat) => (
                       <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Event Format (optional)</label>
+                  <select
+                    value={newVoucher.format}
+                    onChange={(e) => setNewVoucher({ ...newVoucher, format: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                  >
+                    <option value="">Any Format</option>
+                    {EVENT_FORMATS.map((fmt) => (
+                      <option key={fmt} value={fmt}>{fmt}</option>
                     ))}
                   </select>
                 </div>
@@ -1043,32 +1009,21 @@ export default function VouchersPage() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
                     required
                   >
-                    <option value="static">Static (prize/bonus)</option>
-                    <option value="on_demand">On Demand (event entry)</option>
+                    <option value="on_demand">On Demand / Entry Voucher</option>
+                    <option value="static">Static Prize / Bonus</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Entry Cost (vouchers)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Quantity of Vouchers to Generate (Max Awards) *</label>
                   <input
                     type="number"
-                    value={newVoucher.entry_cost}
-                    onChange={(e) => setNewVoucher({ ...newVoucher, entry_cost: parseInt(e.target.value) || 0 })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
-                    min="0"
-                    required
-                  />
-                  <p className="text-xs text-gray-400 mt-1">Matches any event with this category and entry cost.</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Amount (vouchers)</label>
-                  <input
-                    type="number"
-                    value={newVoucher.amount}
-                    onChange={(e) => setNewVoucher({ ...newVoucher, amount: parseInt(e.target.value) || 0 })}
+                    value={newVoucher.max_awards}
+                    onChange={(e) => setNewVoucher({ ...newVoucher, max_awards: parseInt(e.target.value) || 1 })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
                     min="1"
                     required
                   />
+                  <p className="text-xs text-gray-400 mt-1">Generates X ready-to-give vouchers.</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Description (optional)</label>
@@ -1077,18 +1032,7 @@ export default function VouchersPage() {
                     onChange={(e) => setNewVoucher({ ...newVoucher, description: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
                     rows={2}
-                    placeholder="e.g., Bonus for winning the first round"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Max Awards</label>
-                  <input
-                    type="number"
-                    value={newVoucher.max_awards}
-                    onChange={(e) => setNewVoucher({ ...newVoucher, max_awards: parseInt(e.target.value) || 1 })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
-                    min="1"
-                    required
+                    placeholder="e.g., Valid for any On Demand event entry"
                   />
                 </div>
               </div>
@@ -1115,7 +1059,7 @@ export default function VouchersPage() {
             <form onSubmit={handleUpdateSpecialVoucher}>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
                   <input
                     type="text"
                     value={editingVoucher.name}
@@ -1127,13 +1071,26 @@ export default function VouchersPage() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Event Category</label>
                   <select
-                    value={editingVoucher.category}
+                    value={editingVoucher.category || ''}
                     onChange={(e) => setEditingVoucher({ ...editingVoucher, category: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
-                    required
                   >
+                    <option value="">Any Category</option>
                     {EVENT_CATEGORIES.map((cat) => (
                       <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Event Format (optional)</label>
+                  <select
+                    value={editingVoucher.format || ''}
+                    onChange={(e) => setEditingVoucher({ ...editingVoucher, format: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                  >
+                    <option value="">Any Format</option>
+                    {EVENT_FORMATS.map((fmt) => (
+                      <option key={fmt} value={fmt}>{fmt}</option>
                     ))}
                   </select>
                 </div>
@@ -1145,27 +1102,16 @@ export default function VouchersPage() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
                     required
                   >
-                    <option value="static">Static (prize/bonus)</option>
-                    <option value="on_demand">On Demand (event entry)</option>
+                    <option value="on_demand">On Demand / Entry Voucher</option>
+                    <option value="static">Static Prize / Bonus</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Entry Cost (vouchers)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Quantity of Vouchers (Max Awards) *</label>
                   <input
                     type="number"
-                    value={editingVoucher.entry_cost}
-                    onChange={(e) => setEditingVoucher({ ...editingVoucher, entry_cost: parseInt(e.target.value) || 0 })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
-                    min="0"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Amount (vouchers)</label>
-                  <input
-                    type="number"
-                    value={editingVoucher.amount}
-                    onChange={(e) => setEditingVoucher({ ...editingVoucher, amount: parseInt(e.target.value) || 0 })}
+                    value={editingVoucher.max_awards}
+                    onChange={(e) => setEditingVoucher({ ...editingVoucher, max_awards: parseInt(e.target.value) || 1 })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
                     min="1"
                     required
@@ -1178,17 +1124,6 @@ export default function VouchersPage() {
                     onChange={(e) => setEditingVoucher({ ...editingVoucher, description: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
                     rows={2}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Max Awards</label>
-                  <input
-                    type="number"
-                    value={editingVoucher.max_awards}
-                    onChange={(e) => setEditingVoucher({ ...editingVoucher, max_awards: parseInt(e.target.value) || 1 })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
-                    min="1"
-                    required
                   />
                 </div>
               </div>

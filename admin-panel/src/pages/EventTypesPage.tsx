@@ -543,11 +543,12 @@ export default function EventTypesPage() {
               {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
-          {f.category === 'Constructed' && (
+          {(f.category === 'Constructed' || f.category === 'On Demand') && (
             <div>
               <label className="text-xs font-medium text-gray-500 mb-1 block">Format *</label>
               <select value={f.format} onChange={(e) => setF({ ...f, format: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm">
+                <option value="">None / Any</option>
                 {FORMATS.map((fm) => <option key={fm} value={fm}>{fm}</option>)}
               </select>
             </div>

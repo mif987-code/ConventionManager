@@ -438,33 +438,33 @@ export async function registerToEvent(userId: number, eventId: number, createdBy
     );
     if (countRes.rows[0].count >= event.max_players) throw new Error('Event is full');
 
-    // 4. Check wallet credit (scoped to convention)
+    // 4. Check for matching Special Voucher first, else deduct wallet credit (scoped to convention)
     let costDeducted = 0;
+    let specialVoucherUsed = false;
 
-    if (event.category === 'On Demand') {
-      // On Demand events require an unconsumed on-demand special voucher instead of credit.
-      const voucherRes = await client.query(
-        `SELECT sva.id
-         FROM special_voucher_awards sva
-         JOIN special_vouchers sv ON sv.id = sva.special_voucher_id
-         WHERE sva.user_id = $1
-           AND sv.voucher_type = 'on_demand'
-           AND sva.consumed_at IS NULL
-         ORDER BY sva.created_at
-         LIMIT 1
-         FOR UPDATE`,
-        [userId]
-      );
+    // Check if player has an unconsumed special voucher matching event's category (and format if specified)
+    const matchingVoucherRes = await client.query(
+      `SELECT sva.id
+       FROM special_voucher_awards sva
+       JOIN special_vouchers sv ON sv.id = sva.special_voucher_id
+       WHERE sva.user_id = $1
+         AND sv.convention_id = $2
+         AND sva.consumed_at IS NULL
+         AND (sv.category IS NULL OR sv.category = $3)
+         AND (sv.format IS NULL OR sv.format = $4)
+       ORDER BY sva.created_at ASC
+       LIMIT 1
+       FOR UPDATE`,
+      [userId, event.convention_id, event.category, event.format]
+    );
 
-      if (voucherRes.rows.length === 0) {
-        throw new Error('No unused On Demand special voucher available');
-      }
-
-      // 5. Consume the on-demand special voucher
+    if (matchingVoucherRes.rows.length > 0) {
+      // Consume the matching special voucher
       await client.query(
         `UPDATE special_voucher_awards SET consumed_at = NOW() WHERE id = $1`,
-        [voucherRes.rows[0].id]
+        [matchingVoucherRes.rows[0].id]
       );
+      specialVoucherUsed = true;
     } else {
       // Event cost is stored in whole CRC colones.
       costDeducted = (event.entry_cost_colones ?? event.entry_cost_vouchers) || 0;
@@ -474,7 +474,7 @@ export async function registerToEvent(userId: number, eventId: number, createdBy
           throw new Error(`Not enough credit. Need ${costDeducted.toLocaleString('es-CR')} CRC, have ${credit.toLocaleString('es-CR')} CRC`);
         }
 
-        // 5. Deduct credit from wallet
+        // Deduct credit from wallet
         await walletService.pay(userId, event.convention_id, costDeducted, createdBy, eventId, 'event_entry', client);
       }
     }
