@@ -151,7 +151,7 @@ export async function regenerateQRCode(userId: number): Promise<User> {
   return user;
 }
 
-export async function activateUser(userId: number, adminId: number): Promise<User | null> {
+export async function activateUser(userId: number, adminId: number | null): Promise<User | null> {
   const result = await pool.query(
     `UPDATE users SET is_active = TRUE, activated_at = NOW(), activated_by = $1, updated_at = NOW()
      WHERE id = $2 RETURNING *`,

@@ -137,8 +137,18 @@ async function refreshPlayer() {
 // ==========================================
 let eventsTab = 'preregistered';
 
-function comingSoonHtml() {
-  return '<p style="color:var(--text3);font-size:0.85rem;text-align:center;padding:24px 0;">Coming Soon</p>';
+function historyCardHtml(ev) {
+  return `
+    <div class="evt-card" onclick="openEventDetail(${ev.event_id})">
+      <div class="evt-name">${esc(ev.event_name)}</div>
+      <div class="evt-meta">
+        <span class="badge badge-${ev.status}">${ev.status}</span>
+        <span class="badge ${ev.tournament_structure === 'single_elimination' ? 'badge-elim' : 'badge-swiss'}">${ev.tournament_structure === 'single_elimination' ? 'Single Elim' : 'Swiss'}</span>
+        <span>${ev.wins}W-${ev.losses}L${ev.draws > 0 ? '-' + ev.draws + 'D' : ''}</span>
+        ${ev.result_position ? `<span>#${ev.result_position}</span>` : ''}
+        ${ev.table_number ? `<span style="background:rgba(74,158,110,0.2);color:#4ade80;padding:1px 6px;border-radius:4px;font-weight:600;">Table ${esc(ev.table_number)}</span>` : ''}
+      </div>
+    </div>`;
 }
 
 async function renderEvents(el) {
@@ -155,7 +165,35 @@ async function renderEvents(el) {
   const listEl = document.getElementById('events-list');
 
   if (eventsTab === 'upcoming') {
-    listEl.innerHTML = comingSoonHtml();
+    try {
+      const data = await api('/upcoming-events');
+      const events = data.events || [];
+      if (events.length === 0) { listEl.innerHTML = '<p style="color:var(--text3);font-size:0.85rem;">No events open for registration right now.</p>'; return; }
+      listEl.innerHTML = events.map(ev => {
+        const cost = ev.entry_cost_colones || 0;
+        const costLabel = ev.covered_by_voucher
+          ? 'Covered by voucher'
+          : cost > 0 ? `${formatCRC(cost)} entry` : 'Free entry';
+        const canAfford = ev.covered_by_voucher || cost <= 0 || (player && player.credit_balance >= cost);
+        return `
+        <div class="evt-card">
+          <div style="display:flex;justify-content:space-between;align-items:start;">
+            <div>
+              <div class="evt-name">${esc(ev.name)}</div>
+              <div class="evt-meta">
+                <span class="badge badge-open">Open</span>
+                ${ev.category ? `<span>${esc(ev.category)}${ev.format ? ' (' + esc(ev.format) + ')' : ''}</span>` : ''}
+                <span>${ev.participant_count}${ev.max_players ? '/' + ev.max_players : ''}</span>
+              </div>
+              <div class="evt-meta" style="margin-top:2px"><span>${costLabel}</span></div>
+            </div>
+            ${ev.already_registered
+              ? `<span class="badge badge-registered" style="flex-shrink:0">${ev.preregistered_by_me ? 'Pre-registered' : 'Registered'}</span>`
+              : `<button class="btn btn-accent btn-sm" style="flex-shrink:0" ${canAfford ? '' : 'disabled'} onclick="registerForEvent(${ev.id}, this)">${canAfford ? 'Join' : 'Not enough credit'}</button>`}
+          </div>
+        </div>`;
+      }).join('');
+    } catch (err) { listEl.innerHTML = `<p style="color:var(--red);font-size:0.85rem;">${esc(err.message)}</p>`; }
   } else if (eventsTab === 'preregistered') {
     try {
       const data = await api('/preregistrations');
@@ -190,9 +228,19 @@ async function renderEvents(el) {
       }).join('');
     } catch (err) { listEl.innerHTML = `<p style="color:var(--red);font-size:0.85rem;">${esc(err.message)}</p>`; }
   } else if (eventsTab === 'history') {
-    listEl.innerHTML = comingSoonHtml();
+    try {
+      const data = await api('/events');
+      const events = data.events || [];
+      if (events.length === 0) { listEl.innerHTML = '<p style="color:var(--text3);font-size:0.85rem;">No event history yet.</p>'; return; }
+      listEl.innerHTML = events.map(historyCardHtml).join('');
+    } catch (err) { listEl.innerHTML = `<p style="color:var(--red);font-size:0.85rem;">${esc(err.message)}</p>`; }
   } else if (eventsTab === 'recent') {
-    listEl.innerHTML = comingSoonHtml();
+    try {
+      const data = await api('/events');
+      const events = (data.events || []).filter(ev => ev.status === 'completed').slice(0, 10);
+      if (events.length === 0) { listEl.innerHTML = '<p style="color:var(--text3);font-size:0.85rem;">No completed events yet.</p>'; return; }
+      listEl.innerHTML = events.map(historyCardHtml).join('');
+    } catch (err) { listEl.innerHTML = `<p style="color:var(--red);font-size:0.85rem;">${esc(err.message)}</p>`; }
   }
 }
 

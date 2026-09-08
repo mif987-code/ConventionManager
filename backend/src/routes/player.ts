@@ -203,18 +203,37 @@ router.get('/events/:id', playerAuth, async (req: Request, res: Response, next: 
 router.get('/upcoming-events', playerAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = (req as any).playerId;
-    const events = await eventService.getAllEvents('open');
+    const userRes = await pool.query(`SELECT convention_id FROM users WHERE id = $1`, [userId]);
+    const conventionId = userRes.rows[0]?.convention_id;
+    if (!conventionId) return res.json({ success: true, events: [] });
+
+    const events = await eventService.getAllEvents('open', conventionId);
 
     // Mark which events the player is already registered for
     const regResult = await pool.query(
-      `SELECT event_id FROM event_participants WHERE user_id = $1`,
+      `SELECT event_id, preregistered FROM event_participants WHERE user_id = $1`,
       [userId]
     );
-    const registeredSet = new Set(regResult.rows.map((r: any) => r.event_id));
+    const registeredMap = new Map(regResult.rows.map((r: any) => [r.event_id, r.preregistered]));
+
+    // Unconsumed special vouchers that could cover an entry
+    const voucherRes = await pool.query(
+      `SELECT sv.category, sv.format
+       FROM special_voucher_awards sva
+       JOIN special_vouchers sv ON sv.id = sva.special_voucher_id
+       WHERE sva.user_id = $1 AND sv.convention_id = $2 AND sva.consumed_at IS NULL`,
+      [userId, conventionId]
+    );
+    const vouchers = voucherRes.rows;
 
     const enriched = events.map((ev: any) => ({
       ...ev,
-      already_registered: registeredSet.has(ev.id),
+      already_registered: registeredMap.has(ev.id),
+      preregistered_by_me: registeredMap.get(ev.id) === true,
+      covered_by_voucher: vouchers.some((v: any) =>
+        (v.category === null || v.category === ev.category) &&
+        (v.format === null || v.format === ev.format)
+      ),
     }));
 
     res.json({ success: true, events: enriched });

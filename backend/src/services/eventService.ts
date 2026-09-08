@@ -269,7 +269,7 @@ export async function getEventById(id: number) {
 }
 
 export async function getAllEvents(status?: string, conventionId?: number) {
-  let query = `SELECT e.*, et.name AS event_type_name, et.category, et.entry_cost_vouchers, et.max_players,
+  let query = `SELECT e.*, et.name AS event_type_name, et.category, et.format, et.entry_cost_vouchers, et.entry_cost_colones, et.max_players,
                et.tournament_structure,
                (SELECT COUNT(*) FROM event_participants ep WHERE ep.event_id = e.id)::int AS participant_count
                FROM events e
@@ -412,7 +412,7 @@ export async function registerToEvent(userId: number, eventId: number, createdBy
 
     // 1. Check event exists and is open
     const eventRes = await client.query(
-      `SELECT e.*, et.entry_cost_vouchers, et.entry_cost_colones, et.max_players, et.category
+      `SELECT e.*, et.entry_cost_vouchers, et.entry_cost_colones, et.max_players, et.category, et.format
        FROM events e
        JOIN event_types et ON e.event_type_id = et.id
        WHERE e.id = $1

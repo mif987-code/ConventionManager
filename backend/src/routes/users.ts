@@ -201,7 +201,7 @@ router.post('/:id/activate', async (req: Request, res: Response, next: NextFunct
     const userId = parseInt(req.params.id);
     if (isNaN(userId)) return res.status(400).json({ error: 'Invalid user ID' });
 
-    const user = await userService.activateUser(userId, req.adminId ?? 0);
+    const user = await userService.activateUser(userId, req.adminId ?? null);
     if (!user) return res.status(404).json({ error: 'User not found' });
 
     await pool.query(
