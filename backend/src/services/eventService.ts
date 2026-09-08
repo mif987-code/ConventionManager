@@ -452,7 +452,7 @@ export async function registerToEvent(userId: number, eventId: number, createdBy
          AND sva.consumed_at IS NULL
          AND (sv.category IS NULL OR sv.category = $3)
          AND (sv.format IS NULL OR sv.format = $4)
-       ORDER BY sva.created_at ASC
+       ORDER BY sva.awarded_at ASC
        LIMIT 1
        FOR UPDATE`,
       [userId, event.convention_id, event.category, event.format]
