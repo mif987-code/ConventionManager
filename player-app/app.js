@@ -402,6 +402,28 @@ async function renderProfile(el) {
         <div class="bal-value" style="color:#1e40af">${formatCRC(player.credit_balance || 0)}</div>
       </div>
     </div>
+
+    ${(player.special_vouchers && player.special_vouchers.length > 0) ? `
+    <div class="card" style="margin-bottom:12px;border-left:3px solid var(--accent);">
+      <h3 style="font-size:0.85rem;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:6px;">
+        <span>★</span> Special Event Vouchers (${player.special_vouchers.length})
+      </h3>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        ${player.special_vouchers.map(sv => `
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:var(--surface2);border-radius:6px;">
+            <div>
+              <div style="font-weight:600;font-size:0.85rem;">${esc(sv.name)}</div>
+              <div style="font-size:0.75rem;color:var(--text2);margin-top:2px;">
+                ${sv.category ? `<span>${esc(sv.category)}${sv.format ? ' · ' + esc(sv.format) : ''}</span>` : '<span>General</span>'}
+                ${sv.description ? ` · <span>${esc(sv.description)}</span>` : ''}
+              </div>
+            </div>
+            <span class="badge badge-open" style="font-size:0.7rem;padding:2px 8px;">Active</span>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+    ` : ''}
     <div class="card">
       <div class="profile-field"><span class="profile-key">Name</span><span class="profile-val">${esc(player.name)}${player.last_name ? ' ' + esc(player.last_name) : ''}</span></div>
       <div class="profile-field"><span class="profile-key">Email</span><span class="profile-val">${player.email ? esc(player.email) : '—'}</span></div>

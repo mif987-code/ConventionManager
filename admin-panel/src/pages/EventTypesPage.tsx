@@ -1,5 +1,5 @@
 import { useState, useEffect, Fragment } from 'react';
-import { Plus, Pencil, Save, Trash2, Copy, Table, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Plus, Pencil, Save, Trash2, Copy, Table, Loader2, AlertCircle, CheckCircle2, ChevronDown, ChevronRight } from 'lucide-react';
 import { eventTypes, prizeTemplates, specialVouchers as specialVouchersApi } from '../api';
 
 const formatCRC = (amount: number) => new Intl.NumberFormat('es-CR', { style: 'currency', currency: 'CRC' }).format(amount);
@@ -55,6 +55,10 @@ interface BulkTypeRow {
 }
 
 let bulkTypeRowKeySeq = 1;
+
+function hasFormat(cat: string): boolean {
+  return cat === 'Constructed' || cat === 'On Demand' || cat === 'Sealed' || cat === 'Commander';
+}
 
 function normalizeCategoryValue(raw: string): string {
   const found = CATEGORIES.find((c) => c.toLowerCase() === raw.trim().toLowerCase());
@@ -117,7 +121,7 @@ function parseBulkTypePaste(text: string): BulkTypeRow[] {
         rawStructure: structureRaw,
         rawTeamMode: teamModeRaw,
         parseError: errors.join('; '),
-        format: category === 'Constructed' ? 'Standard' : '',
+        format: hasFormat(category) ? (category === 'Constructed' ? 'Standard' : '') : '',
         max_players: category ? defaultMaxPlayersFor(category) : '8',
         tix_per_player: '',
         templateId: null,
@@ -275,6 +279,7 @@ export default function EventTypesPage() {
   const [error, setError] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [expandedTypes, setExpandedTypes] = useState<Record<number, boolean>>({});
   const [editForm, setEditForm] = useState<any>({});
   const [form, setForm] = useState({
     name: '', category: 'Draft', format: '' as string,
@@ -317,9 +322,9 @@ export default function EventTypesPage() {
     const noTies = placement ? genPlacement(placementCount) : genNoTies(r);
     const ties = placement ? [] : genWithTies(r);
     if (target === 'form') {
-      setForm({ ...form, category: cat, format: cat === 'Constructed' ? 'Standard' : '', max_players: maxP, noTiesRows: noTies, tiesRows: ties, tieRows3: defaultTieRows3() });
+      setForm({ ...form, category: cat, format: hasFormat(cat) ? (cat === 'Constructed' ? 'Standard' : '') : '', max_players: maxP, noTiesRows: noTies, tiesRows: ties, tieRows3: defaultTieRows3() });
     } else {
-      setEditForm({ ...editForm, category: cat, format: cat === 'Constructed' ? 'Standard' : '', max_players: maxP, noTiesRows: noTies, tiesRows: ties, tieRows3: defaultTieRows3() });
+      setEditForm({ ...editForm, category: cat, format: hasFormat(cat) ? (cat === 'Constructed' ? 'Standard' : '') : '', max_players: maxP, noTiesRows: noTies, tiesRows: ties, tieRows3: defaultTieRows3() });
     }
   }
 
@@ -347,7 +352,7 @@ export default function EventTypesPage() {
       const is3Round = IS_3_ROUND(form.category) && !usesPlacement(form.category, form.tournament_structure);
       await eventTypes.create({
         name: form.name, category: form.category,
-        format: form.category === 'Constructed' ? form.format : null,
+        format: hasFormat(form.category) ? (form.format || null) : null,
         tournament_structure: form.tournament_structure,
         team_mode: form.team_mode,
         entry_cost_vouchers: parseFloat(form.entry_cost_vouchers),
@@ -387,7 +392,7 @@ export default function EventTypesPage() {
       const is3Round = IS_3_ROUND(editForm.category) && !usesPlacement(editForm.category, editForm.tournament_structure);
       await eventTypes.update(editingId!, {
         name: editForm.name, category: editForm.category,
-        format: editForm.category === 'Constructed' ? editForm.format : null,
+        format: hasFormat(editForm.category) ? (editForm.format || null) : null,
         tournament_structure: editForm.tournament_structure,
         team_mode: editForm.team_mode,
         entry_cost_vouchers: parseFloat(editForm.entry_cost_vouchers),
@@ -473,7 +478,7 @@ export default function EventTypesPage() {
         await eventTypes.create({
           name: row.name,
           category: row.category,
-          format: row.category === 'Constructed' ? (row.format || 'Standard') : null,
+          format: hasFormat(row.category) ? (row.format || null) : null,
           tournament_structure: row.structure,
           team_mode: row.teamMode,
           entry_cost_vouchers: row.entryCost!,
@@ -543,12 +548,12 @@ export default function EventTypesPage() {
               {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
-          {(f.category === 'Constructed' || f.category === 'On Demand') && (
+          {hasFormat(f.category) && (
             <div>
-              <label className="text-xs font-medium text-gray-500 mb-1 block">Format *</label>
+              <label className="text-xs font-medium text-gray-500 mb-1 block">Format / Subcategory</label>
               <select value={f.format} onChange={(e) => setF({ ...f, format: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm">
-                <option value="">None / Any</option>
+                <option value="">None / Regular</option>
                 {FORMATS.map((fm) => <option key={fm} value={fm}>{fm}</option>)}
               </select>
             </div>
@@ -740,12 +745,15 @@ export default function EventTypesPage() {
                             {row.teamMode === '2hg' ? '2HG' : row.teamMode === 'single' ? 'Single' : <span className="text-red-500 text-xs">{row.rawTeamMode || '—'}</span>}
                           </td>
                           <td className="px-3 py-2 align-top">
-                            {row.category === 'Constructed' ? (
+                            {hasFormat(row.category) ? (
                               <select value={row.format} onChange={(e) => updateBulkRow(row.key, { format: e.target.value })}
-                                className="w-28 px-2 py-1 border border-gray-200 rounded text-sm">
+                                className="w-28 px-2 py-1 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-indigo-500 outline-none">
+                                <option value="">None</option>
                                 {FORMATS.map((fm) => <option key={fm} value={fm}>{fm}</option>)}
                               </select>
-                            ) : <span className="text-gray-400 text-xs">—</span>}
+                            ) : (
+                              <span className="text-gray-400 text-xs">—</span>
+                            )}
                           </td>
                           <td className="px-3 py-2 align-top">
                             <input type="number" min="2" value={row.max_players}
@@ -854,16 +862,16 @@ export default function EventTypesPage() {
                 </div>
               ) : (
                 <div>
-                  <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center justify-between">
                     <div>
                       <div className="flex items-center gap-2 mb-1">
                         <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${CATEGORY_COLORS[t.category] || 'bg-gray-100 text-gray-600'}`}>
                           {t.category}
                         </span>
-                        {t.format && <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 font-medium">{t.format}</span>}
                         <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${t.tournament_structure === 'single_elimination' ? 'bg-red-100 text-red-700' : 'bg-cyan-100 text-cyan-700'}`}>
                           {t.tournament_structure === 'single_elimination' ? 'Single Elim' : 'Swiss'}
                         </span>
+                        {t.format && <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 font-medium">{t.format}</span>}
                         {t.team_mode === '2hg' && (
                           <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-emerald-100 text-emerald-700">
                             2-Headed Giant
@@ -876,48 +884,60 @@ export default function EventTypesPage() {
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <button onClick={() => handleDuplicate(t.id)} className="text-gray-400 hover:text-blue-600 transition" title="Duplicate">
+                      <button
+                        onClick={() => setExpandedTypes((prev) => ({ ...prev, [t.id]: !prev[t.id] }))}
+                        className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border border-gray-200 hover:bg-gray-50 text-gray-600 font-medium transition"
+                        title={expandedTypes[t.id] ? 'Hide prize structure' : 'Show prize structure'}
+                      >
+                        {expandedTypes[t.id] ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                        <span>{expandedTypes[t.id] ? 'Hide Prizes' : 'View Prizes'}</span>
+                      </button>
+                      <button onClick={() => handleDuplicate(t.id)} className="text-gray-400 hover:text-blue-600 transition p-1" title="Duplicate">
                         <Copy size={16} />
                       </button>
-                      <button onClick={() => startEdit(t)} className="text-gray-400 hover:text-indigo-600 transition" title="Edit">
+                      <button onClick={() => startEdit(t)} className="text-gray-400 hover:text-indigo-600 transition p-1" title="Edit">
                         <Pencil size={16} />
                       </button>
-                      <button onClick={() => handleDelete(t.id)} className="text-gray-400 hover:text-red-600 transition" title="Delete">
+                      <button onClick={() => handleDelete(t.id)} className="text-gray-400 hover:text-red-600 transition p-1" title="Delete">
                         <Trash2 size={16} />
                       </button>
                     </div>
                   </div>
-                  {t.tix_per_player && (
-                    <div className="mb-2 text-xs text-indigo-700 font-medium">
-                      Tix Per Player: {t.tix_per_player} &middot; Max Tix Payout: {t.max_players * t.tix_per_player} tix
-                    </div>
-                  )}
-                  {isCommander(t.category) ? (
-                    <div className="max-w-xl">
-                      <PrizeTable label="Placement Prizes (1st – 4th)" readOnly compact
-                        rows={structToRows(t.prize_structure || {}, genPlacement(4))}
-                        onChange={() => {}} specialVouchers={specialVouchersList} />
-                    </div>
-                  ) : IS_3_ROUND(t.category) ? (
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                      <PrizeTable label="Without Ties" readOnly compact rows={structToRows(t.prize_structure || {}, genNoTies(3))} onChange={() => {}} specialVouchers={specialVouchersList} />
-                      {Object.keys(t.prize_structure_ties || {}).length > 0 && (
-                        <div className="space-y-3">
-                          <PrizeTable label="With Ties — 1 Draw" readOnly compact rows={structToRows(t.prize_structure_ties || {}, genByDraws(1))} onChange={() => {}} specialVouchers={specialVouchersList} />
-                          <PrizeTable label="With Ties — 2 Draws" readOnly compact rows={structToRows(t.prize_structure_ties || {}, genByDraws(2))} onChange={() => {}} specialVouchers={specialVouchersList} />
-                          <PrizeTable label="High-Draw (3 Draws)" readOnly compact rows={structToRows(t.prize_structure_ties || {}, genByDraws(3))} onChange={() => {}} specialVouchers={specialVouchersList} />
+                  {expandedTypes[t.id] && (
+                    <div className="mt-4 pt-4 border-t border-gray-100">
+                      {t.tix_per_player && (
+                        <div className="mb-3 text-xs text-indigo-700 font-medium">
+                          Tix Per Player: {t.tix_per_player} &middot; Max Tix Payout: {t.max_players * t.tix_per_player} tix
                         </div>
                       )}
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                      <PrizeTable label="Without Ties" readOnly compact
-                        rows={structToRows(t.prize_structure || {}, genNoTies(roundsForCategory(t.category || 'Draft')))}
-                        onChange={() => {}} specialVouchers={specialVouchersList} />
-                      {Object.keys(t.prize_structure_ties || {}).length > 0 && (
-                        <PrizeTable label="With Ties" readOnly compact
-                          rows={structToRows(t.prize_structure_ties || {}, genWithTies(roundsForCategory(t.category || 'Draft')))}
-                          onChange={() => {}} specialVouchers={specialVouchersList} />
+                      {isCommander(t.category) ? (
+                        <div className="max-w-xl">
+                          <PrizeTable label="Placement Prizes (1st – 4th)" readOnly compact
+                            rows={structToRows(t.prize_structure || {}, genPlacement(4))}
+                            onChange={() => {}} specialVouchers={specialVouchersList} />
+                        </div>
+                      ) : IS_3_ROUND(t.category) ? (
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                          <PrizeTable label="Without Ties" readOnly compact rows={structToRows(t.prize_structure || {}, genNoTies(3))} onChange={() => {}} specialVouchers={specialVouchersList} />
+                          {Object.keys(t.prize_structure_ties || {}).length > 0 && (
+                            <div className="space-y-3">
+                              <PrizeTable label="With Ties — 1 Draw" readOnly compact rows={structToRows(t.prize_structure_ties || {}, genByDraws(1))} onChange={() => {}} specialVouchers={specialVouchersList} />
+                              <PrizeTable label="With Ties — 2 Draws" readOnly compact rows={structToRows(t.prize_structure_ties || {}, genByDraws(2))} onChange={() => {}} specialVouchers={specialVouchersList} />
+                              <PrizeTable label="High-Draw (3 Draws)" readOnly compact rows={structToRows(t.prize_structure_ties || {}, genByDraws(3))} onChange={() => {}} specialVouchers={specialVouchersList} />
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                          <PrizeTable label="Without Ties" readOnly compact
+                            rows={structToRows(t.prize_structure || {}, genNoTies(roundsForCategory(t.category || 'Draft')))}
+                            onChange={() => {}} specialVouchers={specialVouchersList} />
+                          {Object.keys(t.prize_structure_ties || {}).length > 0 && (
+                            <PrizeTable label="With Ties" readOnly compact
+                              rows={structToRows(t.prize_structure_ties || {}, genWithTies(roundsForCategory(t.category || 'Draft')))}
+                              onChange={() => {}} specialVouchers={specialVouchersList} />
+                          )}
+                        </div>
                       )}
                     </div>
                   )}

@@ -182,6 +182,20 @@ export default function EventDetailPage() {
     finally { setRegistering(false); }
   }
 
+  async function handleUnregisterSingle(userId: number, userName: string) {
+    if (!confirm(`Remove ${userName} from this event? Any entry fee will be refunded.`)) return;
+    setError('');
+    try {
+      const res = await events.unregister(parseInt(id!), userId);
+      if (res.message) {
+        // Trigger alert or toast-like feedback via success-styled message
+      }
+      loadEvent();
+    } catch (err: any) {
+      setError(err.message);
+    }
+  }
+
   async function handleNfcScan() {
     if (!('NDEFReader' in window)) {
       setNfcStatus('Web NFC not supported in this browser. Use Chrome on Android, or enter UID manually.');
@@ -1095,6 +1109,7 @@ export default function EventDetailPage() {
                   {event.team_mode === '2hg' && <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Team</th>}
                   <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">NFC UID</th>
                   <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Registered</th>
+                  {event.status === 'open' && <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase">Actions</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -1112,10 +1127,21 @@ export default function EventDetailPage() {
                     )}
                     <td className="px-6 py-3 text-sm text-gray-600 font-mono">{p.nfc_uid}</td>
                     <td className="px-6 py-3 text-sm text-gray-500">{new Date(p.registered_at).toLocaleString()}</td>
+                    {event.status === 'open' && (
+                      <td className="px-6 py-3 text-sm text-right">
+                        <button
+                          onClick={() => handleUnregisterSingle(p.user_id, p.user_name)}
+                          className="text-xs text-red-600 hover:text-red-800 hover:bg-red-50 px-2.5 py-1 rounded transition font-medium"
+                          title="Remove player & refund entry"
+                        >
+                          Remove
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))}
                 {participants.length === 0 && (
-                  <tr><td colSpan={event.team_mode === '2hg' ? 4 : 3} className="px-6 py-8 text-center text-gray-400">No participants yet</td></tr>
+                  <tr><td colSpan={event.team_mode === '2hg' ? 5 : (event.status === 'open' ? 4 : 3)} className="px-6 py-8 text-center text-gray-400">No participants yet</td></tr>
                 )}
               </tbody>
             </table>

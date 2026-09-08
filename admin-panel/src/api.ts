@@ -162,6 +162,8 @@ export const events = {
     request<any>(`/events/${eventId}/register`, { method: 'POST', body: JSON.stringify({ user_id }) }),
   registerNfc: (eventId: number, nfc_uid: string) =>
     request<any>(`/events/${eventId}/register-nfc`, { method: 'POST', body: JSON.stringify({ nfc_uid }) }),
+  unregister: (eventId: number, userId: number) =>
+    request<any>(`/events/${eventId}/participants/${userId}`, { method: 'DELETE' }),
   start: (eventId: number) =>
     request<any>(`/events/${eventId}/start`, { method: 'POST' }),
   nextRound: (eventId: number) =>

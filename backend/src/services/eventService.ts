@@ -438,7 +438,8 @@ export async function registerToEvent(userId: number, eventId: number, createdBy
     );
     if (countRes.rows[0].count >= event.max_players) throw new Error('Event is full');
 
-    // 4. Check for matching Special Voucher first, else deduct wallet credit (scoped to convention)
+    // 4. Check for matching Special Voucher first, else deduct wallet credit (scoped to convention).
+    // Special vouchers must match the event's category explicitly (no wildcard).
     let costDeducted = 0;
     let specialVoucherUsed = false;
 
@@ -450,8 +451,9 @@ export async function registerToEvent(userId: number, eventId: number, createdBy
        WHERE sva.user_id = $1
          AND sv.convention_id = $2
          AND sva.consumed_at IS NULL
-         AND (sv.category IS NULL OR sv.category = $3)
-         AND (sv.format IS NULL OR sv.format = $4)
+         AND sv.category IS NOT NULL
+         AND sv.category = $3
+         AND (sv.format IS NULL OR sv.format = '' OR sv.format = $4)
        ORDER BY sva.awarded_at ASC
        LIMIT 1
        FOR UPDATE`,
@@ -461,8 +463,8 @@ export async function registerToEvent(userId: number, eventId: number, createdBy
     if (matchingVoucherRes.rows.length > 0) {
       // Consume the matching special voucher
       await client.query(
-        `UPDATE special_voucher_awards SET consumed_at = NOW() WHERE id = $1`,
-        [matchingVoucherRes.rows[0].id]
+        `UPDATE special_voucher_awards SET consumed_at = NOW(), consumed_event_id = $1 WHERE id = $2`,
+        [eventId, matchingVoucherRes.rows[0].id]
       );
       specialVoucherUsed = true;
     } else {
@@ -487,6 +489,106 @@ export async function registerToEvent(userId: number, eventId: number, createdBy
 
     await client.query('COMMIT');
     return { success: true, message: 'Registered successfully', costDeducted };
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+// --- Unregister Player from Event (with refund) ---
+
+export async function unregisterFromEvent(
+  userId: number,
+  eventId: number,
+  actor: string = 'system',
+  requireOpenStatus: boolean = true
+): Promise<{ success: boolean; message: string; refundedColones: number; specialVoucherRestored: boolean }> {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const partRes = await client.query(
+      `SELECT ep.id, ep.wins, ep.losses, ep.draws, ep.result_position, e.status, e.convention_id, et.category, et.entry_cost_colones
+       FROM event_participants ep
+       JOIN events e ON e.id = ep.event_id
+       JOIN event_types et ON et.id = e.event_type_id
+       WHERE ep.event_id = $1 AND ep.user_id = $2
+       FOR UPDATE`,
+      [eventId, userId]
+    );
+    const participant = partRes.rows[0];
+    if (!participant) throw new Error('Participant not found in this event');
+
+    if (requireOpenStatus && participant.status !== 'open') {
+      throw new Error('Can only unregister players from open events');
+    }
+
+    const hasPlayed = (participant.wins || 0) > 0 || (participant.losses || 0) > 0 || (participant.draws || 0) > 0 || participant.result_position !== null;
+    if (hasPlayed) {
+      throw new Error('Cannot unregister — this event has already started for this player');
+    }
+
+    let refundedColones = 0;
+    let specialVoucherRestored = false;
+
+    // 1. Check if a special voucher was consumed for this event entry -> restore it
+    const voucherRestoreRes = await client.query(
+      `UPDATE special_voucher_awards
+       SET consumed_at = NULL, consumed_event_id = NULL
+       WHERE id = (
+         SELECT id FROM special_voucher_awards
+         WHERE user_id = $1 AND consumed_event_id = $2
+         ORDER BY awarded_at DESC
+         LIMIT 1
+       )
+       RETURNING id`,
+      [userId, eventId]
+    );
+
+    if (voucherRestoreRes.rows.length > 0) {
+      specialVoucherRestored = true;
+    } else {
+      // 2. Otherwise, check if a wallet credit charge was made for this event entry -> refund it
+      const txRes = await client.query(
+        `SELECT id, amount_colones FROM wallet_transactions
+         WHERE user_id = $1 AND related_event_id = $2 AND type = 'event_entry' AND amount_colones < 0
+         ORDER BY created_at ASC
+         LIMIT 1`,
+        [userId, eventId]
+      );
+
+      if (txRes.rows.length > 0) {
+        refundedColones = Math.abs(txRes.rows[0].amount_colones);
+        if (refundedColones > 0) {
+          await walletService.refund(
+            userId,
+            participant.convention_id,
+            refundedColones,
+            actor,
+            eventId,
+            'event_refund',
+            client
+          );
+        }
+      }
+    }
+
+    // 3. Remove participant row
+    await client.query(`DELETE FROM event_participants WHERE id = $1`, [participant.id]);
+
+    await client.query('COMMIT');
+    return {
+      success: true,
+      message: specialVoucherRestored
+        ? 'Unregistered and special voucher restored'
+        : refundedColones > 0
+        ? `Unregistered and refunded ${refundedColones.toLocaleString('es-CR')} CRC`
+        : 'Unregistered successfully',
+      refundedColones,
+      specialVoucherRestored,
+    };
   } catch (err) {
     await client.query('ROLLBACK');
     throw err;
