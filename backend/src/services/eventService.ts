@@ -553,7 +553,7 @@ export async function unregisterFromEvent(
       // 2. Otherwise, check if a wallet credit charge was made for this event entry -> refund it
       const txRes = await client.query(
         `SELECT id, amount_colones FROM wallet_transactions
-         WHERE user_id = $1 AND related_event_id = $2 AND type = 'event_entry' AND amount_colones < 0
+         WHERE user_id = $1 AND event_id = $2 AND type = 'payment' AND amount_colones < 0
          ORDER BY created_at ASC
          LIMIT 1`,
         [userId, eventId]
@@ -568,7 +568,7 @@ export async function unregisterFromEvent(
             refundedColones,
             actor,
             eventId,
-            'event_refund',
+            'Event cancellation / unregister refund',
             client
           );
         }
