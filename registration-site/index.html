@@ -3,137 +3,578 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Convention Pre-Registration</title>
+  <title>Spark Fest Costa Rica - Convention & Tournaments</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://www.google.com/recaptcha/api.js" async defer></script>
   <style>
     body { font-family: 'Inter', sans-serif; }
     .fade-in { animation: fadeIn 0.3s ease-in; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    .tab-btn.active {
+      background-color: #4f46e5;
+      color: #ffffff;
+      box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2), 0 2px 4px -2px rgba(79, 70, 229, 0.2);
+    }
   </style>
 </head>
-<body class="bg-gradient-to-br from-indigo-50 via-white to-purple-50 min-h-screen">
-  <div class="max-w-lg mx-auto px-4 py-8">
-    <!-- Header -->
-    <div class="text-center mb-8">
-      <div class="inline-flex items-center justify-center w-16 h-16 bg-indigo-600 rounded-2xl mb-4">
-        <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
-        </svg>
-      </div>
-      <h1 id="convention-title" class="text-3xl font-bold text-gray-800">Convention Registration</h1>
-      <p class="text-gray-500 mt-2">Pre-register to get your wristband faster at the event!</p>
-      <div id="convention-dates" class="hidden mt-2 text-sm text-indigo-600 font-medium"></div>
-    </div>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
 
-    <!-- Form -->
-    <div id="form-section">
-      <form id="reg-form" class="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 space-y-5">
-        <div class="grid grid-cols-2 gap-4">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">First Name <span class="text-red-500">*</span></label>
-            <input type="text" id="name" required placeholder="John"
-              class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-sm transition" />
+  <!-- HERO & BANNER SECTION -->
+  <header class="relative bg-gradient-to-r from-slate-900 via-indigo-950 to-purple-950 text-white overflow-hidden shadow-xl">
+    <div class="absolute inset-0 opacity-10 bg-[radial-gradient(#818cf8_1px,transparent_1px)] [background-size:16px_16px]"></div>
+    <div class="max-w-6xl mx-auto px-4 py-10 sm:py-14 relative z-10">
+      <div class="flex flex-col md:flex-row items-center justify-between gap-8">
+        <div class="text-center md:text-left space-y-3 max-w-2xl">
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 text-xs font-semibold uppercase tracking-wider">
+            <span class="w-2 h-2 rounded-full bg-indigo-400 animate-pulse"></span>
+            Costa Rica's Premier TCG Festival
           </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Last Name <span class="text-red-500">*</span></label>
-            <input type="text" id="last_name" required placeholder="Doe"
-              class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-sm transition" />
+          <h1 id="convention-title" class="text-3xl sm:text-5xl font-extrabold tracking-tight text-white drop-shadow-sm">
+            Spark Fest 2026
+          </h1>
+          <p class="text-slate-300 text-base sm:text-lg font-light leading-relaxed">
+            The ultimate weekend for Magic: The Gathering, competitive tournaments, casual Commander, special guest artists, and gaming community.
+          </p>
+          <div class="flex flex-wrap items-center justify-center md:justify-start gap-4 pt-2 text-sm text-slate-300">
+            <div class="flex items-center gap-2">
+              <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+              </svg>
+              <span id="convention-dates">October 24 - 25, 2026</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+              </svg>
+              <span>San José, Costa Rica</span>
+            </div>
           </div>
         </div>
 
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Email <span class="text-red-500">*</span></label>
-          <input type="email" id="email" required placeholder="john@example.com"
-            class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-sm transition" />
+        <div class="flex flex-col sm:flex-row md:flex-col gap-3 w-full sm:w-auto">
+          <button onclick="switchTab('register')" class="px-6 py-3.5 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-semibold shadow-lg shadow-indigo-500/30 transition transform hover:-translate-y-0.5 text-center flex items-center justify-center gap-2">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+            </svg>
+            Register Now
+          </button>
+          <a href="/app" class="px-6 py-3.5 rounded-xl bg-white/10 hover:bg-white/15 text-white font-medium border border-white/20 transition text-center flex items-center justify-center gap-2">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+            </svg>
+            Player App Login
+          </a>
         </div>
-
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Password <span class="text-red-500">*</span></label>
-          <input type="password" id="password" required minlength="8" placeholder="At least 8 characters"
-            class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-sm transition" />
-          <p class="text-xs text-gray-400 mt-1">Use this with your email to log into the player app.</p>
-        </div>
-
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label>
-          <div class="grid grid-cols-3 gap-2">
-            <select id="dob_day"
-              class="w-full px-2 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-sm transition">
-              <option value="">Day</option>
-            </select>
-            <select id="dob_month"
-              class="w-full px-2 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-sm transition">
-              <option value="">Month</option>
-            </select>
-            <select id="dob_year"
-              class="w-full px-2 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-sm transition">
-              <option value="">Year</option>
-            </select>
-          </div>
-          <input type="hidden" id="dob" />
-        </div>
-
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Age</label>
-          <input type="number" id="age" min="5" max="120" placeholder="25"
-            class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-sm transition" />
-        </div>
-
-        <div id="attendance-section" class="hidden">
-          <label class="block text-sm font-medium text-gray-700 mb-2">Which days will you attend? <span class="text-gray-400 font-normal">(Select all that apply)</span></label>
-          <div id="attendance-dates-container" class="space-y-2"></div>
-        </div>
-
-        <!-- Packages Section -->
-        <div id="packages-section" class="hidden">
-          <label class="block text-sm font-medium text-gray-700 mb-2">Select a Package <span class="text-gray-400 font-normal">(Optional - skip to pay per day)</span></label>
-          <div id="packages-container" class="space-y-3"></div>
-        </div>
-
-        <!-- Event Pre-registration Section -->
-        <div id="events-section" class="hidden">
-          <label class="block text-sm font-medium text-gray-700 mb-2">Pre-register for Events <span class="text-gray-400 font-normal">(Optional - save your spot)</span></label>
-          <div id="events-container" class="space-y-3"></div>
-        </div>
-
-        <!-- CAPTCHA -->
-        <div class="g-recaptcha" data-sitekey="6LfpCoktAAAAAI-t4EFgOK_kUngFNCx68otNahuB"></div>
-
-        <!-- Error / loading -->
-        <div id="error-msg" class="hidden text-sm bg-red-50 text-red-700 px-4 py-3 rounded-lg border border-red-200"></div>
-
-        <button type="submit" id="submit-btn"
-          class="w-full bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-700 transition font-semibold text-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-          </svg>
-          Pre-Register
-        </button>
-      </form>
-    </div>
-
-    <!-- Success -->
-    <div id="success-section" class="hidden fade-in">
-      <div class="bg-white rounded-2xl shadow-lg border border-gray-100 p-8 text-center">
-        <div class="inline-flex items-center justify-center w-20 h-20 bg-green-100 rounded-full mb-4">
-          <svg class="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-          </svg>
-        </div>
-        <h2 class="text-2xl font-bold text-gray-800 mb-2">You're Pre-Registered!</h2>
-        <p id="success-message" class="text-gray-500 mb-4">Show up at the convention desk to get your NFC wristband linked to your account.</p>
-        <div id="success-details" class="bg-gray-50 rounded-lg p-4 text-left text-sm space-y-1 mb-6"></div>
-        <button onclick="resetForm()" class="text-indigo-600 hover:text-indigo-700 font-medium text-sm">Register another person</button>
       </div>
     </div>
 
-    <p class="text-center text-xs text-gray-400 mt-6">Your information will be used for event management only. Payment (if applicable) is processed securely through OnvoPay.</p>
-  </div>
+    <!-- NAVIGATION BAR / TABS -->
+    <nav class="bg-slate-900/90 backdrop-blur border-t border-slate-800">
+      <div class="max-w-6xl mx-auto px-4">
+        <div class="flex items-center gap-2 overflow-x-auto py-2.5 scrollbar-none no-scrollbar">
+          <button onclick="switchTab('register')" id="tab-btn-register" class="tab-btn active px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition text-slate-300 hover:text-white hover:bg-slate-800 flex items-center gap-2">
+            <span>📝</span> Register
+          </button>
+          <button onclick="switchTab('about')" id="tab-btn-about" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition text-slate-300 hover:text-white hover:bg-slate-800 flex items-center gap-2">
+            <span>✨</span> What is Spark Fest?
+          </button>
+          <button onclick="switchTab('schedule')" id="tab-btn-schedule" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition text-slate-300 hover:text-white hover:bg-slate-800 flex items-center gap-2">
+            <span>📅</span> Schedule
+          </button>
+          <button onclick="switchTab('events')" id="tab-btn-events" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition text-slate-300 hover:text-white hover:bg-slate-800 flex items-center gap-2">
+            <span>⚔️</span> Tournaments & Events
+          </button>
+          <button onclick="switchTab('artists')" id="tab-btn-artists" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition text-slate-300 hover:text-white hover:bg-slate-800 flex items-center gap-2">
+            <span>🎨</span> Special Guests & Artists
+          </button>
+          <button onclick="switchTab('faq')" id="tab-btn-faq" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition text-slate-300 hover:text-white hover:bg-slate-800 flex items-center gap-2">
+            <span>❓</span> FAQ
+          </button>
+        </div>
+      </div>
+    </nav>
+  </header>
+
+  <!-- MAIN CONTENT CONTAINER -->
+  <main class="flex-1 max-w-6xl w-full mx-auto px-4 py-8">
+
+    <!-- ========================================================================= -->
+    <!-- TAB 1: REGISTRATION -->
+    <!-- ========================================================================= -->
+    <div id="tab-content-register" class="tab-pane fade-in">
+      <div class="max-w-xl mx-auto">
+        <div class="text-center mb-6">
+          <h2 class="text-2xl font-bold text-gray-800">Convention & Event Registration</h2>
+          <p class="text-gray-500 text-sm mt-1">Reserve your spot, packages, and tournament entries.</p>
+        </div>
+
+        <div id="form-section">
+          <form id="reg-form" class="bg-white rounded-2xl shadow-md border border-gray-200/80 p-6 sm:p-8 space-y-5">
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1">First Name <span class="text-red-500">*</span></label>
+                <input type="text" id="name" required placeholder="John"
+                  class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-sm transition" />
+              </div>
+              <div>
+                <label class="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1">Last Name <span class="text-red-500">*</span></label>
+                <input type="text" id="last_name" required placeholder="Doe"
+                  class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-sm transition" />
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1">Email <span class="text-red-500">*</span></label>
+              <input type="email" id="email" required placeholder="john@example.com"
+                class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-sm transition" />
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1">Password <span class="text-red-500">*</span></label>
+              <input type="password" id="password" required minlength="8" placeholder="At least 8 characters"
+                class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-sm transition" />
+              <p class="text-xs text-gray-400 mt-1">Use this password with your email to log into the player app during the event.</p>
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1">Date of Birth</label>
+              <div class="grid grid-cols-3 gap-2">
+                <select id="dob_day"
+                  class="w-full px-2 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-sm transition">
+                  <option value="">Day</option>
+                </select>
+                <select id="dob_month"
+                  class="w-full px-2 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-sm transition">
+                  <option value="">Month</option>
+                </select>
+                <select id="dob_year"
+                  class="w-full px-2 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-sm transition">
+                  <option value="">Year</option>
+                </select>
+              </div>
+              <input type="hidden" id="dob" />
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1">Age</label>
+              <input type="number" id="age" min="5" max="120" placeholder="25"
+                class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-sm transition" />
+            </div>
+
+            <div id="attendance-section" class="hidden">
+              <label class="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-2">Which days will you attend? <span class="text-gray-400 font-normal">(Select all that apply)</span></label>
+              <div id="attendance-dates-container" class="space-y-2"></div>
+            </div>
+
+            <!-- Packages Section -->
+            <div id="packages-section" class="hidden">
+              <label class="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-2">Select a Package <span class="text-gray-400 font-normal">(Optional - skip to pay per day)</span></label>
+              <div id="packages-container" class="space-y-3"></div>
+            </div>
+
+            <!-- Event Pre-registration Section -->
+            <div id="events-section" class="hidden">
+              <label class="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-2">Pre-register for Events <span class="text-gray-400 font-normal">(Optional - save your spot)</span></label>
+              <div id="events-container" class="space-y-3"></div>
+            </div>
+
+            <!-- CAPTCHA -->
+            <div class="g-recaptcha" data-sitekey="6LfpCoktAAAAAI-t4EFgOK_kUngFNCx68otNahuB"></div>
+
+            <!-- Error / loading -->
+            <div id="error-msg" class="hidden text-sm bg-red-50 text-red-700 px-4 py-3 rounded-lg border border-red-200"></div>
+
+            <button type="submit" id="submit-btn"
+              class="w-full bg-indigo-600 text-white py-3.5 rounded-lg hover:bg-indigo-700 transition font-semibold text-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-indigo-600/20">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+              Complete Pre-Registration
+            </button>
+          </form>
+        </div>
+
+        <!-- Success Section -->
+        <div id="success-section" class="hidden fade-in">
+          <div class="bg-white rounded-2xl shadow-lg border border-gray-100 p-8 text-center">
+            <div class="inline-flex items-center justify-center w-20 h-20 bg-green-100 rounded-full mb-4">
+              <svg class="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+              </svg>
+            </div>
+            <h2 class="text-2xl font-bold text-gray-800 mb-2">You're Pre-Registered!</h2>
+            <p id="success-message" class="text-gray-500 mb-4">Show up at the convention desk to get your NFC wristband linked to your account.</p>
+            <div id="success-details" class="bg-gray-50 rounded-lg p-4 text-left text-sm space-y-1 mb-6"></div>
+            <button onclick="resetForm()" class="text-indigo-600 hover:text-indigo-700 font-medium text-sm">Register another person</button>
+          </div>
+        </div>
+
+        <p class="text-center text-xs text-gray-400 mt-6">Your information will be used for event management only. Payments are processed securely in Costa Rican Colones (CRC).</p>
+      </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- TAB 2: WHAT IS SPARK FEST? -->
+    <!-- ========================================================================= -->
+    <div id="tab-content-about" class="tab-pane hidden fade-in space-y-8">
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-200/80 p-8 sm:p-10">
+        <div class="max-w-3xl">
+          <span class="text-xs font-bold uppercase tracking-wider text-indigo-600">The Experience</span>
+          <h2 class="text-3xl font-extrabold text-gray-900 mt-1 mb-4">What is Spark Fest?</h2>
+          <p class="text-gray-600 text-base sm:text-lg leading-relaxed mb-6">
+            Spark Fest is Central America's dedicated festival celebrating Trading Card Games, Magic: The Gathering, competitive gaming culture, and the artistry behind the cards. Whether you're chasing high-stakes championship prizes or looking to jam casual Commander pods with friends, Spark Fest provides an unmatched weekend convention experience.
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+          <div class="p-6 rounded-xl bg-gradient-to-br from-indigo-50 to-white border border-indigo-100">
+            <div class="w-12 h-12 rounded-lg bg-indigo-600 text-white flex items-center justify-center text-2xl mb-4">⚔️</div>
+            <h3 class="font-bold text-gray-900 text-lg mb-2">Non-Stop Tournaments</h3>
+            <p class="text-sm text-gray-600">Main events, sealed deck challenges, Modern & Standard Swiss, and continuous 8-player on-demand queues all day long.</p>
+          </div>
+          <div class="p-6 rounded-xl bg-gradient-to-br from-purple-50 to-white border border-purple-100">
+            <div class="w-12 h-12 rounded-lg bg-purple-600 text-white flex items-center justify-center text-2xl mb-4">🎨</div>
+            <h3 class="font-bold text-gray-900 text-lg mb-2">Renowned Artists</h3>
+            <p class="text-sm text-gray-600">Meet acclaimed fantasy artists, get your signature cards signed, explore artist proofs, custom alters, and limited-edition prints.</p>
+          </div>
+          <div class="p-6 rounded-xl bg-gradient-to-br from-amber-50 to-white border border-amber-100">
+            <div class="w-12 h-12 rounded-lg bg-amber-600 text-white flex items-center justify-center text-2xl mb-4">🎟️</div>
+            <h3 class="font-bold text-gray-900 text-lg mb-2">Digital NFC Wristbands</h3>
+            <p class="text-sm text-gray-600">Smart wristband entry, instant tournament pairings, live pairings via the player app, and instant prize wall redemptions.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Highlights Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-200/80 p-6 sm:p-8">
+          <h3 class="text-xl font-bold text-gray-900 mb-3 flex items-center gap-2">
+            <span>🛡️</span> For Competitive Players
+          </h3>
+          <ul class="space-y-3 text-sm text-gray-600">
+            <li class="flex items-start gap-2">
+              <span class="text-green-500 font-bold">✓</span>
+              <span><strong>Premier Main Events:</strong> High prize pools, top cut playoffs, and trophy events.</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="text-green-500 font-bold">✓</span>
+              <span><strong>Certified Judge Staff:</strong> Professional head judges ensuring fair and smooth gameplay.</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="text-green-500 font-bold">✓</span>
+              <span><strong>Live Results:</strong> Real-time match pairings and standings synced to your mobile phone.</span>
+            </li>
+          </ul>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-200/80 p-6 sm:p-8">
+          <h3 class="text-xl font-bold text-gray-900 mb-3 flex items-center gap-2">
+            <span>👑</span> For Casual & Commander Enthusiasts
+          </h3>
+          <ul class="space-y-3 text-sm text-gray-600">
+            <li class="flex items-start gap-2">
+              <span class="text-green-500 font-bold">✓</span>
+              <span><strong>Dedicated Commander Zone:</strong> Open play tables, bracketed pods, and friendly prize vouchers.</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="text-green-500 font-bold">✓</span>
+              <span><strong>On-Demand Mini Events:</strong> 8-player drafts and pods firing as soon as they fill.</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="text-green-500 font-bold">✓</span>
+              <span><strong>Community & Trades:</strong> Vendor booths, singles trading, binders, and specialty MTG accessories.</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- TAB 3: SCHEDULE -->
+    <!-- ========================================================================= -->
+    <div id="tab-content-schedule" class="tab-pane hidden fade-in space-y-6">
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-200/80 p-6 sm:p-8">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 border-b border-gray-100 pb-4">
+          <div>
+            <h2 class="text-2xl font-bold text-gray-900">Event Schedule</h2>
+            <p class="text-sm text-gray-500">Timeline of tournaments, artist signings, and main stage presentations.</p>
+          </div>
+          <button onclick="switchTab('register')" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg transition self-start sm:self-auto">
+            Pre-register for Scheduled Events &rarr;
+          </button>
+        </div>
+
+        <!-- Dynamic or fallback schedule view -->
+        <div id="public-schedule-list" class="space-y-8">
+          <!-- Day 1 -->
+          <div>
+            <div class="flex items-center gap-3 mb-4">
+              <span class="px-3 py-1 rounded-lg bg-indigo-100 text-indigo-700 font-bold text-sm">DAY 1</span>
+              <h3 class="text-lg font-bold text-gray-800">Saturday Schedule</h3>
+            </div>
+            <div class="space-y-3">
+              <div class="p-4 rounded-xl bg-gray-50 border border-gray-200/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                <div>
+                  <span class="text-xs font-bold text-indigo-600 uppercase tracking-wide">09:00 AM - 10:00 AM</span>
+                  <h4 class="font-bold text-gray-800">Doors Open & Wristband Check-in</h4>
+                  <p class="text-xs text-gray-500">Pick up your NFC wristband and welcome badge at registration.</p>
+                </div>
+                <span class="text-xs px-2.5 py-1 rounded-full bg-gray-200 text-gray-700 font-medium">Main Hall</span>
+              </div>
+              <div class="p-4 rounded-xl bg-gray-50 border border-gray-200/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                <div>
+                  <span class="text-xs font-bold text-indigo-600 uppercase tracking-wide">10:30 AM</span>
+                  <h4 class="font-bold text-gray-800">Sealed Main Championship (Day 1)</h4>
+                  <p class="text-xs text-gray-500">6-Booster Sealed Deck tournament with top cut qualification.</p>
+                </div>
+                <span class="text-xs px-2.5 py-1 rounded-full bg-blue-100 text-blue-700 font-medium">Tournament Arena</span>
+              </div>
+              <div class="p-4 rounded-xl bg-gray-50 border border-gray-200/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                <div>
+                  <span class="text-xs font-bold text-indigo-600 uppercase tracking-wide">12:00 PM - 07:00 PM</span>
+                  <h4 class="font-bold text-gray-800">Artist Signings & Alter Stations</h4>
+                  <p class="text-xs text-gray-500">Open autograph hours and proof signatures with featured artists.</p>
+                </div>
+                <span class="text-xs px-2.5 py-1 rounded-full bg-purple-100 text-purple-700 font-medium">Artist Alley</span>
+              </div>
+              <div class="p-4 rounded-xl bg-gray-50 border border-gray-200/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                <div>
+                  <span class="text-xs font-bold text-indigo-600 uppercase tracking-wide">01:00 PM - Continuous</span>
+                  <h4 class="font-bold text-gray-800">On-Demand Drafts & Commander Pods</h4>
+                  <p class="text-xs text-gray-500">8-player pods launch immediately upon filling.</p>
+                </div>
+                <span class="text-xs px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 font-medium">Commander Zone</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Day 2 -->
+          <div>
+            <div class="flex items-center gap-3 mb-4">
+              <span class="px-3 py-1 rounded-lg bg-purple-100 text-purple-700 font-bold text-sm">DAY 2</span>
+              <h3 class="text-lg font-bold text-gray-800">Sunday Schedule</h3>
+            </div>
+            <div class="space-y-3">
+              <div class="p-4 rounded-xl bg-gray-50 border border-gray-200/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                <div>
+                  <span class="text-xs font-bold text-indigo-600 uppercase tracking-wide">09:30 AM</span>
+                  <h4 class="font-bold text-gray-800">Modern Premier Open</h4>
+                  <p class="text-xs text-gray-500">Competitive Modern Swiss rounds with cash & colones credit prize pool.</p>
+                </div>
+                <span class="text-xs px-2.5 py-1 rounded-full bg-blue-100 text-blue-700 font-medium">Tournament Arena</span>
+              </div>
+              <div class="p-4 rounded-xl bg-gray-50 border border-gray-200/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                <div>
+                  <span class="text-xs font-bold text-indigo-600 uppercase tracking-wide">02:00 PM</span>
+                  <h4 class="font-bold text-gray-800">Two-Headed Giant Sealed Celebration</h4>
+                  <p class="text-xs text-gray-500">Pair up with a teammate for a fun, prize-packed 2HG challenge.</p>
+                </div>
+                <span class="text-xs px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 font-medium">Side Events Track</span>
+              </div>
+              <div class="p-4 rounded-xl bg-gray-50 border border-gray-200/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                <div>
+                  <span class="text-xs font-bold text-indigo-600 uppercase tracking-wide">06:00 PM</span>
+                  <h4 class="font-bold text-gray-800">Trophy Ceremony & Prize Wall Finale</h4>
+                  <p class="text-xs text-gray-500">Championship awards and final ticket redemptions.</p>
+                </div>
+                <span class="text-xs px-2.5 py-1 rounded-full bg-indigo-100 text-indigo-700 font-medium">Main Stage</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- TAB 4: EVENTS & TOURNAMENTS -->
+    <!-- ========================================================================= -->
+    <div id="tab-content-events" class="tab-pane hidden fade-in space-y-6">
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-200/80 p-6 sm:p-8">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 border-b border-gray-100 pb-4">
+          <div>
+            <h2 class="text-2xl font-bold text-gray-900">Tournaments & Game Formats</h2>
+            <p class="text-sm text-gray-500">Explore tournament categories and prize structures available throughout the weekend.</p>
+          </div>
+          <button onclick="switchTab('register')" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg transition self-start sm:self-auto">
+            Reserve Event Slots &rarr;
+          </button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="p-6 rounded-xl border border-gray-200 bg-white shadow-sm space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="text-xs px-2.5 py-1 rounded-full bg-blue-100 text-blue-700 font-bold uppercase">Booster Draft</span>
+              <span class="text-sm font-semibold text-gray-500">8 Players • 3 Rounds</span>
+            </div>
+            <h3 class="text-lg font-bold text-gray-800">On-Demand & Scheduled Drafts</h3>
+            <p class="text-sm text-gray-600">Draft 3 booster packs, build your 40-card deck, and battle 3 Swiss rounds. Prizes awarded by final match record (3-0, 2-1).</p>
+          </div>
+
+          <div class="p-6 rounded-xl border border-gray-200 bg-white shadow-sm space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="text-xs px-2.5 py-1 rounded-full bg-purple-100 text-purple-700 font-bold uppercase">Sealed Deck</span>
+              <span class="text-sm font-semibold text-gray-500">Single Player & 2HG</span>
+            </div>
+            <h3 class="text-lg font-bold text-gray-800">Premier Sealed & Special Events</h3>
+            <p class="text-sm text-gray-600">Open 6 booster packs to construct a 40-card deck. Includes main championships and 2-Headed Giant team options.</p>
+          </div>
+
+          <div class="p-6 rounded-xl border border-gray-200 bg-white shadow-sm space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="text-xs px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 font-bold uppercase">Constructed</span>
+              <span class="text-sm font-semibold text-gray-500">Standard • Modern • Pioneer • Pauper</span>
+            </div>
+            <h3 class="text-lg font-bold text-gray-800">Constructed Swiss Tournaments</h3>
+            <p class="text-sm text-gray-600">Bring your 60-card deck + 15-card sideboard for high-energy Swiss tournament brackets.</p>
+          </div>
+
+          <div class="p-6 rounded-xl border border-gray-200 bg-white shadow-sm space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="text-xs px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 font-bold uppercase">Commander (EDH)</span>
+              <span class="text-sm font-semibold text-gray-500">4-Player Pods</span>
+            </div>
+            <h3 class="text-lg font-bold text-gray-800">Commander Brackets & Open Play</h3>
+            <p class="text-sm text-gray-600">Enjoy 4-player multiplayer pods categorized by power level with prize vouchers awarded to participants.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- TAB 5: SPECIAL GUESTS & ARTISTS -->
+    <!-- ========================================================================= -->
+    <div id="tab-content-artists" class="tab-pane hidden fade-in space-y-6">
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-200/80 p-6 sm:p-8">
+        <div class="mb-6 border-b border-gray-100 pb-4">
+          <span class="text-xs font-bold uppercase tracking-wider text-purple-600">Special Guests</span>
+          <h2 class="text-2xl font-bold text-gray-900 mt-1">Featured MTG Artists & Guests</h2>
+          <p class="text-sm text-gray-500">Meet legendary illustrators in person throughout the weekend.</p>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <!-- Artist Card 1 (Placeholder / Customizable) -->
+          <div class="rounded-xl border border-gray-200 overflow-hidden bg-white shadow-sm hover:shadow-md transition">
+            <div class="h-44 bg-gradient-to-br from-indigo-900 to-purple-800 flex items-center justify-center text-5xl">
+              🎨
+            </div>
+            <div class="p-5 space-y-2">
+              <span class="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 font-semibold">Special Guest Artist</span>
+              <h3 class="font-bold text-gray-900 text-lg">Guest Artist Announcement</h3>
+              <p class="text-xs text-gray-500">Signatures • Custom Card Alters • Artist Proofs • Playmats</p>
+              <p class="text-sm text-gray-600 pt-1">Renowned fantasy illustrator known for iconic card artworks across multiple expansions.</p>
+            </div>
+          </div>
+
+          <!-- Artist Card 2 (Placeholder / Customizable) -->
+          <div class="rounded-xl border border-gray-200 overflow-hidden bg-white shadow-sm hover:shadow-md transition">
+            <div class="h-44 bg-gradient-to-br from-slate-800 to-indigo-900 flex items-center justify-center text-5xl">
+              🖌️
+            </div>
+            <div class="p-5 space-y-2">
+              <span class="text-xs px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 font-semibold">Featured Illustrator</span>
+              <h3 class="font-bold text-gray-900 text-lg">Special Guest Illustrator</h3>
+              <p class="text-xs text-gray-500">Card Signatures • Original Artworks • Limited Prints</p>
+              <p class="text-sm text-gray-600 pt-1">Bringing exclusive prints, playmats, and original sketch commissions for attendees.</p>
+            </div>
+          </div>
+
+          <!-- Artist Card 3 (Placeholder / Customizable) -->
+          <div class="rounded-xl border border-gray-200 overflow-hidden bg-white shadow-sm hover:shadow-md transition">
+            <div class="h-44 bg-gradient-to-br from-purple-900 to-pink-900 flex items-center justify-center text-5xl">
+              ✨
+            </div>
+            <div class="p-5 space-y-2">
+              <span class="text-xs px-2 py-0.5 rounded-full bg-pink-100 text-pink-700 font-semibold">Community Creator</span>
+              <h3 class="font-bold text-gray-900 text-lg">Guest Content Creator</h3>
+              <p class="text-xs text-gray-500">Commander Matches • Meet & Greet • Live Stage</p>
+              <p class="text-sm text-gray-600 pt-1">Join casual spellslinging games and live broadcast features during convention hours.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-8 p-4 rounded-xl bg-purple-50 border border-purple-100 text-xs sm:text-sm text-purple-900">
+          <strong>Artist Signatures & Alter Guidelines:</strong> Please have cards de-sleeved before approaching artist tables. Signing hours and any per-card limits will be posted at each artist booth.
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- TAB 6: FAQ -->
+    <!-- ========================================================================= -->
+    <div id="tab-content-faq" class="tab-pane hidden fade-in space-y-6">
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-200/80 p-6 sm:p-8">
+        <div class="mb-6 border-b border-gray-100 pb-4">
+          <span class="text-xs font-bold uppercase tracking-wider text-indigo-600">Help & Information</span>
+          <h2 class="text-2xl font-bold text-gray-900 mt-1">Frequently Asked Questions</h2>
+          <p class="text-sm text-gray-500">Everything you need to know about attendance, payments, tickets, and tournaments.</p>
+        </div>
+
+        <div class="space-y-4">
+          <div class="p-5 rounded-xl bg-gray-50 border border-gray-200/80">
+            <h3 class="font-bold text-gray-900 text-base mb-1">How does entry and check-in work?</h3>
+            <p class="text-sm text-gray-600">When you pre-register on this site, an account is prepared for you. At the convention front desk, you will receive your smart wristband linked to your account, granting you venue entry and instant event check-ins.</p>
+          </div>
+
+          <div class="p-5 rounded-xl bg-gray-50 border border-gray-200/80">
+            <h3 class="font-bold text-gray-900 text-base mb-1">What currency are tickets and events priced in?</h3>
+            <p class="text-sm text-gray-600">All prices on the platform are in <strong>Costa Rican Colones (CRC ₡)</strong>. Online package purchases are securely processed through ONVO Pay.</p>
+          </div>
+
+          <div class="p-5 rounded-xl bg-gray-50 border border-gray-200/80">
+            <h3 class="font-bold text-gray-900 text-base mb-1">What are Special Vouchers and how do they work?</h3>
+            <p class="text-sm text-gray-600">Certain packages or promotions include Special Vouchers for specific categories (like On-Demand or Draft). When you register for an eligible event in the Player App, your voucher automatically covers the entry fee!</p>
+          </div>
+
+          <div class="p-5 rounded-xl bg-gray-50 border border-gray-200/80">
+            <h3 class="font-bold text-gray-900 text-base mb-1">Can I unregister from an event if my schedule changes?</h3>
+            <p class="text-sm text-gray-600">Yes! As long as the event has not started, you or a staff member can unregister you. If you paid with wallet credit, the colones are instantly refunded to your balance; if a voucher was used, it is restored to your profile.</p>
+          </div>
+
+          <div class="p-5 rounded-xl bg-gray-50 border border-gray-200/80">
+            <h3 class="font-bold text-gray-900 text-base mb-1">How do I access the Player App?</h3>
+            <p class="text-sm text-gray-600">Simply visit <a href="/app" class="text-indigo-600 font-semibold underline">/app</a> on your smartphone browser. Log in with the email and password you created during pre-registration to view your balance, vouchers, pairings, and event registrations.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="bg-slate-900 text-slate-400 text-xs py-8 border-t border-slate-800 mt-12">
+    <div class="max-w-6xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
+      <div>
+        <p class="font-semibold text-slate-200">Spark Fest Costa Rica</p>
+        <p class="mt-1">Convention management & digital player portal.</p>
+      </div>
+      <div class="flex items-center gap-4">
+        <button onclick="switchTab('register')" class="hover:text-white transition">Register</button>
+        <button onclick="switchTab('about')" class="hover:text-white transition">About</button>
+        <button onclick="switchTab('schedule')" class="hover:text-white transition">Schedule</button>
+        <button onclick="switchTab('faq')" class="hover:text-white transition">FAQ</button>
+        <a href="/app" class="text-indigo-400 hover:text-indigo-300 font-medium transition">Player Login &rarr;</a>
+      </div>
+    </div>
+  </footer>
 
   <script>
+    // Tab switching logic
+    function switchTab(tabKey) {
+      document.querySelectorAll('.tab-pane').forEach(el => el.classList.add('hidden'));
+      document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+
+      const targetPane = document.getElementById(`tab-content-${tabKey}`);
+      const targetBtn = document.getElementById(`tab-btn-${tabKey}`);
+
+      if (targetPane) targetPane.classList.remove('hidden');
+      if (targetBtn) targetBtn.classList.add('active');
+
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
     // Use relative URL — works when served by backend at /register or standalone
     const API_BASE = '/public';
 
@@ -163,38 +604,29 @@
         const res = await fetch(`${API_BASE}/convention`);
         const json = await res.json();
 
-        console.log('Convention data:', json);
-
         if (json.convention) {
           conventionTitle.textContent = json.convention.name;
           if (json.convention.start_date && json.convention.end_date) {
-            const start = new Date(json.convention.start_date).toLocaleDateString();
-            const end = new Date(json.convention.end_date).toLocaleDateString();
+            const start = new Date(json.convention.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            const end = new Date(json.convention.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
             conventionDates.textContent = `${start} - ${end}`;
             conventionDates.classList.remove('hidden');
           }
 
-          // Store scan mode
           scanMode = json.convention.scan_mode || 'nfc';
-
           availableDates = json.available_dates || [];
-          console.log('Available dates:', availableDates);
           if (availableDates.length > 0) {
             attendanceSection.classList.remove('hidden');
             renderAttendanceDates();
           }
 
-          // Store and render packages
           packages = json.packages || [];
-          console.log('Packages:', packages);
           if (packages.length > 0) {
             packagesSection.classList.remove('hidden');
             renderPackages();
           }
 
-          // Store and render events
           events = json.events || [];
-          console.log('Events:', events);
           if (events.length > 0) {
             eventsSection.classList.remove('hidden');
             renderEvents();
@@ -251,9 +683,7 @@
       }
     }
 
-    function updatePackageTotalsDisplay() {
-      // Placeholder hook in case a live running-total UI is added later
-    }
+    function updatePackageTotalsDisplay() {}
 
     function getSelectedPackages() {
       const checked = Array.from(document.querySelectorAll('input[name="package"]:checked'));
@@ -299,8 +729,6 @@
     }
 
     function renderEvents() {
-      // Group events by schedule day so players can browse the schedule
-      // interactively instead of scanning one long flat list.
       const groups = new Map();
       const noDay = [];
       events.forEach(evt => {
@@ -346,7 +774,6 @@
       dobYearSelect.insertAdjacentHTML('beforeend', `<option value="${y}">${y}</option>`);
     }
 
-    // Rebuild the hidden ISO dob value and auto-calculate age whenever any part changes
     function updateDobFromParts() {
       const day = dobDaySelect.value;
       const month = dobMonthSelect.value;
@@ -375,23 +802,16 @@
       submitBtn.disabled = true;
       submitBtn.innerHTML = '<svg class="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Registering...';
 
-      // Get selected attendance dates
-      const selectedDates = Array.from(document.querySelectorAll('input[name="attendance_date"]:checked'))
-        .map(cb => cb.value);
-
-      // Get selected packages (multiple allowed, each with an optional quantity multiplier)
+      const selectedDates = Array.from(document.querySelectorAll('input[name="attendance_date"]:checked')).map(cb => cb.value);
       const selectedPackageSelections = getSelectedPackages();
-
-      // Get selected events for pre-registration
-      const selectedEvents = Array.from(document.querySelectorAll('input[name="event_prereg"]:checked'))
-        .map(cb => parseInt(cb.value));
+      const selectedEvents = Array.from(document.querySelectorAll('input[name="event_prereg"]:checked')).map(cb => parseInt(cb.value));
 
       const recaptchaToken = typeof grecaptcha !== 'undefined' ? grecaptcha.getResponse() : '';
       if (!recaptchaToken) {
         errorMsg.textContent = 'Please complete the CAPTCHA before submitting.';
         errorMsg.classList.remove('hidden');
         submitBtn.disabled = false;
-        submitBtn.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> Pre-Register';
+        submitBtn.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> Complete Pre-Registration';
         return;
       }
 
@@ -408,8 +828,6 @@
         recaptcha_token: recaptchaToken,
       };
 
-      // Calculate cost across all selected packages purely for the confirmation summary —
-      // online payment isn't available yet, so this is informational only.
       const selectedEventObjs = events.filter(e => selectedEvents.includes(e.id));
       const selectedPackageDetails = selectedPackageSelections.map(sel => {
         const pkg = packages.find(p => p.id === sel.package_id);
@@ -429,7 +847,6 @@
           throw new Error(json.error || 'Registration failed');
         }
 
-        // If paid packages were selected, create a payment and redirect to checkout
         if (json.package_total_cost > 0) {
           submitBtn.innerHTML = '<svg class="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Redirecting to payment...';
 
@@ -459,7 +876,7 @@
         if (typeof grecaptcha !== 'undefined') grecaptcha.reset();
       } finally {
         submitBtn.disabled = false;
-        submitBtn.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> Pre-Register';
+        submitBtn.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> Complete Pre-Registration';
       }
     });
 
@@ -493,7 +910,7 @@
       successSection.classList.remove('hidden');
     }
 
-    // Load convention info on page load
+    // Initial load
     loadConventionInfo();
   </script>
 </body>
