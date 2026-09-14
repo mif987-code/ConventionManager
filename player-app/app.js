@@ -440,10 +440,15 @@ async function renderProfile(el) {
       <div style="display:flex;flex-direction:column;gap:8px;">
         ${player.merchandise.map(m => `
           <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--bg3);border-radius:8px;border:1px solid var(--border);">
-            <div>
-              <div style="font-weight:600;font-size:0.85rem;${m.is_claimed ? 'text-decoration:line-through;color:var(--text2);' : ''}">${esc(m.item_name)}</div>
-              <div style="font-size:0.75rem;color:var(--text2);margin-top:2px;">
-                ${m.is_claimed && m.claimed_at ? `Claimed on ${new Date(m.claimed_at).toLocaleDateString()}` : 'Pick up at Organizer Desk'}
+            <div style="display:flex;align-items:center;gap:10px;">
+              ${m.image_url ? `
+                <img src="${esc(m.image_url)}" alt="${esc(m.item_name)}" style="width:40px;height:40px;border-radius:6px;object-fit:cover;border:1px solid var(--border);background:#fff;">
+              ` : ''}
+              <div>
+                <div style="font-weight:600;font-size:0.85rem;${m.is_claimed ? 'text-decoration:line-through;color:var(--text2);' : ''}">${esc(m.item_name)}</div>
+                <div style="font-size:0.75rem;color:var(--text2);margin-top:2px;">
+                  ${m.is_claimed && m.claimed_at ? `Claimed on ${new Date(m.claimed_at).toLocaleDateString()}` : 'Pick up at Organizer Desk'}
+                </div>
               </div>
             </div>
             <span class="badge ${m.is_claimed ? 'badge-completed' : 'badge-open'}" style="font-size:0.7rem;padding:2px 8px;">

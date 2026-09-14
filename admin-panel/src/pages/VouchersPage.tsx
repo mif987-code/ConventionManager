@@ -1030,6 +1030,13 @@ export default function VouchersPage() {
                         >
                           {item.is_claimed ? <CheckCircle2 size={24} className="text-emerald-500" /> : <Circle size={24} />}
                         </button>
+                        {item.image_url && (
+                          <img
+                            src={item.image_url}
+                            alt={item.item_name}
+                            className="w-10 h-10 rounded-lg object-cover border border-gray-200 bg-white"
+                          />
+                        )}
                         <div>
                           <p className={`font-medium text-sm ${item.is_claimed ? 'text-gray-500 line-through' : 'text-gray-800'}`}>
                             {item.item_name}

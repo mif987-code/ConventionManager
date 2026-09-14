@@ -1,17 +1,19 @@
-import { useState, useEffect } from 'react';
-import { Plus, Trash2, Edit2, X, Check, Package as PackageIcon } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Plus, Trash2, Edit2, X, Check, Package as PackageIcon, Upload, Image as ImageIcon, Loader2 } from 'lucide-react';
 import { packages, specialVouchers } from '../api';
 
 export default function PackagesPage() {
   const [packageList, setPackageList] = useState<any[]>([]);
   const [availableSpecialVouchers, setAvailableSpecialVouchers] = useState<any[]>([]);
   const [selectedSpecialVoucherIds, setSelectedSpecialVoucherIds] = useState<number[]>([]);
-  const [merchandiseItems, setMerchandiseItems] = useState<string[]>([]);
+  const [merchandiseItems, setMerchandiseItems] = useState<Array<{ item_name: string; image_url?: string | null }>>([]);
+  const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingPackage, setEditingPackage] = useState<any>(null);
   const [form, setForm] = useState({ name: '', description: '', days: 1, cost: 0, prereg_cost: '', regular_voucher_amount: 0, is_active: true, package_type: 'day_pass' });
+  const fileInputRefs = useRef<{ [key: number]: HTMLInputElement | null }>({});
 
   async function loadPackages() {
     try {
@@ -39,13 +41,38 @@ export default function PackagesPage() {
       ]);
       setAvailableSpecialVouchers(svRes.special_vouchers || []);
       setSelectedSpecialVoucherIds(pkgSvRes.special_voucher_ids || []);
-      setMerchandiseItems((merchRes.merchandise || []).map((m: any) => m.item_name));
+      setMerchandiseItems((merchRes.merchandise || []).map((m: any) => ({
+        item_name: m.item_name,
+        image_url: m.image_url || null
+      })));
     } catch (err: any) {
       console.error('Failed to load package details:', err);
     }
   }
 
   useEffect(() => { loadPackages(); }, []);
+
+  async function handleImageUpload(index: number, e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingIndex(index);
+    try {
+      const fd = new FormData();
+      fd.append('image', file);
+      const res = await packages.uploadMerchandiseImage(fd);
+      if (res.success && res.image_url) {
+        const updated = [...merchandiseItems];
+        updated[index].image_url = res.image_url;
+        setMerchandiseItems(updated);
+      } else {
+        setError(res.error || 'Failed to upload image');
+      }
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setUploadingIndex(null);
+    }
+  }
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
@@ -80,8 +107,8 @@ export default function PackagesPage() {
         }
       }
 
-      // Handle merchandise items
-      await packages.setMerchandise(targetPackageId, merchandiseItems.filter(m => m.trim().length > 0));
+      // Handle merchandise items with images
+      await packages.setMerchandise(targetPackageId, merchandiseItems.filter(m => m.item_name && m.item_name.trim().length > 0));
 
       resetForm();
       loadPackages();
@@ -248,43 +275,99 @@ export default function PackagesPage() {
             </div>
 
             {/* Merchandise included with this package */}
-            <div className="md:col-span-2 pt-2 border-t border-gray-100">
-              <div className="flex items-center justify-between mb-2">
-                <label className="block text-sm font-medium text-gray-700">Included Merchandise / Swag</label>
-                <button
-                  type="button"
-                  onClick={() => setMerchandiseItems([...merchandiseItems, ''])}
-                  className="flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-700"
-                >
-                  <Plus size={14} /> Add Merchandise
-                </button>
-              </div>
+            <div className="md:col-span-2 pt-3 border-t border-gray-100">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Included Merchandise / Swag</label>
+              
               {merchandiseItems.length === 0 ? (
-                <p className="text-xs text-gray-400">No merchandise added yet. Click "+ Add Merchandise" to include t-shirts, playmats, pins, etc.</p>
+                <div className="p-3 bg-gray-50 rounded-lg border border-dashed border-gray-200 text-center">
+                  <p className="text-xs text-gray-500 mb-2">No merchandise added yet. Click "+ Add Merchandise" to include t-shirts, playmats, pins, etc.</p>
+                  <button
+                    type="button"
+                    onClick={() => setMerchandiseItems([...merchandiseItems, { item_name: '', image_url: null }])}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-lg text-xs font-semibold transition"
+                  >
+                    <Plus size={14} /> Add Merchandise
+                  </button>
+                </div>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {merchandiseItems.map((item, idx) => (
-                    <div key={idx} className="flex items-center gap-2">
+                    <div key={idx} className="p-3 bg-gray-50 rounded-lg border border-gray-200 flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                      {/* Image Thumbnail / Upload */}
+                      <div className="flex items-center gap-2">
+                        {item.image_url ? (
+                          <div className="relative group w-12 h-12 rounded-lg overflow-hidden border border-gray-200 bg-white">
+                            <img src={item.image_url} alt="Item" className="w-full h-full object-cover" />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const updated = [...merchandiseItems];
+                                updated[idx].image_url = null;
+                                setMerchandiseItems(updated);
+                              }}
+                              className="absolute inset-0 bg-black/50 text-white opacity-0 group-hover:opacity-100 flex items-center justify-center transition text-xs"
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={uploadingIndex === idx}
+                            onClick={() => fileInputRefs.current[idx]?.click()}
+                            className="w-12 h-12 rounded-lg border border-dashed border-gray-300 bg-white hover:bg-gray-100 flex flex-col items-center justify-center text-gray-400 hover:text-indigo-600 transition"
+                            title="Upload Item Photo"
+                          >
+                            {uploadingIndex === idx ? (
+                              <Loader2 size={16} className="animate-spin text-indigo-600" />
+                            ) : (
+                              <>
+                                <Upload size={14} />
+                                <span className="text-[9px] mt-0.5">Photo</span>
+                              </>
+                            )}
+                          </button>
+                        )}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          ref={el => fileInputRefs.current[idx] = el}
+                          className="hidden"
+                          onChange={(e) => handleImageUpload(idx, e)}
+                        />
+                      </div>
+
+                      {/* Name input */}
                       <input
                         type="text"
                         placeholder="e.g. Official Spark Fest Playmat, T-Shirt (Size L)"
-                        value={item}
+                        value={item.item_name}
                         onChange={(e) => {
                           const updated = [...merchandiseItems];
-                          updated[idx] = e.target.value;
+                          updated[idx].item_name = e.target.value;
                           setMerchandiseItems(updated);
                         }}
-                        className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500 outline-none"
                       />
+
                       <button
                         type="button"
                         onClick={() => setMerchandiseItems(merchandiseItems.filter((_, i) => i !== idx))}
-                        className="text-red-500 hover:text-red-700 p-1"
+                        className="text-red-500 hover:text-red-700 p-1.5"
+                        title="Remove Item"
                       >
                         <Trash2 size={16} />
                       </button>
                     </div>
                   ))}
+
+                  <button
+                    type="button"
+                    onClick={() => setMerchandiseItems([...merchandiseItems, { item_name: '', image_url: null }])}
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-700 pt-1"
+                  >
+                    <Plus size={14} /> Add Another Merchandise Item
+                  </button>
                 </div>
               )}
             </div>

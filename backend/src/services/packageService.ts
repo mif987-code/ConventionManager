@@ -134,13 +134,15 @@ export async function getMerchandiseForPackage(packageId: number): Promise<any[]
   return result.rows;
 }
 
-export async function setPackageMerchandise(packageId: number, itemNames: string[]): Promise<void> {
+export async function setPackageMerchandise(packageId: number, items: Array<{ item_name: string; image_url?: string | null } | string>): Promise<void> {
   await pool.query('DELETE FROM package_merchandise WHERE package_id = $1', [packageId]);
-  for (const name of itemNames) {
+  for (const item of items) {
+    const name = typeof item === 'string' ? item : item?.item_name;
+    const imageUrl = typeof item === 'string' ? null : (item?.image_url || null);
     if (name && name.trim()) {
       await pool.query(
-        'INSERT INTO package_merchandise (package_id, item_name) VALUES ($1, $2)',
-        [packageId, name.trim()]
+        'INSERT INTO package_merchandise (package_id, item_name, image_url) VALUES ($1, $2, $3)',
+        [packageId, name.trim(), imageUrl]
       );
     }
   }
@@ -176,9 +178,9 @@ export async function awardPackageMerchandiseToUser(userId: number, conventionId
   for (const item of items) {
     for (let i = 0; i < quantity; i++) {
       await pool.query(
-        `INSERT INTO user_merchandise (user_id, convention_id, package_id, item_name, is_claimed)
-         VALUES ($1, $2, $3, $4, FALSE)`,
-        [userId, conventionId, packageId, item.item_name]
+        `INSERT INTO user_merchandise (user_id, convention_id, package_id, item_name, image_url, is_claimed)
+         VALUES ($1, $2, $3, $4, $5, FALSE)`,
+        [userId, conventionId, packageId, item.item_name, item.image_url || null]
       );
     }
   }

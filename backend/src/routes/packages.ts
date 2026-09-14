@@ -1,7 +1,34 @@
 import { Router, Request, Response, NextFunction } from 'express';
+import multer from 'multer';
+import path from 'path';
 import * as packageService from '../services/packageService';
 
 const router = Router();
+
+// File upload config for merchandise images
+const storage = multer.diskStorage({
+  destination: (_req, _file, cb) => {
+    cb(null, path.join(__dirname, '../../uploads/merchandise'));
+  },
+  filename: (_req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    cb(null, 'merch-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+const upload = multer({ storage, limits: { fileSize: 5 * 1024 * 1024 } }); // 5MB limit
+
+// POST /api/packages/upload-merchandise-image - Upload merchandise image
+router.post('/upload-merchandise-image', upload.single('image'), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No image file uploaded' });
+    }
+    const imageUrl = `/uploads/merchandise/${req.file.filename}`;
+    res.json({ success: true, image_url: imageUrl });
+  } catch (err) {
+    next(err);
+  }
+});
 
 // GET /api/packages - List packages for current convention
 router.get('/', async (req: Request, res: Response, next: NextFunction) => {

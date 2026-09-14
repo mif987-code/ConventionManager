@@ -302,8 +302,13 @@ export const packages = {
   removeSpecialVoucher: (id: number, voucherId: number) =>
     request<any>(`/packages/${id}/special-vouchers/${voucherId}`, { method: 'DELETE' }),
   getMerchandise: (id: number) => request<any>(`/packages/${id}/merchandise`),
-  setMerchandise: (id: number, items: string[]) =>
+  setMerchandise: (id: number, items: Array<{ item_name: string; image_url?: string | null }>) =>
     request<any>(`/packages/${id}/merchandise`, { method: 'PUT', body: JSON.stringify({ items }) }),
+  uploadMerchandiseImage: (formData: FormData) => fetch(`${API_BASE}/packages/upload-merchandise-image`, {
+    method: 'POST',
+    headers: { 'x-api-key': apiKey, 'x-convention-id': localStorage.getItem('cm_convention_id') || '' },
+    body: formData,
+  }).then(r => r.json()),
   getUserMerchandise: (userId: number) => request<any>(`/packages/user/${userId}/merchandise`),
   claimMerchandise: (id: number) => request<any>(`/packages/user-merchandise/${id}/claim`, { method: 'POST' }),
   unclaimMerchandise: (id: number) => request<any>(`/packages/user-merchandise/${id}/unclaim`, { method: 'POST' }),
