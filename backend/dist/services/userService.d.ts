@@ -72,7 +72,7 @@ export declare function getUserByNfcUidWithBalances(nfcUid: string, conventionId
 export declare function updateUser(id: number, fields: Partial<Pick<User, 'name' | 'nfc_uid' | 'email' | 'days_playing' | 'is_admin'>>): Promise<User | null>;
 export declare function searchUsers(query: string, conventionId?: number): Promise<User[]>;
 export declare function regenerateQRCode(userId: number): Promise<User>;
-export declare function activateUser(userId: number, adminId: number): Promise<User | null>;
+export declare function activateUser(userId: number, adminId: number | null): Promise<User | null>;
 export declare function deactivateUser(userId: number): Promise<User | null>;
 export declare function deleteUser(userId: number): Promise<boolean>;
 //# sourceMappingURL=userService.d.ts.map

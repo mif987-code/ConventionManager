@@ -218,7 +218,7 @@ router.post('/payment', async (req, res, next) => {
             return res.status(400).json({ error: 'Package total is 0; no payment needed' });
         }
         const payment = await paymentService.createPayment(total);
-        await paymentService.storePayment(payment, parseInt(user_id, 10));
+        await paymentService.storePayment(payment, parseInt(user_id, 10), 'package');
         res.json({
             success: true,
             paymentId: payment.id,
@@ -305,7 +305,7 @@ router.get('/convention', async (req, res, next) => {
             console.error('Error querying events (preregistration_enabled column may not exist):', err);
             eventsRes = { rows: [] };
         }
-        res.json({ convention, available_dates: dates, packages: packagesRes.rows, events: eventsRes.rows });
+        res.json({ convention, available_dates: dates, packages: packagesRes.rows, events: eventsRes.rows, payment_provider: paymentService.PROVIDER });
     }
     catch (err) {
         console.error('Error in /public/convention:', err);

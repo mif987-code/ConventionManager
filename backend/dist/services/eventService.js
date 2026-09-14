@@ -49,6 +49,7 @@ exports.getEventTeams = getEventTeams;
 exports.createEventTeam = createEventTeam;
 exports.deleteEventTeam = deleteEventTeam;
 exports.registerToEvent = registerToEvent;
+exports.unregisterFromEvent = unregisterFromEvent;
 exports.startEvent = startEvent;
 exports.createNextRound = createNextRound;
 exports.reportMatchResult = reportMatchResult;
@@ -263,7 +264,7 @@ async function getEventById(id) {
     return result.rows[0] || null;
 }
 async function getAllEvents(status, conventionId) {
-    let query = `SELECT e.*, et.name AS event_type_name, et.category, et.entry_cost_vouchers, et.max_players,
+    let query = `SELECT e.*, et.name AS event_type_name, et.category, et.format, et.entry_cost_vouchers, et.entry_cost_colones, et.max_players,
                et.tournament_structure,
                (SELECT COUNT(*) FROM event_participants ep WHERE ep.event_id = e.id)::int AS participant_count
                FROM events e
@@ -374,7 +375,7 @@ async function registerToEvent(userId, eventId, createdBy = 'system') {
     try {
         await client.query('BEGIN');
         // 1. Check event exists and is open
-        const eventRes = await client.query(`SELECT e.*, et.entry_cost_vouchers, et.entry_cost_colones, et.max_players, et.category
+        const eventRes = await client.query(`SELECT e.*, et.entry_cost_vouchers, et.entry_cost_colones, et.max_players, et.category, et.format
        FROM events e
        JOIN event_types et ON e.event_type_id = et.id
        WHERE e.id = $1
@@ -392,24 +393,27 @@ async function registerToEvent(userId, eventId, createdBy = 'system') {
         const countRes = await client.query(`SELECT COUNT(*)::int AS count FROM event_participants WHERE event_id = $1`, [eventId]);
         if (countRes.rows[0].count >= event.max_players)
             throw new Error('Event is full');
-        // 4. Check wallet credit (scoped to convention)
+        // 4. Check for matching Special Voucher first, else deduct wallet credit (scoped to convention).
+        // Special vouchers must match the event's category explicitly (no wildcard).
         let costDeducted = 0;
-        if (event.category === 'On Demand') {
-            // On Demand events require an unconsumed on-demand special voucher instead of credit.
-            const voucherRes = await client.query(`SELECT sva.id
-         FROM special_voucher_awards sva
-         JOIN special_vouchers sv ON sv.id = sva.special_voucher_id
-         WHERE sva.user_id = $1
-           AND sv.voucher_type = 'on_demand'
-           AND sva.consumed_at IS NULL
-         ORDER BY sva.created_at
-         LIMIT 1
-         FOR UPDATE`, [userId]);
-            if (voucherRes.rows.length === 0) {
-                throw new Error('No unused On Demand special voucher available');
-            }
-            // 5. Consume the on-demand special voucher
-            await client.query(`UPDATE special_voucher_awards SET consumed_at = NOW() WHERE id = $1`, [voucherRes.rows[0].id]);
+        let specialVoucherUsed = false;
+        // Check if player has an unconsumed special voucher matching event's category (and format if specified)
+        const matchingVoucherRes = await client.query(`SELECT sva.id
+       FROM special_voucher_awards sva
+       JOIN special_vouchers sv ON sv.id = sva.special_voucher_id
+       WHERE sva.user_id = $1
+         AND sv.convention_id = $2
+         AND sva.consumed_at IS NULL
+         AND sv.category IS NOT NULL
+         AND sv.category = $3
+         AND (sv.format IS NULL OR sv.format = '' OR sv.format = $4)
+       ORDER BY sva.awarded_at ASC
+       LIMIT 1
+       FOR UPDATE`, [userId, event.convention_id, event.category, event.format]);
+        if (matchingVoucherRes.rows.length > 0) {
+            // Consume the matching special voucher
+            await client.query(`UPDATE special_voucher_awards SET consumed_at = NOW(), consumed_event_id = $1 WHERE id = $2`, [eventId, matchingVoucherRes.rows[0].id]);
+            specialVoucherUsed = true;
         }
         else {
             // Event cost is stored in whole CRC colones.
@@ -419,7 +423,7 @@ async function registerToEvent(userId, eventId, createdBy = 'system') {
                 if (credit < costDeducted) {
                     throw new Error(`Not enough credit. Need ${costDeducted.toLocaleString('es-CR')} CRC, have ${credit.toLocaleString('es-CR')} CRC`);
                 }
-                // 5. Deduct credit from wallet
+                // Deduct credit from wallet
                 await walletService.pay(userId, event.convention_id, costDeducted, createdBy, eventId, 'event_entry', client);
             }
         }
@@ -427,6 +431,77 @@ async function registerToEvent(userId, eventId, createdBy = 'system') {
         await client.query(`INSERT INTO event_participants (event_id, user_id, convention_id) VALUES ($1, $2, $3)`, [eventId, userId, event.convention_id]);
         await client.query('COMMIT');
         return { success: true, message: 'Registered successfully', costDeducted };
+    }
+    catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
+    }
+    finally {
+        client.release();
+    }
+}
+// --- Unregister Player from Event (with refund) ---
+async function unregisterFromEvent(userId, eventId, actor = 'system', requireOpenStatus = true) {
+    const client = await db_1.pool.connect();
+    try {
+        await client.query('BEGIN');
+        const partRes = await client.query(`SELECT ep.id, ep.wins, ep.losses, ep.draws, ep.result_position, e.status, e.convention_id, et.category, et.entry_cost_colones
+       FROM event_participants ep
+       JOIN events e ON e.id = ep.event_id
+       JOIN event_types et ON et.id = e.event_type_id
+       WHERE ep.event_id = $1 AND ep.user_id = $2
+       FOR UPDATE`, [eventId, userId]);
+        const participant = partRes.rows[0];
+        if (!participant)
+            throw new Error('Participant not found in this event');
+        if (requireOpenStatus && participant.status !== 'open') {
+            throw new Error('Can only unregister players from open events');
+        }
+        const hasPlayed = (participant.wins || 0) > 0 || (participant.losses || 0) > 0 || (participant.draws || 0) > 0 || participant.result_position !== null;
+        if (hasPlayed) {
+            throw new Error('Cannot unregister — this event has already started for this player');
+        }
+        let refundedColones = 0;
+        let specialVoucherRestored = false;
+        // 1. Check if a special voucher was consumed for this event entry -> restore it
+        const voucherRestoreRes = await client.query(`UPDATE special_voucher_awards
+       SET consumed_at = NULL, consumed_event_id = NULL
+       WHERE id = (
+         SELECT id FROM special_voucher_awards
+         WHERE user_id = $1 AND consumed_event_id = $2
+         ORDER BY awarded_at DESC
+         LIMIT 1
+       )
+       RETURNING id`, [userId, eventId]);
+        if (voucherRestoreRes.rows.length > 0) {
+            specialVoucherRestored = true;
+        }
+        else {
+            // 2. Otherwise, check if a wallet credit charge was made for this event entry -> refund it
+            const txRes = await client.query(`SELECT id, amount_colones FROM wallet_transactions
+         WHERE user_id = $1 AND event_id = $2 AND type = 'payment' AND amount_colones < 0
+         ORDER BY created_at ASC
+         LIMIT 1`, [userId, eventId]);
+            if (txRes.rows.length > 0) {
+                refundedColones = Math.abs(txRes.rows[0].amount_colones);
+                if (refundedColones > 0) {
+                    await walletService.refund(userId, participant.convention_id, refundedColones, actor, eventId, 'Event cancellation / unregister refund', client);
+                }
+            }
+        }
+        // 3. Remove participant row
+        await client.query(`DELETE FROM event_participants WHERE id = $1`, [participant.id]);
+        await client.query('COMMIT');
+        return {
+            success: true,
+            message: specialVoucherRestored
+                ? 'Unregistered and special voucher restored'
+                : refundedColones > 0
+                    ? `Unregistered and refunded ${refundedColones.toLocaleString('es-CR')} CRC`
+                    : 'Unregistered successfully',
+            refundedColones,
+            specialVoucherRestored,
+        };
     }
     catch (err) {
         await client.query('ROLLBACK');

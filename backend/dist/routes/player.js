@@ -44,8 +44,8 @@ const db_1 = require("../config/db");
 const userService = __importStar(require("../services/userService"));
 const storeService = __importStar(require("../services/storeService"));
 const eventService = __importStar(require("../services/eventService"));
+const emailService_1 = require("../services/emailService");
 const transactionService_1 = require("../services/transactionService");
-const walletService = __importStar(require("../services/walletService"));
 const googleSheetsService_1 = require("../services/googleSheetsService");
 const router = (0, express_1.Router)();
 // Login attempts are CPU-expensive (bcrypt.compare) and unauthenticated, so a
@@ -151,6 +151,12 @@ router.get('/me', playerAuth, async (req, res, next) => {
                 convention = convRes.rows[0];
             }
         }
+        // Get active (unconsumed) special vouchers held by the player
+        const specialVouchersRes = await db_1.pool.query(`SELECT sva.id AS award_id, sva.awarded_at, sv.id AS voucher_id, sv.name, sv.category, sv.format, sv.icon, sv.color, sv.description
+       FROM special_voucher_awards sva
+       JOIN special_vouchers sv ON sv.id = sva.special_voucher_id
+       WHERE sva.user_id = $1 AND sva.consumed_at IS NULL
+       ORDER BY sva.awarded_at DESC`, [userId]);
         res.json({
             success: true,
             player: {
@@ -160,6 +166,7 @@ router.get('/me', playerAuth, async (req, res, next) => {
                 credit_balance: user.credit_balance,
                 qr_code: user.qr_code,
                 created_at: user.created_at,
+                special_vouchers: specialVouchersRes.rows,
             },
             convention,
         });
@@ -188,10 +195,14 @@ router.post('/regenerate-qr', playerAuth, async (req, res, next) => {
     try {
         const userId = req.playerId;
         // Generate new QR code
-        const newQrCode = await userService.regenerateQRCode(userId);
+        const updatedUser = await userService.regenerateQRCode(userId);
         // Log the action
         await db_1.pool.query(`INSERT INTO admin_logs (action, details, user_id) VALUES ($1, $2, $3)`, ['qr_regenerated', `User ${userId} regenerated their QR code via player app`, userId]);
-        res.json({ success: true, qr_code: newQrCode, message: 'QR code regenerated' });
+        // Send email with new QR code
+        if (updatedUser?.email && updatedUser?.qr_code) {
+            (0, emailService_1.sendQRCodeEmail)(updatedUser.email, updatedUser.name, updatedUser.qr_code).catch(err => console.error('[EmailService] Background QR regenerate email error:', err));
+        }
+        res.json({ success: true, qr_code: updatedUser.qr_code, message: 'QR code regenerated' });
     }
     catch (err) {
         next(err);
@@ -236,13 +247,28 @@ router.get('/events/:id', playerAuth, async (req, res, next) => {
 router.get('/upcoming-events', playerAuth, async (req, res, next) => {
     try {
         const userId = req.playerId;
-        const events = await eventService.getAllEvents('open');
+        const userRes = await db_1.pool.query(`SELECT convention_id FROM users WHERE id = $1`, [userId]);
+        const conventionId = userRes.rows[0]?.convention_id;
+        if (!conventionId)
+            return res.json({ success: true, events: [] });
+        const events = await eventService.getAllEvents('open', conventionId);
         // Mark which events the player is already registered for
-        const regResult = await db_1.pool.query(`SELECT event_id FROM event_participants WHERE user_id = $1`, [userId]);
-        const registeredSet = new Set(regResult.rows.map((r) => r.event_id));
+        const regResult = await db_1.pool.query(`SELECT event_id, preregistered FROM event_participants WHERE user_id = $1`, [userId]);
+        const registeredMap = new Map(regResult.rows.map((r) => [r.event_id, r.preregistered]));
+        // Unconsumed special vouchers that could cover an entry
+        const voucherRes = await db_1.pool.query(`SELECT sv.category, sv.format
+       FROM special_voucher_awards sva
+       JOIN special_vouchers sv ON sv.id = sva.special_voucher_id
+       WHERE sva.user_id = $1 AND sv.convention_id = $2 AND sva.consumed_at IS NULL`, [userId, conventionId]);
+        const vouchers = voucherRes.rows;
         const enriched = events.map((ev) => ({
             ...ev,
-            already_registered: registeredSet.has(ev.id),
+            already_registered: registeredMap.has(ev.id),
+            preregistered_by_me: registeredMap.get(ev.id) === true,
+            covered_by_voucher: vouchers.some((v) => Boolean(v.category) &&
+                Boolean(ev.category) &&
+                v.category === ev.category &&
+                (v.format === null || v.format === undefined || v.format === '' || v.format === ev.format)),
         }));
         res.json({ success: true, events: enriched });
     }
@@ -262,35 +288,13 @@ router.post('/events/:id/register', playerAuth, async (req, res, next) => {
         next(err);
     }
 });
-// DELETE /player/events/:id/register - Unregister from an event and refund wallet credit
+// DELETE /player/events/:id/register - Unregister from an event and refund wallet credit or restore special voucher
 router.delete('/events/:id/register', playerAuth, async (req, res, next) => {
     try {
         const userId = req.playerId;
         const eventId = parseInt(req.params.id);
-        const partRes = await db_1.pool.query(`SELECT ep.id, ep.wins, ep.losses, ep.draws, ep.result_position, e.convention_id, et.category, et.entry_cost_colones
-       FROM event_participants ep
-       JOIN events e ON e.id = ep.event_id
-       JOIN event_types et ON et.id = e.event_type_id
-       WHERE ep.event_id = $1 AND ep.user_id = $2`, [eventId, userId]);
-        const participant = partRes.rows[0];
-        if (!participant)
-            return res.status(404).json({ error: 'You are not registered for this event' });
-        const hasPlayed = participant.wins > 0 || participant.losses > 0 || participant.draws > 0 || participant.result_position !== null;
-        if (hasPlayed)
-            return res.status(400).json({ error: 'Cannot unregister — this event has already started for you' });
-        const costColones = participant.entry_cost_colones || 0;
-        if (costColones > 0 && participant.category !== 'On Demand') {
-            // Refund the original payment amount if a charge exists.
-            const txRes = await db_1.pool.query(`SELECT amount_colones FROM wallet_transactions
-         WHERE user_id = $1 AND related_event_id = $2 AND type = 'event_entry' AND amount_colones < 0
-         ORDER BY created_at
-         LIMIT 1`, [userId, eventId]);
-            if (txRes.rows.length > 0) {
-                await walletService.refund(userId, participant.convention_id, Math.abs(txRes.rows[0].amount_colones), `player:${userId}`, eventId, 'event_refund');
-            }
-        }
-        await db_1.pool.query(`DELETE FROM event_participants WHERE id = $1`, [participant.id]);
-        res.json({ success: true, message: 'Unregistered and refunded' });
+        const result = await eventService.unregisterFromEvent(userId, eventId, `player:${userId}`, true);
+        res.json(result);
     }
     catch (err) {
         next(err);

@@ -280,6 +280,21 @@ router.post('/:id/register-nfc', async (req, res, next) => {
         next(err);
     }
 });
+// DELETE /api/events/:id/participants/:userId - Admin unregisters player from open event with refund
+router.delete('/:id/participants/:userId', async (req, res, next) => {
+    try {
+        const eventId = parseInt(req.params.id);
+        const userId = parseInt(req.params.userId);
+        if (isNaN(eventId) || isNaN(userId)) {
+            return res.status(400).json({ error: 'Invalid event ID or user ID' });
+        }
+        const result = await eventService.unregisterFromEvent(userId, eventId, `admin:${req.adminId ?? 'admin'}`, true);
+        res.json(result);
+    }
+    catch (err) {
+        next(err);
+    }
+});
 // POST /api/events/:id/start - Start event (open -> ongoing)
 router.post('/:id/start', async (req, res, next) => {
     try {

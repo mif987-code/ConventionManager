@@ -83,6 +83,12 @@ export declare function registerToEvent(userId: number, eventId: number, created
     message: string;
     costDeducted: number;
 }>;
+export declare function unregisterFromEvent(userId: number, eventId: number, actor?: string, requireOpenStatus?: boolean): Promise<{
+    success: boolean;
+    message: string;
+    refundedColones: number;
+    specialVoucherRestored: boolean;
+}>;
 export declare function startEvent(eventId: number): Promise<any>;
 export declare function createNextRound(eventId: number): Promise<{
     round: any;

@@ -37,6 +37,7 @@ const express_1 = require("express");
 const userService = __importStar(require("../services/userService"));
 const paymentService = __importStar(require("../services/paymentService"));
 const qrTokenService_1 = require("../services/qrTokenService");
+const emailService_1 = require("../services/emailService");
 const db_1 = require("../config/db");
 const router = (0, express_1.Router)();
 // POST /api/users/register - Register a new user (NFC optional)
@@ -98,6 +99,10 @@ router.post('/register', async (req, res, next) => {
                     }
                 }
             }
+        }
+        // If user has an email and a QR code, send QR code email
+        if (user.email && user.qr_code) {
+            (0, emailService_1.sendQRCodeEmail)(user.email, user.name, user.qr_code).catch(err => console.error('[EmailService] Background QR email error:', err));
         }
         res.status(201).json({ success: true, user });
     }
@@ -179,6 +184,9 @@ router.post('/:id/regenerate-qr', async (req, res, next) => {
         const user = await userService.regenerateQRCode(userId);
         // Log the action
         await db_1.pool.query(`INSERT INTO admin_logs (action, details, user_id, admin_id) VALUES ($1, $2, $3, $4)`, ['qr_regenerated', `Admin regenerated QR code for user ${userId}`, userId, adminId]);
+        if (user?.email && user?.qr_code) {
+            (0, emailService_1.sendQRCodeEmail)(user.email, user.name, user.qr_code).catch(err => console.error('[EmailService] Background QR regenerate email error:', err));
+        }
         res.json({ success: true, user });
     }
     catch (err) {
@@ -202,10 +210,13 @@ router.post('/:id/activate', async (req, res, next) => {
         const userId = parseInt(req.params.id);
         if (isNaN(userId))
             return res.status(400).json({ error: 'Invalid user ID' });
-        const user = await userService.activateUser(userId, req.adminId ?? 0);
+        const user = await userService.activateUser(userId, req.adminId ?? null);
         if (!user)
             return res.status(404).json({ error: 'User not found' });
         await db_1.pool.query(`INSERT INTO admin_logs (action, details, user_id, admin_id) VALUES ($1, $2, $3, $4)`, ['user_activated', `Admin activated user ${userId}`, userId, req.adminId ?? null]);
+        if (user.email) {
+            (0, emailService_1.sendActivationEmail)(user.email, user.name).catch(err => console.error('[EmailService] Background activation email error:', err));
+        }
         res.json({ success: true, user });
     }
     catch (err) {

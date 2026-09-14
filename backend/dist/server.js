@@ -38,6 +38,9 @@ const preregistrations_1 = __importDefault(require("./routes/preregistrations"))
 dotenv_1.default.config();
 const app = (0, express_1.default)();
 const PORT = parseInt(process.env.PORT || '3000');
+// Behind Render's proxy (and Cloudflare in front of it) — trust X-Forwarded-For so
+// express-rate-limit and req.ip see the real client address.
+app.set('trust proxy', 1);
 // Middleware
 const allowedOrigins = process.env.ALLOWED_ORIGINS
     ? process.env.ALLOWED_ORIGINS.split(',').map((s) => s.trim())

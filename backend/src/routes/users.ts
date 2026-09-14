@@ -3,6 +3,7 @@ import * as userService from '../services/userService';
 import * as paymentService from '../services/paymentService';
 import { addTransaction } from '../services/transactionService';
 import { generateQRToken } from '../services/qrTokenService';
+import { sendQRCodeEmail, sendActivationEmail } from '../services/emailService';
 import { pool } from '../config/db';
 
 const router = Router();
@@ -93,6 +94,13 @@ router.post('/register', async (req: Request, res: Response, next: NextFunction)
       }
     }
 
+    // If user has an email and a QR code, send QR code email
+    if (user.email && user.qr_code) {
+      sendQRCodeEmail(user.email, user.name, user.qr_code).catch(err =>
+        console.error('[EmailService] Background QR email error:', err)
+      );
+    }
+
     res.status(201).json({ success: true, user });
   } catch (err) {
     next(err);
@@ -177,6 +185,12 @@ router.post('/:id/regenerate-qr', async (req: Request, res: Response, next: Next
       ['qr_regenerated', `Admin regenerated QR code for user ${userId}`, userId, adminId]
     );
 
+    if (user?.email && user?.qr_code) {
+      sendQRCodeEmail(user.email, user.name, user.qr_code).catch(err =>
+        console.error('[EmailService] Background QR regenerate email error:', err)
+      );
+    }
+
     res.json({ success: true, user });
   } catch (err) {
     next(err);
@@ -208,6 +222,12 @@ router.post('/:id/activate', async (req: Request, res: Response, next: NextFunct
       `INSERT INTO admin_logs (action, details, user_id, admin_id) VALUES ($1, $2, $3, $4)`,
       ['user_activated', `Admin activated user ${userId}`, userId, req.adminId ?? null]
     );
+
+    if (user.email) {
+      sendActivationEmail(user.email, user.name).catch(err =>
+        console.error('[EmailService] Background activation email error:', err)
+      );
+    }
 
     res.json({ success: true, user });
   } catch (err) {

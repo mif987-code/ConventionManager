@@ -6,6 +6,7 @@ import { pool } from '../config/db';
 import * as userService from '../services/userService';
 import * as storeService from '../services/storeService';
 import * as eventService from '../services/eventService';
+import { sendQRCodeEmail } from '../services/emailService';
 import { getBalance } from '../services/transactionService';
 import * as walletService from '../services/walletService';
 import { syncPreregistrationToSheet } from '../services/googleSheetsService';
@@ -163,15 +164,22 @@ router.post('/regenerate-qr', playerAuth, async (req: Request, res: Response, ne
     const userId = (req as any).playerId;
     
     // Generate new QR code
-    const newQrCode = await userService.regenerateQRCode(userId);
+    const updatedUser = await userService.regenerateQRCode(userId);
     
     // Log the action
     await pool.query(
       `INSERT INTO admin_logs (action, details, user_id) VALUES ($1, $2, $3)`,
       ['qr_regenerated', `User ${userId} regenerated their QR code via player app`, userId]
     );
+
+    // Send email with new QR code
+    if (updatedUser?.email && updatedUser?.qr_code) {
+      sendQRCodeEmail(updatedUser.email, updatedUser.name, updatedUser.qr_code).catch(err =>
+        console.error('[EmailService] Background QR regenerate email error:', err)
+      );
+    }
     
-    res.json({ success: true, qr_code: newQrCode, message: 'QR code regenerated' });
+    res.json({ success: true, qr_code: updatedUser.qr_code, message: 'QR code regenerated' });
   } catch (err) { next(err); }
 });
 
