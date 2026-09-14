@@ -157,6 +157,11 @@ router.get('/me', playerAuth, async (req, res, next) => {
        JOIN special_vouchers sv ON sv.id = sva.special_voucher_id
        WHERE sva.user_id = $1 AND sva.consumed_at IS NULL
        ORDER BY sva.awarded_at DESC`, [userId]);
+        // Get merchandise items for the player
+        const merchandiseRes = await db_1.pool.query(`SELECT id, item_name, is_claimed, claimed_at
+       FROM user_merchandise
+       WHERE user_id = $1
+       ORDER BY id ASC`, [userId]);
         res.json({
             success: true,
             player: {
@@ -167,6 +172,7 @@ router.get('/me', playerAuth, async (req, res, next) => {
                 qr_code: user.qr_code,
                 created_at: user.created_at,
                 special_vouchers: specialVouchersRes.rows,
+                merchandise: merchandiseRes.rows,
             },
             convention,
         });

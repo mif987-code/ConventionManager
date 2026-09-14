@@ -374,7 +374,7 @@ export default function UsersPage() {
                 <option value="">No package</option>
                 {availablePackages.map((pkg: any) => (
                   <option key={pkg.id} value={pkg.id}>
-                    {pkg.name} - ${pkg.prereg_cost || pkg.cost} ({pkg.days} day{pkg.days !== 1 ? 's' : ''})
+                    {pkg.name} - ₡{Number(pkg.prereg_cost || pkg.cost).toLocaleString('es-CR')} ({pkg.days} day{pkg.days !== 1 ? 's' : ''})
                   </option>
                 ))}
               </select>

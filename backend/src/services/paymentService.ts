@@ -282,6 +282,24 @@ async function awardPaidPackages(client: any, userId: number): Promise<void> {
         );
       }
     }
+
+    // Award package merchandise
+    const merchandiseRes = await client.query(
+      `SELECT item_name FROM package_merchandise WHERE package_id = $1`,
+      [pkg.package_id]
+    );
+    const userRes = await client.query(`SELECT convention_id FROM users WHERE id = $1`, [userId]);
+    const conventionId = userRes.rows[0]?.convention_id;
+
+    for (const item of merchandiseRes.rows) {
+      for (let i = 0; i < quantity; i++) {
+        await client.query(
+          `INSERT INTO user_merchandise (user_id, convention_id, package_id, item_name, is_claimed)
+           VALUES ($1, $2, $3, $4, FALSE)`,
+          [userId, conventionId, pkg.package_id, item.item_name]
+        );
+      }
+    }
   }
 }
 

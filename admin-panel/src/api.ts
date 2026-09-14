@@ -301,6 +301,12 @@ export const packages = {
     request<any>(`/packages/${id}/special-vouchers/${voucherId}`, { method: 'POST' }),
   removeSpecialVoucher: (id: number, voucherId: number) =>
     request<any>(`/packages/${id}/special-vouchers/${voucherId}`, { method: 'DELETE' }),
+  getMerchandise: (id: number) => request<any>(`/packages/${id}/merchandise`),
+  setMerchandise: (id: number, items: string[]) =>
+    request<any>(`/packages/${id}/merchandise`, { method: 'PUT', body: JSON.stringify({ items }) }),
+  getUserMerchandise: (userId: number) => request<any>(`/packages/user/${userId}/merchandise`),
+  claimMerchandise: (id: number) => request<any>(`/packages/user-merchandise/${id}/claim`, { method: 'POST' }),
+  unclaimMerchandise: (id: number) => request<any>(`/packages/user-merchandise/${id}/unclaim`, { method: 'POST' }),
 };
 
 // Collectibles

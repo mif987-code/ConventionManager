@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Plus, Trash2, Edit2, X, Check } from 'lucide-react';
+import { Plus, Trash2, Edit2, X, Check, Package as PackageIcon } from 'lucide-react';
 import { packages, specialVouchers } from '../api';
 
 export default function PackagesPage() {
   const [packageList, setPackageList] = useState<any[]>([]);
   const [availableSpecialVouchers, setAvailableSpecialVouchers] = useState<any[]>([]);
   const [selectedSpecialVoucherIds, setSelectedSpecialVoucherIds] = useState<number[]>([]);
+  const [merchandiseItems, setMerchandiseItems] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showForm, setShowForm] = useState(false);
@@ -15,6 +16,11 @@ export default function PackagesPage() {
   async function loadPackages() {
     try {
       setLoading(true);
+      const conventionId = localStorage.getItem('cm_convention_id');
+      if (conventionId) {
+        const svRes = await specialVouchers.list(parseInt(conventionId));
+        setAvailableSpecialVouchers(svRes.special_vouchers || []);
+      }
       const res = await packages.list();
       setPackageList(res.packages || []);
     } catch (err: any) {
@@ -24,16 +30,18 @@ export default function PackagesPage() {
     }
   }
 
-  async function loadPackageSpecialVouchers(packageId: number, conventionId: number) {
+  async function loadPackageDetails(packageId: number, conventionId: number) {
     try {
-      const [svRes, pkgSvRes] = await Promise.all([
+      const [svRes, pkgSvRes, merchRes] = await Promise.all([
         specialVouchers.list(conventionId),
-        packages.getSpecialVouchers(packageId)
+        packages.getSpecialVouchers(packageId),
+        packages.getMerchandise(packageId)
       ]);
       setAvailableSpecialVouchers(svRes.special_vouchers || []);
       setSelectedSpecialVoucherIds(pkgSvRes.special_voucher_ids || []);
+      setMerchandiseItems((merchRes.merchandise || []).map((m: any) => m.item_name));
     } catch (err: any) {
-      console.error('Failed to load special vouchers:', err);
+      console.error('Failed to load package details:', err);
     }
   }
 
@@ -43,38 +51,39 @@ export default function PackagesPage() {
     e.preventDefault();
     try {
       const preregCost = form.prereg_cost ? parseFloat(form.prereg_cost) : null;
-      let savedPackage;
+      let targetPackageId: number;
+
       if (editingPackage) {
-        savedPackage = await packages.update(editingPackage.id, form.name, form.description || null, form.days, form.cost, preregCost, form.regular_voucher_amount, form.is_active, form.package_type);
+        await packages.update(editingPackage.id, form.name, form.description || null, form.days, form.cost, preregCost, form.regular_voucher_amount, form.is_active, form.package_type);
+        targetPackageId = editingPackage.id;
       } else {
-        savedPackage = await packages.create(form.name, form.description || null, form.days, form.cost, preregCost, form.regular_voucher_amount, form.package_type);
+        const createRes = await packages.create(form.name, form.description || null, form.days, form.cost, preregCost, form.regular_voucher_amount, form.package_type);
+        targetPackageId = createRes.package.id;
       }
 
       // Handle special voucher associations
-      if (editingPackage) {
-        const currentIds = selectedSpecialVoucherIds;
-        const existingIds = await packages.getSpecialVouchers(editingPackage.id);
-        const existingIdList = existingIds.special_voucher_ids || [];
+      const currentIds = selectedSpecialVoucherIds;
+      const existingIds = await packages.getSpecialVouchers(targetPackageId);
+      const existingIdList = existingIds.special_voucher_ids || [];
 
-        // Add new associations
-        for (const id of currentIds) {
-          if (!existingIdList.includes(id)) {
-            await packages.addSpecialVoucher(editingPackage.id, id);
-          }
-        }
-
-        // Remove old associations
-        for (const id of existingIdList) {
-          if (!currentIds.includes(id)) {
-            await packages.removeSpecialVoucher(editingPackage.id, id);
-          }
+      // Add new associations
+      for (const id of currentIds) {
+        if (!existingIdList.includes(id)) {
+          await packages.addSpecialVoucher(targetPackageId, id);
         }
       }
 
-      setForm({ name: '', description: '', days: 1, cost: 0, prereg_cost: '', regular_voucher_amount: 0, is_active: true, package_type: 'day_pass' });
-      setSelectedSpecialVoucherIds([]);
-      setEditingPackage(null);
-      setShowForm(false);
+      // Remove old associations
+      for (const id of existingIdList) {
+        if (!currentIds.includes(id)) {
+          await packages.removeSpecialVoucher(targetPackageId, id);
+        }
+      }
+
+      // Handle merchandise items
+      await packages.setMerchandise(targetPackageId, merchandiseItems.filter(m => m.trim().length > 0));
+
+      resetForm();
       loadPackages();
     } catch (err: any) {
       setError(err.message);
@@ -93,7 +102,7 @@ export default function PackagesPage() {
       is_active: pkg.is_active,
       package_type: pkg.package_type || 'day_pass'
     });
-    loadPackageSpecialVouchers(pkg.id, pkg.convention_id);
+    loadPackageDetails(pkg.id, pkg.convention_id);
     setShowForm(true);
   }
 
@@ -110,6 +119,7 @@ export default function PackagesPage() {
   function resetForm() {
     setForm({ name: '', description: '', days: 1, cost: 0, prereg_cost: '', regular_voucher_amount: 0, is_active: true, package_type: 'day_pass' });
     setSelectedSpecialVoucherIds([]);
+    setMerchandiseItems([]);
     setEditingPackage(null);
     setShowForm(false);
   }
@@ -119,7 +129,10 @@ export default function PackagesPage() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-800">Packages</h1>
         <button
-          onClick={() => setShowForm(true)}
+          onClick={() => {
+            resetForm();
+            setShowForm(true);
+          }}
           className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition text-sm font-medium"
         >
           <Plus size={16} />
@@ -176,27 +189,27 @@ export default function PackagesPage() {
               <p className="text-xs text-gray-500 mt-1">Use 0 for non day-pass packages (vouchers, merchandise, etc).</p>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Regular Cost ($) *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Regular Cost (₡) *</label>
               <input
                 type="number"
-                placeholder="Price during event"
+                placeholder="Price during event in CRC"
                 value={form.cost}
                 onChange={(e) => setForm({ ...form, cost: parseFloat(e.target.value) || 0 })}
                 required
                 min="0"
-                step="0.01"
+                step="1"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Pre-registration Cost ($)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Pre-registration Cost (₡)</label>
               <input
                 type="number"
-                placeholder="Discounted price for early registration"
+                placeholder="Discounted price for early registration in CRC"
                 value={form.prereg_cost}
                 onChange={(e) => setForm({ ...form, prereg_cost: e.target.value })}
                 min="0"
-                step="0.01"
+                step="1"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
               />
               <p className="text-xs text-gray-500 mt-1">Leave empty to use regular cost</p>
@@ -233,38 +246,81 @@ export default function PackagesPage() {
               />
               <label htmlFor="is_active" className="text-sm text-gray-700">Active</label>
             </div>
-            {editingPackage && (
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Special Vouchers</label>
-                {availableSpecialVouchers.length === 0 ? (
-                  <p className="text-sm text-gray-500">No special vouchers available for this convention.</p>
-                ) : (
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                    {availableSpecialVouchers.map((sv: any) => (
-                      <label key={sv.id} className="flex items-center gap-2 p-2 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
-                        <input
-                          type="checkbox"
-                          checked={selectedSpecialVoucherIds.includes(sv.id)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setSelectedSpecialVoucherIds([...selectedSpecialVoucherIds, sv.id]);
-                            } else {
-                              setSelectedSpecialVoucherIds(selectedSpecialVoucherIds.filter(id => id !== sv.id));
-                            }
-                          }}
-                          className="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
-                        />
-                        <div className="flex-1">
-                          <div className="text-sm font-medium text-gray-800">{sv.name}</div>
-                          <div className="text-xs text-gray-500">{sv.amount} vouchers</div>
-                        </div>
-                      </label>
-                    ))}
-                  </div>
-                )}
+
+            {/* Merchandise included with this package */}
+            <div className="md:col-span-2 pt-2 border-t border-gray-100">
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-medium text-gray-700">Included Merchandise / Swag</label>
+                <button
+                  type="button"
+                  onClick={() => setMerchandiseItems([...merchandiseItems, ''])}
+                  className="flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-700"
+                >
+                  <Plus size={14} /> Add Merchandise
+                </button>
               </div>
-            )}
-            <div className="flex gap-2 md:col-span-2">
+              {merchandiseItems.length === 0 ? (
+                <p className="text-xs text-gray-400">No merchandise added yet. Click "+ Add Merchandise" to include t-shirts, playmats, pins, etc.</p>
+              ) : (
+                <div className="space-y-2">
+                  {merchandiseItems.map((item, idx) => (
+                    <div key={idx} className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        placeholder="e.g. Official Spark Fest Playmat, T-Shirt (Size L)"
+                        value={item}
+                        onChange={(e) => {
+                          const updated = [...merchandiseItems];
+                          updated[idx] = e.target.value;
+                          setMerchandiseItems(updated);
+                        }}
+                        className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setMerchandiseItems(merchandiseItems.filter((_, i) => i !== idx))}
+                        className="text-red-500 hover:text-red-700 p-1"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Special Vouchers */}
+            <div className="md:col-span-2 pt-2 border-t border-gray-100">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Special Vouchers</label>
+              {availableSpecialVouchers.length === 0 ? (
+                <p className="text-sm text-gray-500">No special vouchers available for this convention.</p>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                  {availableSpecialVouchers.map((sv: any) => (
+                    <label key={sv.id} className="flex items-center gap-2 p-2 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
+                      <input
+                        type="checkbox"
+                        checked={selectedSpecialVoucherIds.includes(sv.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedSpecialVoucherIds([...selectedSpecialVoucherIds, sv.id]);
+                          } else {
+                            setSelectedSpecialVoucherIds(selectedSpecialVoucherIds.filter(id => id !== sv.id));
+                          }
+                        }}
+                        className="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
+                      />
+                      <div className="flex-1">
+                        <div className="text-sm font-medium text-gray-800">{sv.name}</div>
+                        <div className="text-xs text-gray-500">{sv.category || 'Special'}{sv.format ? ` • ${sv.format}` : ''}</div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-2 md:col-span-2 mt-2">
               <button type="submit" className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition font-medium">
                 {editingPackage ? 'Update' : 'Create'}
               </button>
@@ -290,7 +346,6 @@ export default function PackagesPage() {
                 <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Cost</th>
                 <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Pre-reg Cost</th>
                 <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Regular Vouchers</th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Special Vouchers</th>
                 <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Status</th>
                 <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Actions</th>
               </tr>
@@ -308,12 +363,9 @@ export default function PackagesPage() {
                     </span>
                   </td>
                   <td className="px-6 py-3 text-sm text-gray-600">{pkg.days}</td>
-                  <td className="px-6 py-3 text-sm text-gray-600">${pkg.cost}</td>
-                  <td className="px-6 py-3 text-sm text-gray-600">{pkg.prereg_cost ? `$${pkg.prereg_cost}` : '—'}</td>
+                  <td className="px-6 py-3 text-sm text-gray-600">₡{Number(pkg.cost).toLocaleString('es-CR')}</td>
+                  <td className="px-6 py-3 text-sm text-gray-600">{pkg.prereg_cost ? `₡${Number(pkg.prereg_cost).toLocaleString('es-CR')}` : '—'}</td>
                   <td className="px-6 py-3 text-sm text-gray-600">{pkg.regular_voucher_amount || 0}</td>
-                  <td className="px-6 py-3 text-sm text-gray-600">
-                    <span className="text-xs text-gray-500">Edit to view</span>
-                  </td>
                   <td className="px-6 py-3 text-sm">
                     {pkg.is_active ? (
                       <span className="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-full font-medium">Active</span>
@@ -334,7 +386,7 @@ export default function PackagesPage() {
                 </tr>
               ))}
               {packageList.length === 0 && (
-                <tr><td colSpan={9} className="px-6 py-8 text-center text-gray-400">No packages yet. Create one to get started.</td></tr>
+                <tr><td colSpan={8} className="px-6 py-8 text-center text-gray-400">No packages yet. Create one to get started.</td></tr>
               )}
             </tbody>
           </table>

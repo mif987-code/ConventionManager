@@ -129,6 +129,15 @@ router.get('/me', playerAuth, async (req: Request, res: Response, next: NextFunc
       [userId]
     );
 
+    // Get merchandise items for the player
+    const merchandiseRes = await pool.query(
+      `SELECT id, item_name, is_claimed, claimed_at
+       FROM user_merchandise
+       WHERE user_id = $1
+       ORDER BY id ASC`,
+      [userId]
+    );
+
     res.json({
       success: true,
       player: {
@@ -139,6 +148,7 @@ router.get('/me', playerAuth, async (req: Request, res: Response, next: NextFunc
         qr_code: user.qr_code,
         created_at: user.created_at,
         special_vouchers: specialVouchersRes.rows,
+        merchandise: merchandiseRes.rows,
       },
       convention,
     });

@@ -36,6 +36,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const userService = __importStar(require("../services/userService"));
 const paymentService = __importStar(require("../services/paymentService"));
+const packageService = __importStar(require("../services/packageService"));
 const qrTokenService_1 = require("../services/qrTokenService");
 const emailService_1 = require("../services/emailService");
 const db_1 = require("../config/db");
@@ -97,6 +98,7 @@ router.post('/register', async (req, res, next) => {
                         await db_1.pool.query(`INSERT INTO special_voucher_awards (user_id, special_voucher_id, event_id, awarded_by)
                VALUES ($1, $2, NULL, 'package_registration')`, [user.id, sv.id]);
                     }
+                    await packageService.awardPackageMerchandiseToUser(user.id, conventionId, package_id);
                 }
             }
         }

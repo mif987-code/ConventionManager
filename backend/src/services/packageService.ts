@@ -95,23 +95,91 @@ export async function getPackageWithVouchers(packageId: number): Promise<any> {
     `SELECT p.*, 
             COALESCE(
               json_agg(
-                json_build_object(
+                DISTINCT jsonb_build_object(
                   'id', sv.id,
                   'name', sv.name,
                   'amount', sv.amount,
                   'description', sv.description,
                   'icon', sv.icon,
                   'color', sv.color
-                ) ORDER BY sv.name
+                )
               ) FILTER (WHERE sv.id IS NOT NULL),
               '[]'
-            ) as special_vouchers
+            ) as special_vouchers,
+            COALESCE(
+              json_agg(
+                DISTINCT jsonb_build_object(
+                  'id', pm.id,
+                  'item_name', pm.item_name
+                )
+              ) FILTER (WHERE pm.id IS NOT NULL),
+              '[]'
+            ) as merchandise_items
      FROM packages p
      LEFT JOIN package_special_vouchers psv ON psv.package_id = p.id
      LEFT JOIN special_vouchers sv ON sv.id = psv.special_voucher_id
+     LEFT JOIN package_merchandise pm ON pm.package_id = p.id
      WHERE p.id = $1
      GROUP BY p.id`,
     [packageId]
   );
   return result.rows[0];
+}
+
+export async function getMerchandiseForPackage(packageId: number): Promise<any[]> {
+  const result = await pool.query(
+    `SELECT * FROM package_merchandise WHERE package_id = $1 ORDER BY id ASC`,
+    [packageId]
+  );
+  return result.rows;
+}
+
+export async function setPackageMerchandise(packageId: number, itemNames: string[]): Promise<void> {
+  await pool.query('DELETE FROM package_merchandise WHERE package_id = $1', [packageId]);
+  for (const name of itemNames) {
+    if (name && name.trim()) {
+      await pool.query(
+        'INSERT INTO package_merchandise (package_id, item_name) VALUES ($1, $2)',
+        [packageId, name.trim()]
+      );
+    }
+  }
+}
+
+export async function getUserMerchandise(userId: number, conventionId?: number): Promise<any[]> {
+  const query = conventionId
+    ? `SELECT um.*, p.name as package_name FROM user_merchandise um LEFT JOIN packages p ON p.id = um.package_id WHERE um.user_id = $1 AND um.convention_id = $2 ORDER BY um.id ASC`
+    : `SELECT um.*, p.name as package_name FROM user_merchandise um LEFT JOIN packages p ON p.id = um.package_id WHERE um.user_id = $1 ORDER BY um.id ASC`;
+  const params = conventionId ? [userId, conventionId] : [userId];
+  const result = await pool.query(query, params);
+  return result.rows;
+}
+
+export async function claimUserMerchandise(id: number, claimedBy: string = 'admin'): Promise<any> {
+  const result = await pool.query(
+    `UPDATE user_merchandise SET is_claimed = TRUE, claimed_at = NOW(), claimed_by = $1 WHERE id = $2 RETURNING *`,
+    [claimedBy, id]
+  );
+  return result.rows[0];
+}
+
+export async function unclaimUserMerchandise(id: number): Promise<any> {
+  const result = await pool.query(
+    `UPDATE user_merchandise SET is_claimed = FALSE, claimed_at = NULL, claimed_by = NULL WHERE id = $1 RETURNING *`,
+    [id]
+  );
+  return result.rows[0];
+}
+
+export async function awardPackageMerchandiseToUser(userId: number, conventionId: number, packageId: number, quantity: number = 1): Promise<void> {
+  const items = await getMerchandiseForPackage(packageId);
+  for (const item of items) {
+    for (let i = 0; i < quantity; i++) {
+      await pool.query(
+        `INSERT INTO user_merchandise (user_id, convention_id, package_id, item_name, is_claimed)
+         VALUES ($1, $2, $3, $4, FALSE)`,
+        [userId, conventionId, packageId, item.item_name]
+      );
+    }
+  }
 }

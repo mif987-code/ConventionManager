@@ -109,4 +109,60 @@ router.delete('/:id/special-vouchers/:voucherId', async (req: Request, res: Resp
   }
 });
 
+// GET /api/packages/:id/merchandise - Get merchandise for a package
+router.get('/:id/merchandise', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const items = await packageService.getMerchandiseForPackage(parseInt(req.params.id));
+    res.json({ success: true, merchandise: items });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// PUT /api/packages/:id/merchandise - Update merchandise for a package
+router.put('/:id/merchandise', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { items } = req.body; // array of item names (strings)
+    if (!Array.isArray(items)) {
+      return res.status(400).json({ error: 'items must be an array of strings' });
+    }
+    await packageService.setPackageMerchandise(parseInt(req.params.id), items);
+    const updated = await packageService.getMerchandiseForPackage(parseInt(req.params.id));
+    res.json({ success: true, merchandise: updated });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/packages/user/:userId/merchandise - Get all merchandise assigned to a user
+router.get('/user/:userId/merchandise', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const items = await packageService.getUserMerchandise(parseInt(req.params.userId));
+    res.json({ success: true, merchandise: items });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/packages/user-merchandise/:id/claim - Claim an item for a user
+router.post('/user-merchandise/:id/claim', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const claimedBy = (req as any).user?.username || (req as any).user?.name || 'admin';
+    const item = await packageService.claimUserMerchandise(parseInt(req.params.id), claimedBy);
+    res.json({ success: true, item });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/packages/user-merchandise/:id/unclaim - Unclaim an item for a user
+router.post('/user-merchandise/:id/unclaim', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const item = await packageService.unclaimUserMerchandise(parseInt(req.params.id));
+    res.json({ success: true, item });
+  } catch (err) {
+    next(err);
+  }
+});
+
 export default router;

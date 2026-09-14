@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { CreditCard, Search, X, Loader2, Wifi, Gift, Plus, Trash2, QrCode, ScanLine, DollarSign, ExternalLink } from 'lucide-react';
-import { vouchers, tix, wallet, users, scan, specialVouchers, events, conventions } from '../api';
+import { CreditCard, Search, X, Loader2, Wifi, Gift, Plus, Trash2, QrCode, ScanLine, DollarSign, ExternalLink, Package as PackageIcon, CheckCircle2, Circle } from 'lucide-react';
+import { vouchers, tix, wallet, users, scan, specialVouchers, events, conventions, packages } from '../api';
 
 export default function VouchersPage() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -12,6 +12,8 @@ export default function VouchersPage() {
   const [tixHistory, setTixHistory] = useState<any[]>([]);
   const [creditHistory, setCreditHistory] = useState<any[]>([]);
   const [paymentHistory, setPaymentHistory] = useState<any[]>([]);
+  const [userMerchandise, setUserMerchandise] = useState<any[]>([]);
+  const [claimingMerchandiseId, setClaimingMerchandiseId] = useState<number | null>(null);
   const [topupAmount, setTopupAmount] = useState('');
   const [topupMode, setTopupMode] = useState<'manual' | 'purchase'>('manual');
   const [creditTopupAmount, setCreditTopupAmount] = useState('');
@@ -22,7 +24,7 @@ export default function VouchersPage() {
   const [nfcStatus, setNfcStatus] = useState('');
   const [scanMode, setScanMode] = useState<'nfc' | 'qr'>('nfc');
   const [qrInput, setQrInput] = useState('');
-  const [activeTab, setActiveTab] = useState<'payments' | 'regular' | 'special'>('payments');
+  const [activeTab, setActiveTab] = useState<'payments' | 'regular' | 'special' | 'merchandise'>('payments');
   const [searchParams, setSearchParams] = useSearchParams();
   const [specialVouchersList, setSpecialVouchersList] = useState<any[]>([]);
   const [openEvents, setOpenEvents] = useState<any[]>([]);
@@ -64,7 +66,7 @@ export default function VouchersPage() {
     setSuccess('');
     setSelectedSpecialVoucher(null);
     try {
-      const [balRes, tBalRes, creditRes, vhRes, thRes, payRes, chRes] = await Promise.all([
+      const [balRes, tBalRes, creditRes, vhRes, thRes, payRes, chRes, merchRes] = await Promise.all([
         vouchers.balance(u.id),
         tix.balance(u.id),
         wallet.balance(u.id),
@@ -72,12 +74,14 @@ export default function VouchersPage() {
         tix.history(u.id),
         users.payments(u.id),
         wallet.history(u.id),
+        packages.getUserMerchandise(u.id),
       ]);
       setUser({ ...u, voucher_balance: balRes.balance ?? 0, tix_balance: tBalRes.balance ?? 0, credit_balance: creditRes.balance ?? 0 });
       setVoucherHistory(vhRes.transactions || []);
       setTixHistory(thRes.transactions || []);
       setCreditHistory(chRes.history || []);
       setPaymentHistory(payRes.payments || []);
+      setUserMerchandise(merchRes.merchandise || []);
       loadUserAwardedVouchers(u.id);
     } catch (err: any) { setError(err.message); }
   }
@@ -355,6 +359,27 @@ export default function VouchersPage() {
     }
   }
 
+  async function handleToggleMerchandiseClaim(item: any) {
+    if (!user) return;
+    setError('');
+    setClaimingMerchandiseId(item.id);
+    try {
+      if (item.is_claimed) {
+        await packages.unclaimMerchandise(item.id);
+        setSuccess(`Unclaimed "${item.item_name}"`);
+      } else {
+        await packages.claimMerchandise(item.id);
+        setSuccess(`Claimed "${item.item_name}"`);
+      }
+      const merchRes = await packages.getUserMerchandise(user.id);
+      setUserMerchandise(merchRes.merchandise || []);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setClaimingMerchandiseId(null);
+    }
+  }
+
   async function handleRemoveSpecialVoucherAward(awardId: number) {
     if (!user) return;
     setError('');
@@ -396,6 +421,14 @@ export default function VouchersPage() {
           }`}
         >
           Special Vouchers
+        </button>
+        <button
+          onClick={() => setActiveTab('merchandise')}
+          className={`px-4 py-2.5 text-sm font-medium border-b-2 transition ${
+            activeTab === 'merchandise' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          Merchandise / Swag
         </button>
       </div>
 
@@ -954,6 +987,85 @@ export default function VouchersPage() {
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Merchandise / Swag Tab */}
+      {activeTab === 'merchandise' && (
+        <div className="space-y-6">
+          {!user ? (
+            <p className="text-gray-500">Search for or scan a player above to view and manage their merchandise checklist.</p>
+          ) : (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                <div>
+                  <h3 className="font-semibold text-gray-800">Merchandise & Swag Checklist — {user.name}</h3>
+                  <p className="text-xs text-gray-400 mt-0.5">Mark items as claimed when physically handed to the player at check-in or the organizer desk.</p>
+                </div>
+                <span className="text-xs font-semibold px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-full">
+                  {userMerchandise.filter(m => m.is_claimed).length} / {userMerchandise.length} Claimed
+                </span>
+              </div>
+
+              {userMerchandise.length === 0 ? (
+                <div className="p-8 text-center text-gray-400">
+                  <PackageIcon size={40} className="mx-auto mb-2 opacity-40" />
+                  <p className="text-sm">No merchandise items assigned to this player.</p>
+                  <p className="text-xs text-gray-400 mt-1">Merchandise is automatically assigned when purchasing or registering with a package that includes swag.</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-gray-100">
+                  {userMerchandise.map((item: any) => (
+                    <div key={item.id} className="px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition">
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          disabled={claimingMerchandiseId === item.id}
+                          onClick={() => handleToggleMerchandiseClaim(item)}
+                          className={`flex items-center justify-center w-6 h-6 rounded-md transition ${
+                            item.is_claimed
+                              ? 'text-emerald-600 hover:text-emerald-700'
+                              : 'text-gray-400 hover:text-gray-600'
+                          }`}
+                        >
+                          {item.is_claimed ? <CheckCircle2 size={24} className="text-emerald-500" /> : <Circle size={24} />}
+                        </button>
+                        <div>
+                          <p className={`font-medium text-sm ${item.is_claimed ? 'text-gray-500 line-through' : 'text-gray-800'}`}>
+                            {item.item_name}
+                          </p>
+                          <p className="text-xs text-gray-400">
+                            {item.package_name ? `From ${item.package_name}` : 'Package Swag'}
+                            {item.is_claimed && item.claimed_at && ` • Claimed on ${new Date(item.claimed_at).toLocaleDateString()}`}
+                            {item.is_claimed && item.claimed_by && ` by ${item.claimed_by}`}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div>
+                        <button
+                          type="button"
+                          disabled={claimingMerchandiseId === item.id}
+                          onClick={() => handleToggleMerchandiseClaim(item)}
+                          className={`text-xs px-3 py-1.5 rounded-lg font-medium transition ${
+                            item.is_claimed
+                              ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                              : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100'
+                          }`}
+                        >
+                          {claimingMerchandiseId === item.id
+                            ? 'Updating...'
+                            : item.is_claimed
+                            ? 'Mark as Unclaimed'
+                            : 'Mark as Claimed'}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 

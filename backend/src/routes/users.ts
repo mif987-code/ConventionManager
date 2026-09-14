@@ -1,6 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import * as userService from '../services/userService';
 import * as paymentService from '../services/paymentService';
+import * as packageService from '../services/packageService';
 import { addTransaction } from '../services/transactionService';
 import { generateQRToken } from '../services/qrTokenService';
 import { sendQRCodeEmail, sendActivationEmail } from '../services/emailService';
@@ -90,6 +91,7 @@ router.post('/register', async (req: Request, res: Response, next: NextFunction)
               [user.id, sv.id]
             );
           }
+          await packageService.awardPackageMerchandiseToUser(user.id, conventionId, package_id);
         }
       }
     }

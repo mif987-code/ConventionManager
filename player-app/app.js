@@ -370,13 +370,11 @@ async function renderProfile(el) {
     </div>
 
     ${(player.special_vouchers && player.special_vouchers.length > 0) ? `
-    <div class="card" style="margin-bottom:12px;border-left:3px solid var(--accent);">
-      <h3 style="font-size:0.85rem;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:6px;">
-        <span>★</span> Special Event Vouchers (${player.special_vouchers.length})
-      </h3>
+    <div class="card" style="margin-bottom:12px;">
+      <h3 style="font-size:0.85rem;font-weight:700;margin-bottom:8px;">Special Vouchers</h3>
       <div style="display:flex;flex-direction:column;gap:8px;">
         ${player.special_vouchers.map(sv => `
-          <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:var(--surface2);border-radius:6px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--bg3);border-radius:8px;border:1px solid var(--border);">
             <div>
               <div style="font-weight:600;font-size:0.85rem;">${esc(sv.name)}</div>
               <div style="font-size:0.75rem;color:var(--text2);margin-top:2px;">
@@ -385,6 +383,26 @@ async function renderProfile(el) {
               </div>
             </div>
             <span class="badge badge-open" style="font-size:0.7rem;padding:2px 8px;">Active</span>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+    ` : ''}
+    ${(player.merchandise && player.merchandise.length > 0) ? `
+    <div class="card" style="margin-bottom:12px;">
+      <h3 style="font-size:0.85rem;font-weight:700;margin-bottom:8px;">Package Merchandise & Swag</h3>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        ${player.merchandise.map(m => `
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--bg3);border-radius:8px;border:1px solid var(--border);">
+            <div>
+              <div style="font-weight:600;font-size:0.85rem;${m.is_claimed ? 'text-decoration:line-through;color:var(--text2);' : ''}">${esc(m.item_name)}</div>
+              <div style="font-size:0.75rem;color:var(--text2);margin-top:2px;">
+                ${m.is_claimed && m.claimed_at ? `Claimed on ${new Date(m.claimed_at).toLocaleDateString()}` : 'Pick up at Organizer Desk'}
+              </div>
+            </div>
+            <span class="badge ${m.is_claimed ? 'badge-completed' : 'badge-open'}" style="font-size:0.7rem;padding:2px 8px;">
+              ${m.is_claimed ? 'Claimed' : 'Ready for Pickup'}
+            </span>
           </div>
         `).join('')}
       </div>
