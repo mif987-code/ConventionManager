@@ -81,7 +81,15 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     });
 
     const text = await res.text();
-    const data = text ? JSON.parse(text) : {};
+    let data: any = {};
+    try {
+      data = text ? JSON.parse(text) : {};
+    } catch {
+      if (!res.ok) {
+        throw new Error(`Server returned HTTP ${res.status}: ${res.statusText || 'Endpoint error'}`);
+      }
+      throw new Error(`Unexpected non-JSON response from server (${res.status})`);
+    }
     if (!res.ok) throw new Error(data.error || `Request failed: ${res.status}`);
     return data;
   } catch (err) {
