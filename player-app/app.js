@@ -135,7 +135,7 @@ async function refreshPlayer() {
 // ==========================================
 //  EVENTS PAGE
 // ==========================================
-let eventsTab = 'preregistered';
+let eventsTab = 'upcoming';
 
 function historyCardHtml(ev) {
   return `
@@ -155,7 +155,6 @@ async function renderEvents(el) {
   el.innerHTML = `
     <div class="page-hdr">Events</div>
     <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
-      <button class="btn btn-sm ${eventsTab === 'preregistered' ? 'btn-accent' : 'btn-outline'}" onclick="eventsTab='preregistered';renderEvents(document.getElementById('page-content'))">Preregistered</button>
       <button class="btn btn-sm ${eventsTab === 'upcoming' ? 'btn-accent' : 'btn-outline'}" onclick="eventsTab='upcoming';renderEvents(document.getElementById('page-content'))">Upcoming</button>
       <button class="btn btn-sm ${eventsTab === 'history' ? 'btn-accent' : 'btn-outline'}" onclick="eventsTab='history';renderEvents(document.getElementById('page-content'))">My History</button>
       <button class="btn btn-sm ${eventsTab === 'recent' ? 'btn-accent' : 'btn-outline'}" onclick="eventsTab='recent';renderEvents(document.getElementById('page-content'))">Recent Results</button>
@@ -192,39 +191,6 @@ async function renderEvents(el) {
               : `<button class="btn btn-accent btn-sm" style="flex-shrink:0" ${canAfford ? '' : 'disabled'} onclick="registerForEvent(${ev.id}, this)">${canAfford ? 'Join' : 'Not enough credit'}</button>`}
           </div>
         </div>`;
-      }).join('');
-    } catch (err) { listEl.innerHTML = `<p style="color:var(--red);font-size:0.85rem;">${esc(err.message)}</p>`; }
-  } else if (eventsTab === 'preregistered') {
-    try {
-      const data = await api('/preregistrations');
-      const events = data.events || [];
-      if (events.length === 0) { listEl.innerHTML = '<p style="color:var(--text3);font-size:0.85rem;">No events open for pre-registration yet.</p>'; return; }
-      listEl.innerHTML = events.map(ev => {
-        const schedule = [
-          ev.schedule_day,
-          ev.start_time ? ev.start_time.slice(0, 5) + (ev.end_time ? ' - ' + ev.end_time.slice(0, 5) : '') : null,
-          ev.track,
-        ].filter(Boolean).join(' • ');
-        return `
-        <div class="evt-card">
-          <div style="display:flex;justify-content:space-between;align-items:start;">
-            <div>
-              <div class="evt-name">${esc(ev.name)}</div>
-              <div class="evt-meta">
-                ${ev.category ? `<span>${esc(ev.category)}${ev.format ? ' (' + esc(ev.format) + ')' : ''}</span>` : ''}
-                <span>${ev.preregistered_count}${ev.max_players ? '/' + ev.max_players : ''}</span>
-              </div>
-              <div class="evt-meta" style="margin-top:2px">
-                ${ev.entry_cost_colones !== undefined && ev.entry_cost_colones !== null ? `<span>${formatCRC(ev.entry_cost_colones)} entry</span>` : ''}
-              </div>
-              ${schedule ? `<div class="evt-meta" style="margin-top:4px;color:var(--accent-light);">${esc(schedule)}</div>` : ''}
-            </div>
-            ${ev.preregistered_by_me
-              ? `<button class="btn btn-outline btn-sm" style="flex-shrink:0;border-color:var(--red);color:var(--red);" onclick="togglePreregistration(${ev.id}, true, this)">Cancel</button>`
-              : `<button class="btn btn-accent btn-sm" style="flex-shrink:0" onclick="togglePreregistration(${ev.id}, false, this)">Pre-register</button>`}
-          </div>
-        </div>
-      `;
       }).join('');
     } catch (err) { listEl.innerHTML = `<p style="color:var(--red);font-size:0.85rem;">${esc(err.message)}</p>`; }
   } else if (eventsTab === 'history') {
