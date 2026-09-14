@@ -138,6 +138,12 @@ router.get('/me', playerAuth, async (req: Request, res: Response, next: NextFunc
       [userId]
     );
 
+    // Get wallet credit history for the player
+    let creditHistory = [];
+    if (user.convention_id) {
+      creditHistory = await walletService.getHistory(userId, user.convention_id, 20, 0);
+    }
+
     res.json({
       success: true,
       player: {
@@ -149,6 +155,7 @@ router.get('/me', playerAuth, async (req: Request, res: Response, next: NextFunc
         created_at: user.created_at,
         special_vouchers: specialVouchersRes.rows,
         merchandise: merchandiseRes.rows,
+        credit_history: creditHistory,
       },
       convention,
     });

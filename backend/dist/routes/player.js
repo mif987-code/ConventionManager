@@ -46,6 +46,7 @@ const storeService = __importStar(require("../services/storeService"));
 const eventService = __importStar(require("../services/eventService"));
 const emailService_1 = require("../services/emailService");
 const transactionService_1 = require("../services/transactionService");
+const walletService = __importStar(require("../services/walletService"));
 const googleSheetsService_1 = require("../services/googleSheetsService");
 const router = (0, express_1.Router)();
 // Login attempts are CPU-expensive (bcrypt.compare) and unauthenticated, so a
@@ -162,6 +163,11 @@ router.get('/me', playerAuth, async (req, res, next) => {
        FROM user_merchandise
        WHERE user_id = $1
        ORDER BY id ASC`, [userId]);
+        // Get wallet credit history for the player
+        let creditHistory = [];
+        if (user.convention_id) {
+            creditHistory = await walletService.getHistory(userId, user.convention_id, 20, 0);
+        }
         res.json({
             success: true,
             player: {
@@ -173,6 +179,7 @@ router.get('/me', playerAuth, async (req, res, next) => {
                 created_at: user.created_at,
                 special_vouchers: specialVouchersRes.rows,
                 merchandise: merchandiseRes.rows,
+                credit_history: creditHistory,
             },
             convention,
         });

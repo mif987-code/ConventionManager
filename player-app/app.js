@@ -363,11 +363,57 @@ async function renderProfile(el) {
         <div class="bal-label">Tix</div>
         <div class="bal-value">${player.tix_balance}</div>
       </div>
-      <div class="bal-card" style="background:linear-gradient(135deg,#dbeafe,#eff6ff);border-left:3px solid #2563eb">
+      <div class="bal-card" style="background:linear-gradient(135deg,#dbeafe,#eff6ff);border-left:3px solid #2563eb;position:relative;">
         <div class="bal-label" style="color:#1d4ed8">Credit</div>
         <div class="bal-value" style="color:#1e40af">${formatCRC(player.credit_balance || 0)}</div>
+        <button onclick="toggleCreditPurchase()" class="btn btn-sm" style="margin-top:6px;padding:3px 8px;font-size:0.7rem;background:#2563eb;color:#fff;border-radius:6px;width:100%;font-weight:600;">
+          + Top Up Credit
+        </button>
       </div>
     </div>
+
+    <div id="credit-purchase-box" class="card" style="display:none;margin-bottom:12px;border:1px solid #bfdbfe;background:#f8faff;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <h3 style="font-size:0.85rem;font-weight:700;color:#1e40af;">Purchase Credits</h3>
+        <button onclick="toggleCreditPurchase()" style="background:none;border:none;color:var(--text2);font-size:1.1rem;cursor:pointer;">&times;</button>
+      </div>
+      <p style="font-size:0.75rem;color:var(--text2);margin-bottom:10px;">Top up your account balance in Costa Rican Colones (CRC) to join events.</p>
+      <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;">
+        ${[5000, 10000, 20000, 30000].map(amt => `
+          <button type="button" onclick="document.getElementById('purchase-amount').value = ${amt}" class="btn btn-sm btn-outline" style="flex:1;padding:4px 8px;font-size:0.75rem;">
+            ₡${amt.toLocaleString('es-CR')}
+          </button>
+        `).join('')}
+      </div>
+      <input class="login-input" id="purchase-amount" type="number" placeholder="Enter amount in CRC (e.g. 5000)" min="1" style="margin-bottom:8px;">
+      <button class="btn btn-accent" onclick="purchaseCredits()">Proceed to Payment</button>
+    </div>
+
+    ${(player.credit_history && player.credit_history.length > 0) ? `
+    <div class="card" style="margin-bottom:12px;">
+      <h3 style="font-size:0.85rem;font-weight:700;margin-bottom:8px;">Credit History</h3>
+      <div style="display:flex;flex-direction:column;gap:6px;max-height:220px;overflow-y:auto;">
+        ${player.credit_history.map(t => {
+          const isPos = t.amount_colones > 0;
+          return `
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:var(--bg3);border-radius:6px;border:1px solid var(--border);font-size:0.8rem;">
+            <div>
+              <div style="font-weight:600;color:${isPos ? 'var(--green)' : 'var(--text)'};">
+                ${isPos ? '+' : ''}${formatCRC(t.amount_colones)}
+              </div>
+              <div style="font-size:0.7rem;color:var(--text2);margin-top:1px;">
+                ${esc(t.reason || t.event_name || (isPos ? 'Top-up' : 'Event Entry'))}
+                ${t.created_at ? ` · ${new Date(t.created_at).toLocaleDateString()}` : ''}
+              </div>
+            </div>
+            <span class="badge ${isPos ? 'badge-open' : 'badge-registered'}" style="font-size:0.65rem;text-transform:capitalize;">
+              ${esc(t.type || (isPos ? 'Deposit' : 'Payment'))}
+            </span>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+    ` : ''}
 
     ${(player.special_vouchers && player.special_vouchers.length > 0) ? `
     <div class="card" style="margin-bottom:12px;">
@@ -427,12 +473,6 @@ async function renderProfile(el) {
     ` : ''}
 
     <div class="card" style="margin-top:12px">
-      <h3 style="font-size:0.85rem;font-weight:700;margin-bottom:10px;">Purchase Vouchers</h3>
-      <input class="login-input" id="purchase-amount" type="number" placeholder="Amount in CRC colones" min="1" style="margin-bottom:8px;">
-      <button class="btn btn-accent" onclick="purchaseVouchers()">Purchase</button>
-    </div>
-
-    <div class="card" style="margin-top:12px">
       <h3 style="font-size:0.85rem;font-weight:700;margin-bottom:10px;">Set / Change Password</h3>
       <input class="login-input" id="new-pass" type="password" placeholder="New password (min 4 chars)">
       <button class="btn btn-accent" onclick="changePassword()">Update Password</button>
@@ -440,6 +480,17 @@ async function renderProfile(el) {
 
     <button class="btn btn-outline" style="margin-top:16px;border-color:var(--red);color:var(--red);" onclick="logout()">Sign Out</button>
   `;
+}
+
+function toggleCreditPurchase() {
+  const box = document.getElementById('credit-purchase-box');
+  if (!box) return;
+  box.style.display = box.style.display === 'none' ? 'block' : 'none';
+  if (box.style.display === 'block') {
+    box.scrollIntoView({ behavior: 'smooth' });
+    const input = document.getElementById('purchase-amount');
+    if (input) input.focus();
+  }
 }
 
 async function regenerateQrCode() {
@@ -454,11 +505,11 @@ async function regenerateQrCode() {
   }
 }
 
-async function purchaseVouchers() {
+async function purchaseCredits() {
   const amountInput = document.getElementById('purchase-amount');
   const amount = parseInt(amountInput?.value);
   if (!amount || amount <= 0) {
-    toast('Please enter a valid amount', 'error');
+    toast('Please enter a valid amount in CRC', 'error');
     return;
   }
 
@@ -475,11 +526,10 @@ async function purchaseVouchers() {
 
     const data = await response.json();
     if (data.success) {
-      toast(`Payment created! Complete payment at: ${data.paymentUrl}`);
-      // In real implementation, open paymentUrl in a new tab
+      toast(`Payment created! Redirecting to checkout...`);
       window.open(data.paymentUrl, '_blank');
     } else {
-      toast('Payment creation failed', 'error');
+      toast('Payment creation failed: ' + (data.error || 'Unknown error'), 'error');
     }
   } catch (err) {
     toast(err.message, 'error');
