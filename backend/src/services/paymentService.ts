@@ -244,7 +244,11 @@ export async function handlePaymentWebhook(paymentId: string, status: string): P
 // unit purchased. Package purchases never add wallet credit.
 async function awardPaidPackages(client: any, userId: number): Promise<void> {
   const pkgRes = await client.query(
-    `SELECT up.package_id, up.quantity, p.name, p.regular_voucher_amount, p.prereg_cost, p.cost
+    `SELECT up.package_id, up.quantity, p.name, p.regular_voucher_amount,
+            CASE WHEN p.prereg_cost IS NOT NULL
+                      AND (p.prereg_start_date IS NULL OR timezone('America/Costa_Rica', now())::date >= p.prereg_start_date)
+                      AND (p.prereg_end_date IS NULL OR timezone('America/Costa_Rica', now())::date <= p.prereg_end_date)
+                 THEN p.prereg_cost ELSE p.cost END AS effective_cost
      FROM user_packages up
      JOIN packages p ON p.id = up.package_id
      WHERE up.user_id = $1`,
@@ -253,7 +257,7 @@ async function awardPaidPackages(client: any, userId: number): Promise<void> {
 
   for (const pkg of pkgRes.rows) {
     const quantity = pkg.quantity || 1;
-    const unitCost = pkg.prereg_cost || pkg.cost;
+    const unitCost = pkg.effective_cost;
     // Free packages were already awarded at registration time.
     if (!unitCost || unitCost <= 0) continue;
 

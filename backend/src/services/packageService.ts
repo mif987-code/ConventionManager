@@ -10,6 +10,8 @@ export interface Package {
   days: number;
   cost: number;
   prereg_cost: number | null;
+  prereg_start_date: string | null;
+  prereg_end_date: string | null;
   regular_voucher_amount: number;
   package_type: PackageType;
   is_active: boolean;
@@ -31,14 +33,16 @@ export async function createPackage(
   days: number,
   cost: number,
   preregCost: number | null = null,
+  preregStartDate: string | null = null,
+  preregEndDate: string | null = null,
   regularVoucherAmount: number = 0,
   packageType: PackageType = 'day_pass'
 ): Promise<Package> {
   const result = await pool.query(
-    `INSERT INTO packages (convention_id, name, description, days, cost, prereg_cost, regular_voucher_amount, package_type, is_active)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, TRUE)
+    `INSERT INTO packages (convention_id, name, description, days, cost, prereg_cost, prereg_start_date, prereg_end_date, regular_voucher_amount, package_type, is_active)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, TRUE)
      RETURNING *`,
-    [conventionId, name, description, days, cost, preregCost, regularVoucherAmount, packageType]
+    [conventionId, name, description, days, cost, preregCost, preregStartDate, preregEndDate, regularVoucherAmount, packageType]
   );
   return result.rows[0];
 }
@@ -50,14 +54,16 @@ export async function updatePackage(
   days: number,
   cost: number,
   preregCost: number | null,
+  preregStartDate: string | null,
+  preregEndDate: string | null,
   regularVoucherAmount: number,
   is_active: boolean,
   packageType: PackageType = 'day_pass'
 ): Promise<Package> {
   const result = await pool.query(
-    `UPDATE packages SET name = $2, description = $3, days = $4, cost = $5, prereg_cost = $6, regular_voucher_amount = $7, is_active = $8, package_type = $9
+    `UPDATE packages SET name = $2, description = $3, days = $4, cost = $5, prereg_cost = $6, prereg_start_date = $7, prereg_end_date = $8, regular_voucher_amount = $9, is_active = $10, package_type = $11
      WHERE id = $1 RETURNING *`,
-    [id, name, description, days, cost, preregCost, regularVoucherAmount, is_active, packageType]
+    [id, name, description, days, cost, preregCost, preregStartDate, preregEndDate, regularVoucherAmount, is_active, packageType]
   );
   return result.rows[0];
 }

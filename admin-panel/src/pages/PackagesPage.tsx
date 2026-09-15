@@ -12,7 +12,7 @@ export default function PackagesPage() {
   const [error, setError] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingPackage, setEditingPackage] = useState<any>(null);
-  const [form, setForm] = useState({ name: '', description: '', days: 1, cost: 0, prereg_cost: '', regular_voucher_amount: 0, is_active: true, package_type: 'day_pass' });
+  const [form, setForm] = useState({ name: '', description: '', days: 1, cost: 0, prereg_cost: '', prereg_start_date: '', prereg_end_date: '', regular_voucher_amount: 0, is_active: true, package_type: 'day_pass' });
   const fileInputRefs = useRef<{ [key: number]: HTMLInputElement | null }>({});
 
   async function loadPackages() {
@@ -81,10 +81,10 @@ export default function PackagesPage() {
       let targetPackageId: number;
 
       if (editingPackage) {
-        await packages.update(editingPackage.id, form.name, form.description || null, form.days, form.cost, preregCost, form.regular_voucher_amount, form.is_active, form.package_type);
+        await packages.update(editingPackage.id, form.name, form.description || null, form.days, form.cost, preregCost, form.prereg_start_date || null, form.prereg_end_date || null, form.regular_voucher_amount, form.is_active, form.package_type);
         targetPackageId = editingPackage.id;
       } else {
-        const createRes = await packages.create(form.name, form.description || null, form.days, form.cost, preregCost, form.regular_voucher_amount, form.package_type);
+        const createRes = await packages.create(form.name, form.description || null, form.days, form.cost, preregCost, form.prereg_start_date || null, form.prereg_end_date || null, form.regular_voucher_amount, form.package_type);
         targetPackageId = createRes.package.id;
       }
 
@@ -124,7 +124,9 @@ export default function PackagesPage() {
       description: pkg.description || '',
       days: pkg.days,
       cost: pkg.cost,
-      prereg_cost: pkg.prereg_cost ? String(pkg.prereg_cost) : '',
+      prereg_cost: pkg.prereg_cost != null ? String(pkg.prereg_cost) : '',
+      prereg_start_date: pkg.prereg_start_date ? String(pkg.prereg_start_date).slice(0, 10) : '',
+      prereg_end_date: pkg.prereg_end_date ? String(pkg.prereg_end_date).slice(0, 10) : '',
       regular_voucher_amount: pkg.regular_voucher_amount || 0,
       is_active: pkg.is_active,
       package_type: pkg.package_type || 'day_pass'
@@ -144,7 +146,7 @@ export default function PackagesPage() {
   }
 
   function resetForm() {
-    setForm({ name: '', description: '', days: 1, cost: 0, prereg_cost: '', regular_voucher_amount: 0, is_active: true, package_type: 'day_pass' });
+    setForm({ name: '', description: '', days: 1, cost: 0, prereg_cost: '', prereg_start_date: '', prereg_end_date: '', regular_voucher_amount: 0, is_active: true, package_type: 'day_pass' });
     setSelectedSpecialVoucherIds([]);
     setMerchandiseItems([]);
     setEditingPackage(null);
@@ -240,6 +242,28 @@ export default function PackagesPage() {
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
               />
               <p className="text-xs text-gray-500 mt-1">Leave empty to use regular cost</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Pre-registration Price Starts</label>
+              <input
+                type="date"
+                value={form.prereg_start_date}
+                onChange={(e) => setForm({ ...form, prereg_start_date: e.target.value })}
+                disabled={!form.prereg_cost}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none disabled:bg-gray-100"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Pre-registration Price Ends</label>
+              <input
+                type="date"
+                value={form.prereg_end_date}
+                min={form.prereg_start_date || undefined}
+                onChange={(e) => setForm({ ...form, prereg_end_date: e.target.value })}
+                disabled={!form.prereg_cost}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none disabled:bg-gray-100"
+              />
+              <p className="text-xs text-gray-500 mt-1">Dates are inclusive and use Costa Rica time. Leave either date empty for no boundary.</p>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Regular Voucher Bonus</label>

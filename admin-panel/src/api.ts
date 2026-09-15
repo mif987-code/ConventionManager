@@ -299,10 +299,10 @@ export const specialVouchers = {
 // Packages
 export const packages = {
   list: () => request<any>('/packages'),
-  create: (name: string, description: string | null, days: number, cost: number, preregCost: number | null, regularVoucherAmount: number, packageType: string = 'day_pass') =>
-    request<any>('/packages', { method: 'POST', body: JSON.stringify({ name, description, days, cost, prereg_cost: preregCost, regular_voucher_amount: regularVoucherAmount, package_type: packageType }) }),
-  update: (id: number, name: string, description: string | null, days: number, cost: number, preregCost: number | null, regularVoucherAmount: number, is_active: boolean, packageType: string = 'day_pass') =>
-    request<any>(`/packages/${id}`, { method: 'PUT', body: JSON.stringify({ name, description, days, cost, prereg_cost: preregCost, regular_voucher_amount: regularVoucherAmount, is_active, package_type: packageType }) }),
+  create: (name: string, description: string | null, days: number, cost: number, preregCost: number | null, preregStartDate: string | null, preregEndDate: string | null, regularVoucherAmount: number, packageType: string = 'day_pass') =>
+    request<any>('/packages', { method: 'POST', body: JSON.stringify({ name, description, days, cost, prereg_cost: preregCost, prereg_start_date: preregStartDate, prereg_end_date: preregEndDate, regular_voucher_amount: regularVoucherAmount, package_type: packageType }) }),
+  update: (id: number, name: string, description: string | null, days: number, cost: number, preregCost: number | null, preregStartDate: string | null, preregEndDate: string | null, regularVoucherAmount: number, is_active: boolean, packageType: string = 'day_pass') =>
+    request<any>(`/packages/${id}`, { method: 'PUT', body: JSON.stringify({ name, description, days, cost, prereg_cost: preregCost, prereg_start_date: preregStartDate, prereg_end_date: preregEndDate, regular_voucher_amount: regularVoucherAmount, is_active, package_type: packageType }) }),
   delete: (id: number) => request<any>(`/packages/${id}`, { method: 'DELETE' }),
   getSpecialVouchers: (id: number) => request<any>(`/packages/${id}/special-vouchers`),
   addSpecialVoucher: (id: number, voucherId: number) =>

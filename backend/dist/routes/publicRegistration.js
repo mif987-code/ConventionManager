@@ -141,10 +141,15 @@ router.post('/preregister', registrationLimiter, async (req, res, next) => {
          VALUES ($1, $2, $3, $4)
          ON CONFLICT (user_id, convention_id, package_id) DO UPDATE SET quantity = $4`, [userId, conventionId, pkgId, quantity]);
             // Get package details to check if payment is required
-            const packageRes = await db_1.pool.query(`SELECT id, name, regular_voucher_amount, prereg_cost, cost, package_type FROM packages WHERE id = $1`, [pkgId]);
+            const packageRes = await db_1.pool.query(`SELECT id, name, regular_voucher_amount, prereg_cost, cost, package_type,
+                CASE WHEN prereg_cost IS NOT NULL
+                          AND (prereg_start_date IS NULL OR timezone('America/Costa_Rica', now())::date >= prereg_start_date)
+                          AND (prereg_end_date IS NULL OR timezone('America/Costa_Rica', now())::date <= prereg_end_date)
+                     THEN prereg_cost ELSE cost END AS effective_cost
+         FROM packages WHERE id = $1`, [pkgId]);
             if (packageRes.rows.length > 0) {
                 const pkg = packageRes.rows[0];
-                const unitCost = pkg.prereg_cost || pkg.cost;
+                const unitCost = pkg.effective_cost;
                 const packageCost = unitCost * quantity;
                 totalPackageCost += packageCost;
                 packageBreakdown.push({ package_id: pkg.id, name: pkg.name, quantity, unit_cost: unitCost, total_cost: packageCost });
@@ -203,7 +208,11 @@ router.post('/payment', async (req, res, next) => {
             return res.status(400).json({ error: 'user_id is required' });
         }
         // Re-calculate package total from the database so the amount can't be faked
-        const pkgRes = await db_1.pool.query(`SELECT up.package_id, up.quantity, p.prereg_cost, p.cost, p.regular_voucher_amount
+        const pkgRes = await db_1.pool.query(`SELECT up.package_id, up.quantity, p.regular_voucher_amount,
+              CASE WHEN p.prereg_cost IS NOT NULL
+                        AND (p.prereg_start_date IS NULL OR timezone('America/Costa_Rica', now())::date >= p.prereg_start_date)
+                        AND (p.prereg_end_date IS NULL OR timezone('America/Costa_Rica', now())::date <= p.prereg_end_date)
+                   THEN p.prereg_cost ELSE p.cost END AS effective_cost
        FROM user_packages up
        JOIN packages p ON p.id = up.package_id
        WHERE up.user_id = $1`, [user_id]);
@@ -211,8 +220,7 @@ router.post('/payment', async (req, res, next) => {
             return res.status(400).json({ error: 'No packages selected for this user' });
         }
         const total = pkgRes.rows.reduce((sum, pkg) => {
-            const unitCost = pkg.prereg_cost || pkg.cost;
-            return sum + (unitCost * (pkg.quantity || 1));
+            return sum + (pkg.effective_cost * (pkg.quantity || 1));
         }, 0);
         if (total <= 0) {
             return res.status(400).json({ error: 'Package total is 0; no payment needed' });
@@ -262,11 +270,11 @@ router.get('/preregister/check', async (req, res, next) => {
 router.get('/convention', async (req, res, next) => {
     try {
         console.log('Fetching convention info...');
-        let convRes = await db_1.pool.query(`SELECT id, name, start_date, end_date, scan_mode FROM conventions WHERE status = 'active' ORDER BY created_at DESC LIMIT 1`);
+        let convRes = await db_1.pool.query(`SELECT id, name, to_char(start_date, 'YYYY-MM-DD') AS start_date, to_char(end_date, 'YYYY-MM-DD') AS end_date, scan_mode FROM conventions WHERE status = 'active' ORDER BY created_at DESC LIMIT 1`);
         // If no active convention, try to get the most recent convention
         if (convRes.rows.length === 0) {
             console.log('No active convention, fetching most recent...');
-            convRes = await db_1.pool.query(`SELECT id, name, start_date, end_date, scan_mode FROM conventions ORDER BY created_at DESC LIMIT 1`);
+            convRes = await db_1.pool.query(`SELECT id, name, to_char(start_date, 'YYYY-MM-DD') AS start_date, to_char(end_date, 'YYYY-MM-DD') AS end_date, scan_mode FROM conventions ORDER BY created_at DESC LIMIT 1`);
         }
         if (convRes.rows.length === 0) {
             return res.status(404).json({ error: 'No convention found. Please create a convention in the admin panel first.' });
@@ -276,8 +284,8 @@ router.get('/convention', async (req, res, next) => {
         // Calculate available dates
         const dates = [];
         if (convention.start_date && convention.end_date) {
-            const current = new Date(convention.start_date);
-            const end = new Date(convention.end_date);
+            const current = new Date(`${convention.start_date}T12:00:00`);
+            const end = new Date(`${convention.end_date}T12:00:00`);
             while (current <= end) {
                 dates.push(current.toISOString().split('T')[0]);
                 current.setDate(current.getDate() + 1);
@@ -286,7 +294,39 @@ router.get('/convention', async (req, res, next) => {
         console.log('Available dates:', dates.length);
         // Get packages for this convention
         console.log('Fetching packages for convention:', convention.id);
-        const packagesRes = await db_1.pool.query(`SELECT * FROM packages WHERE convention_id = $1 AND is_active = TRUE ORDER BY days ASC, cost ASC`, [convention.id]);
+        const packagesRes = await db_1.pool.query(`SELECT p.*,
+              CASE WHEN p.prereg_cost IS NOT NULL
+                        AND (p.prereg_start_date IS NULL OR timezone('America/Costa_Rica', now())::date >= p.prereg_start_date)
+                        AND (p.prereg_end_date IS NULL OR timezone('America/Costa_Rica', now())::date <= p.prereg_end_date)
+                   THEN p.prereg_cost ELSE p.cost END AS effective_cost,
+              p.prereg_cost IS NOT NULL
+                AND (p.prereg_start_date IS NULL OR timezone('America/Costa_Rica', now())::date >= p.prereg_start_date)
+                AND (p.prereg_end_date IS NULL OR timezone('America/Costa_Rica', now())::date <= p.prereg_end_date) AS prereg_active,
+              COALESCE((
+                SELECT json_agg(json_build_object(
+                  'id', sv.id,
+                  'name', sv.name,
+                  'amount', sv.amount,
+                  'description', sv.description,
+                  'icon', sv.icon,
+                  'color', sv.color
+                ) ORDER BY sv.name)
+                FROM package_special_vouchers psv
+                JOIN special_vouchers sv ON sv.id = psv.special_voucher_id
+                WHERE psv.package_id = p.id
+              ), '[]'::json) AS special_vouchers,
+              COALESCE((
+                SELECT json_agg(json_build_object(
+                  'id', pm.id,
+                  'item_name', pm.item_name,
+                  'image_url', pm.image_url
+                ) ORDER BY pm.id)
+                FROM package_merchandise pm
+                WHERE pm.package_id = p.id
+              ), '[]'::json) AS merchandise_items
+       FROM packages p
+       WHERE p.convention_id = $1 AND p.is_active = TRUE
+       ORDER BY p.days ASC, p.cost ASC`, [convention.id]);
         console.log('Packages found:', packagesRes.rows.length);
         // Get events with preregistration enabled (handle if column doesn't exist)
         console.log('Fetching events for convention:', convention.id);

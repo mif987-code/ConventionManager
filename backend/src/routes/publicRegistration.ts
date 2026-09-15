@@ -134,13 +134,18 @@ router.post('/preregister', registrationLimiter, async (req: Request, res: Respo
 
       // Get package details to check if payment is required
       const packageRes = await pool.query(
-        `SELECT id, name, regular_voucher_amount, prereg_cost, cost, package_type FROM packages WHERE id = $1`,
+        `SELECT id, name, regular_voucher_amount, prereg_cost, cost, package_type,
+                CASE WHEN prereg_cost IS NOT NULL
+                          AND (prereg_start_date IS NULL OR timezone('America/Costa_Rica', now())::date >= prereg_start_date)
+                          AND (prereg_end_date IS NULL OR timezone('America/Costa_Rica', now())::date <= prereg_end_date)
+                     THEN prereg_cost ELSE cost END AS effective_cost
+         FROM packages WHERE id = $1`,
         [pkgId]
       );
 
       if (packageRes.rows.length > 0) {
         const pkg = packageRes.rows[0];
-        const unitCost = pkg.prereg_cost || pkg.cost;
+        const unitCost = pkg.effective_cost;
         const packageCost = unitCost * quantity;
         totalPackageCost += packageCost;
         packageBreakdown.push({ package_id: pkg.id, name: pkg.name, quantity, unit_cost: unitCost, total_cost: packageCost });
@@ -219,7 +224,11 @@ router.post('/payment', async (req: Request, res: Response, next: NextFunction) 
 
     // Re-calculate package total from the database so the amount can't be faked
     const pkgRes = await pool.query(
-      `SELECT up.package_id, up.quantity, p.prereg_cost, p.cost, p.regular_voucher_amount
+      `SELECT up.package_id, up.quantity, p.regular_voucher_amount,
+              CASE WHEN p.prereg_cost IS NOT NULL
+                        AND (p.prereg_start_date IS NULL OR timezone('America/Costa_Rica', now())::date >= p.prereg_start_date)
+                        AND (p.prereg_end_date IS NULL OR timezone('America/Costa_Rica', now())::date <= p.prereg_end_date)
+                   THEN p.prereg_cost ELSE p.cost END AS effective_cost
        FROM user_packages up
        JOIN packages p ON p.id = up.package_id
        WHERE up.user_id = $1`,
@@ -231,8 +240,7 @@ router.post('/payment', async (req: Request, res: Response, next: NextFunction) 
     }
 
     const total = pkgRes.rows.reduce((sum, pkg) => {
-      const unitCost = pkg.prereg_cost || pkg.cost;
-      return sum + (unitCost * (pkg.quantity || 1));
+      return sum + (pkg.effective_cost * (pkg.quantity || 1));
     }, 0);
 
     if (total <= 0) {
@@ -289,14 +297,14 @@ router.get('/convention', async (req: Request, res: Response, next: NextFunction
   try {
     console.log('Fetching convention info...');
     let convRes = await pool.query(
-      `SELECT id, name, start_date, end_date, scan_mode FROM conventions WHERE status = 'active' ORDER BY created_at DESC LIMIT 1`
+      `SELECT id, name, to_char(start_date, 'YYYY-MM-DD') AS start_date, to_char(end_date, 'YYYY-MM-DD') AS end_date, scan_mode FROM conventions WHERE status = 'active' ORDER BY created_at DESC LIMIT 1`
     );
 
     // If no active convention, try to get the most recent convention
     if (convRes.rows.length === 0) {
       console.log('No active convention, fetching most recent...');
       convRes = await pool.query(
-        `SELECT id, name, start_date, end_date, scan_mode FROM conventions ORDER BY created_at DESC LIMIT 1`
+        `SELECT id, name, to_char(start_date, 'YYYY-MM-DD') AS start_date, to_char(end_date, 'YYYY-MM-DD') AS end_date, scan_mode FROM conventions ORDER BY created_at DESC LIMIT 1`
       );
     }
 
@@ -310,8 +318,8 @@ router.get('/convention', async (req: Request, res: Response, next: NextFunction
     // Calculate available dates
     const dates: string[] = [];
     if (convention.start_date && convention.end_date) {
-      const current = new Date(convention.start_date);
-      const end = new Date(convention.end_date);
+      const current = new Date(`${convention.start_date}T12:00:00`);
+      const end = new Date(`${convention.end_date}T12:00:00`);
       while (current <= end) {
         dates.push(current.toISOString().split('T')[0]);
         current.setDate(current.getDate() + 1);
@@ -322,7 +330,39 @@ router.get('/convention', async (req: Request, res: Response, next: NextFunction
     // Get packages for this convention
     console.log('Fetching packages for convention:', convention.id);
     const packagesRes = await pool.query(
-      `SELECT * FROM packages WHERE convention_id = $1 AND is_active = TRUE ORDER BY days ASC, cost ASC`,
+      `SELECT p.*,
+              CASE WHEN p.prereg_cost IS NOT NULL
+                        AND (p.prereg_start_date IS NULL OR timezone('America/Costa_Rica', now())::date >= p.prereg_start_date)
+                        AND (p.prereg_end_date IS NULL OR timezone('America/Costa_Rica', now())::date <= p.prereg_end_date)
+                   THEN p.prereg_cost ELSE p.cost END AS effective_cost,
+              p.prereg_cost IS NOT NULL
+                AND (p.prereg_start_date IS NULL OR timezone('America/Costa_Rica', now())::date >= p.prereg_start_date)
+                AND (p.prereg_end_date IS NULL OR timezone('America/Costa_Rica', now())::date <= p.prereg_end_date) AS prereg_active,
+              COALESCE((
+                SELECT json_agg(json_build_object(
+                  'id', sv.id,
+                  'name', sv.name,
+                  'amount', sv.amount,
+                  'description', sv.description,
+                  'icon', sv.icon,
+                  'color', sv.color
+                ) ORDER BY sv.name)
+                FROM package_special_vouchers psv
+                JOIN special_vouchers sv ON sv.id = psv.special_voucher_id
+                WHERE psv.package_id = p.id
+              ), '[]'::json) AS special_vouchers,
+              COALESCE((
+                SELECT json_agg(json_build_object(
+                  'id', pm.id,
+                  'item_name', pm.item_name,
+                  'image_url', pm.image_url
+                ) ORDER BY pm.id)
+                FROM package_merchandise pm
+                WHERE pm.package_id = p.id
+              ), '[]'::json) AS merchandise_items
+       FROM packages p
+       WHERE p.convention_id = $1 AND p.is_active = TRUE
+       ORDER BY p.days ASC, p.cost ASC`,
       [convention.id]
     );
     console.log('Packages found:', packagesRes.rows.length);

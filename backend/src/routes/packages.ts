@@ -47,13 +47,16 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
   const { conventionId } = req;
   if (!conventionId) return res.status(400).json({ error: 'Convention ID required' });
   try {
-    const { name, description, days, cost, prereg_cost, regular_voucher_amount, package_type } = req.body;
+    const { name, description, days, cost, prereg_cost, prereg_start_date, prereg_end_date, regular_voucher_amount, package_type } = req.body;
 
     if (!name || days === undefined || days === null || cost === undefined) {
       return res.status(400).json({ error: 'name, days, and cost are required' });
     }
     if (days < 0) {
       return res.status(400).json({ error: 'days cannot be negative' });
+    }
+    if (prereg_start_date && prereg_end_date && prereg_start_date > prereg_end_date) {
+      return res.status(400).json({ error: 'Pre-registration start date cannot be after end date' });
     }
 
     const pkg = await packageService.createPackage(
@@ -62,7 +65,9 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
       description || null,
       days,
       cost,
-      prereg_cost || null,
+      prereg_cost ?? null,
+      prereg_start_date || null,
+      prereg_end_date || null,
       regular_voucher_amount || 0,
       package_type || 'day_pass'
     );
@@ -75,9 +80,12 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
 // PUT /api/packages/:id - Update package
 router.put('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { name, description, days, cost, prereg_cost, regular_voucher_amount, is_active, package_type } = req.body;
+    const { name, description, days, cost, prereg_cost, prereg_start_date, prereg_end_date, regular_voucher_amount, is_active, package_type } = req.body;
     if (days !== undefined && days !== null && days < 0) {
       return res.status(400).json({ error: 'days cannot be negative' });
+    }
+    if (prereg_start_date && prereg_end_date && prereg_start_date > prereg_end_date) {
+      return res.status(400).json({ error: 'Pre-registration start date cannot be after end date' });
     }
     const pkg = await packageService.updatePackage(
       parseInt(req.params.id),
@@ -85,7 +93,9 @@ router.put('/:id', async (req: Request, res: Response, next: NextFunction) => {
       description || null,
       days,
       cost,
-      prereg_cost || null,
+      prereg_cost ?? null,
+      prereg_start_date || null,
+      prereg_end_date || null,
       regular_voucher_amount || 0,
       is_active,
       package_type || 'day_pass'
