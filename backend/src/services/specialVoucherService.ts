@@ -34,7 +34,6 @@ export async function createSpecialVoucher(
   category: string | null,
   entryCost: number | null,
   name: string,
-  amount: number,
   description?: string,
   icon: string = 'star',
   color: string = '#6366f1',
@@ -46,7 +45,7 @@ export async function createSpecialVoucher(
     `INSERT INTO special_vouchers (convention_id, category, format, entry_cost, name, description, amount, icon, color, max_awards, voucher_type)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
      RETURNING *`,
-    [conventionId, category || null, format || null, entryCost ?? null, name, description || null, amount, icon, color, maxAwards, voucherType]
+    [conventionId, category || null, format || null, entryCost ?? null, name, description || null, 1, icon, color, maxAwards, voucherType]
   );
   return result.rows[0];
 }
@@ -101,7 +100,6 @@ export async function updateSpecialVoucher(
     entry_cost?: number | null;
     name?: string;
     description?: string | null;
-    amount?: number;
     icon?: string;
     color?: string;
     max_awards?: number;
@@ -117,7 +115,6 @@ export async function updateSpecialVoucher(
   if (fields.entry_cost !== undefined) { sets.push(`entry_cost = $${idx++}`); params.push(fields.entry_cost); }
   if (fields.name !== undefined) { sets.push(`name = $${idx++}`); params.push(fields.name); }
   if (fields.description !== undefined) { sets.push(`description = $${idx++}`); params.push(fields.description); }
-  if (fields.amount !== undefined) { sets.push(`amount = $${idx++}`); params.push(fields.amount); }
   if (fields.icon !== undefined) { sets.push(`icon = $${idx++}`); params.push(fields.icon); }
   if (fields.color !== undefined) { sets.push(`color = $${idx++}`); params.push(fields.color); }
   if (fields.max_awards !== undefined) { sets.push(`max_awards = $${idx++}`); params.push(fields.max_awards); }

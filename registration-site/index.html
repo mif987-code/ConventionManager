@@ -676,7 +676,7 @@
               <div class="mt-2">
                 <p class="text-xs font-semibold text-green-700">Special vouchers included:</p>
                 <ul class="mt-1 space-y-1">
-                  ${pkg.special_vouchers.map(voucher => `<li class="text-xs text-gray-600">• ${voucher.name}${voucher.amount ? ` — includes ${voucher.amount} voucher${voucher.amount !== 1 ? 's' : ''}` : ''}</li>`).join('')}
+                  ${pkg.special_vouchers.map(voucher => `<li class="text-xs text-gray-600">• ${voucher.name} — single-use event voucher</li>`).join('')}
                 </ul>
               </div>` : ''}
             ${pkg.merchandise_items?.length ? `

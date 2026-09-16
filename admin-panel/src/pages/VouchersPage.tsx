@@ -29,7 +29,7 @@ export default function VouchersPage() {
   const [specialVouchersList, setSpecialVouchersList] = useState<any[]>([]);
   const [openEvents, setOpenEvents] = useState<any[]>([]);
   const [showCreateVoucher, setShowCreateVoucher] = useState(false);
-  const [newVoucher, setNewVoucher] = useState({ name: '', amount: 5, description: '', category: '', format: '', entry_cost: 0, max_awards: 1, voucher_type: 'static' });
+  const [newVoucher, setNewVoucher] = useState({ name: '', description: '', category: '', format: '', entry_cost: 0, max_awards: 1, voucher_type: 'static' });
   const [creatingVoucher, setCreatingVoucher] = useState(false);
   const [editingVoucher, setEditingVoucher] = useState<any | null>(null);
   const [savingVoucherEdit, setSavingVoucherEdit] = useState(false);
@@ -261,13 +261,12 @@ export default function VouchersPage() {
         format: newVoucher.format || null,
         entry_cost: newVoucher.entry_cost,
         name: newVoucher.name,
-        amount: newVoucher.amount,
         description: newVoucher.description,
         max_awards: newVoucher.max_awards,
         voucher_type: newVoucher.voucher_type,
       });
       setSuccess('Special voucher created successfully!');
-      setNewVoucher({ name: '', amount: 5, description: '', category: '', format: '', entry_cost: 0, max_awards: 1, voucher_type: 'static' });
+      setNewVoucher({ name: '', description: '', category: '', format: '', entry_cost: 0, max_awards: 1, voucher_type: 'static' });
       setShowCreateVoucher(false);
       loadSpecialVouchers();
     } catch (err: any) {
@@ -288,7 +287,6 @@ export default function VouchersPage() {
         category: editingVoucher.category || null,
         format: editingVoucher.format || null,
         entry_cost: editingVoucher.entry_cost,
-        amount: editingVoucher.amount,
         description: editingVoucher.description,
         max_awards: editingVoucher.max_awards,
         voucher_type: editingVoucher.voucher_type || 'static',
