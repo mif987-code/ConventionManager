@@ -8,6 +8,16 @@ import { syncPreregistrationToSheet } from '../services/googleSheetsService';
 
 const router = Router();
 
+router.get('/merchandise-images/:id', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const result = await pool.query('SELECT content_type, data FROM merchandise_images WHERE id = $1', [req.params.id]);
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Image not found' });
+    res.type(result.rows[0].content_type).send(result.rows[0].data);
+  } catch (err) {
+    next(err);
+  }
+});
+
 // Cap registrations per IP to blunt scripted signup floods.
 const registrationLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,

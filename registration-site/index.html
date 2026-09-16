@@ -49,7 +49,7 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
               </svg>
-              <span>San José, Costa Rica</span>
+              <span>Hotel Irazú, San José, Costa Rica</span>
             </div>
           </div>
         </div>
@@ -171,7 +171,7 @@
 
             <!-- Packages Section -->
             <div id="packages-section" class="hidden">
-              <label class="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-2">Select a Package <span class="text-gray-400 font-normal">(Optional - skip to pay per day)</span></label>
+              <label class="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-2">Select Products <span class="text-gray-400 font-normal">(Optional)</span></label>
               <div id="packages-container" class="space-y-3"></div>
             </div>
 
@@ -647,11 +647,19 @@
     }
 
     function renderPackages() {
-      packagesContainer.innerHTML = packages.map(pkg => {
-        const isMultiplierType = pkg.package_type === 'voucher_pack' || pkg.package_type === 'merchandise';
-        return `
+      const packageItems = packages.filter(pkg => pkg.package_type !== 'merchandise');
+      const merchandiseItems = packages.filter(pkg => pkg.package_type === 'merchandise');
+      packagesContainer.innerHTML = [
+        packageItems.length ? `<div><h3 class="text-sm font-bold text-gray-800 mb-2">Packages</h3><div class="space-y-3">${packageItems.map(packageCard).join('')}</div></div>` : '',
+        merchandiseItems.length ? `<div class="pt-2"><h3 class="text-sm font-bold text-gray-800 mb-2">Merchandise</h3><div class="space-y-3">${merchandiseItems.map(packageCard).join('')}</div></div>` : '',
+      ].join('');
+    }
+
+    function packageCard(pkg) {
+      const isMultiplierType = pkg.package_type === 'voucher_pack' || pkg.package_type === 'merchandise';
+      return `
         <label class="flex items-start gap-3 p-4 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition border border-gray-200">
-          <input type="checkbox" name="package" value="${pkg.id}" data-unit-cost="${pkg.effective_cost}"
+          <input type="${pkg.days > 0 ? 'radio' : 'checkbox'}" name="package" value="${pkg.id}" data-unit-cost="${pkg.effective_cost}"
             class="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500 mt-1"
             onchange="onPackageToggle(this, ${pkg.id})">
           <div class="flex-1">
@@ -668,7 +676,7 @@
               <div class="mt-2">
                 <p class="text-xs font-semibold text-green-700">Special vouchers included:</p>
                 <ul class="mt-1 space-y-1">
-                  ${pkg.special_vouchers.map(voucher => `<li class="text-xs text-gray-600">• ${voucher.name}${voucher.amount ? ` (${voucher.amount})` : ''}</li>`).join('')}
+                  ${pkg.special_vouchers.map(voucher => `<li class="text-xs text-gray-600">• ${voucher.name}${voucher.amount ? ` — includes ${voucher.amount} voucher${voucher.amount !== 1 ? 's' : ''}` : ''}</li>`).join('')}
                 </ul>
               </div>` : ''}
             ${pkg.merchandise_items?.length ? `
@@ -692,7 +700,6 @@
           </div>
         </label>
       `;
-      }).join('');
     }
 
     function onPackageToggle(checkbox, pkgId) {
