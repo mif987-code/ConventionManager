@@ -356,7 +356,13 @@ router.get('/convention', async (req, res, next) => {
             console.error('Error querying events (preregistration_enabled column may not exist):', err);
             eventsRes = { rows: [] };
         }
-        res.json({ convention, available_dates: dates, packages: packagesRes.rows, events: eventsRes.rows, payment_provider: paymentService.PROVIDER });
+        const scheduleRes = await db_1.pool.query(`SELECT e.id, e.name, e.schedule_day, e.start_time, e.end_time, e.track,
+              e.sort_order, e.schedule_color, e.status, et.category, et.format
+       FROM events e
+       JOIN event_types et ON e.event_type_id = et.id
+       WHERE e.convention_id = $1 AND e.schedule_day IS NOT NULL
+       ORDER BY e.schedule_day ASC, e.sort_order ASC, e.start_time ASC NULLS LAST, e.created_at ASC`, [convention.id]);
+        res.json({ convention, available_dates: dates, packages: packagesRes.rows, events: eventsRes.rows, schedule: scheduleRes.rows, payment_provider: paymentService.PROVIDER });
     }
     catch (err) {
         console.error('Error in /public/convention:', err);

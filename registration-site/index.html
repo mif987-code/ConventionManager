@@ -38,13 +38,13 @@
           <img src="/brand/spark-logo.png" alt="Spark Fest: The Last Hope" class="brand-logo mx-auto md:mx-0">
           <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 text-xs font-semibold uppercase tracking-wider">
             <span class="w-2 h-2 rounded-full bg-indigo-400 animate-pulse"></span>
-            El festival líder de TCG en Costa Rica
+            El único festival de MTG en Costa Rica
           </div>
           <h1 id="convention-title" class="text-3xl sm:text-5xl font-extrabold tracking-tight text-white drop-shadow-sm">
             Spark Fest 2026
           </h1>
           <p class="text-slate-300 text-base sm:text-lg font-light leading-relaxed">
-            El fin de semana definitivo de Magic: The Gathering, torneos competitivos, Commander casual, artistas invitados y comunidad de jugadores.
+            Un épico fin de semana de Magic: The Gathering, torneos competitivos, Commander casual, artistas invitados y comunidad de jugadores.
           </p>
           <div class="flex flex-wrap items-center justify-center md:justify-start gap-4 pt-2 text-sm text-slate-300">
             <div class="flex items-center gap-2">
@@ -74,7 +74,7 @@
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
             </svg>
-            Ingresar a la app de jugadores
+            Ingresar a la aplicación de participantes
           </a>
         </div>
       </div>
@@ -88,7 +88,7 @@
             <span>📝</span> Inscripción
           </button>
           <button onclick="switchTab('about')" id="tab-btn-about" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition text-slate-300 hover:text-white hover:bg-slate-800 flex items-center gap-2">
-            <span>✨</span> ¿Qué es Spark Fest?
+            <span>✨</span> ¿Qué es el SparkFest?
           </button>
           <button onclick="switchTab('schedule')" id="tab-btn-schedule" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition text-slate-300 hover:text-white hover:bg-slate-800 flex items-center gap-2">
             <span>📅</span> Horario
@@ -234,7 +234,7 @@
           <span class="text-xs font-bold uppercase tracking-wider text-indigo-600">La experiencia</span>
           <h2 class="text-3xl font-extrabold text-gray-900 mt-1 mb-4">¿Qué es Spark Fest?</h2>
           <p class="text-gray-600 text-base sm:text-lg leading-relaxed mb-6">
-            Spark Fest es el festival centroamericano dedicado a los juegos de cartas coleccionables, Magic: The Gathering, la competencia y el arte detrás de las cartas. Ya sea que busques premios de campeonato o partidas casuales de Commander con amigos, Spark Fest ofrece una experiencia de convención inigualable.
+            SparkFest es el festival costarricense dedicado a la comunidad de Magic: The Gathering. Es un festival hecho para que todas las comunidades de MtG puedan disfrutar de Magic interrumpido por un fin de semana completo, sea jugando un formato específico por diversión, conocer nuevos formatos casuales, participar en torenos altamente competitivos o disfrutar del arte de artistas costarricenses y mercancía relacionada a Magic. Ya sea que busques muchos premios o partidas casuales de Commander con amigos, el SparkFest ofrece una experiencia de convención inigualable.
           </p>
         </div>
 
@@ -242,7 +242,7 @@
           <div class="p-6 rounded-xl bg-gradient-to-br from-indigo-50 to-white border border-indigo-100">
             <div class="w-12 h-12 rounded-lg bg-indigo-600 text-white flex items-center justify-center text-2xl mb-4">⚔️</div>
             <h3 class="font-bold text-gray-900 text-lg mb-2">Torneos todo el día</h3>
-            <p class="text-sm text-gray-600">Eventos principales, desafíos de Mazo Sellado, torneos suizos de Modern y Standard, y mesas bajo demanda de 8 jugadores durante todo el día.</p>
+            <p class="text-sm text-gray-600">Eventos principales, Super Modern, Sealed Deck, torneos Modern, PreModern, Standard, Pioneer; juegos On-Demand durante todo el día, ambos días.</p>
           </div>
           <div class="p-6 rounded-xl bg-gradient-to-br from-purple-50 to-white border border-purple-100">
             <div class="w-12 h-12 rounded-lg bg-purple-600 text-white flex items-center justify-center text-2xl mb-4">🎨</div>
@@ -266,7 +266,7 @@
           <ul class="space-y-3 text-sm text-gray-600">
             <li class="flex items-start gap-2">
               <span class="text-green-500 font-bold">✓</span>
-              <span><strong>Eventos principales:</strong> Grandes premios, eliminatorias de Top Cut y torneos con trofeo.</span>
+              <span><strong>Eventos principales:</strong> Grandes premios, eliminatorias de Top 8 y torneos con trofeo.</span>
             </li>
             <li class="flex items-start gap-2">
               <span class="text-green-500 font-bold">✓</span>
@@ -605,6 +605,7 @@
     let availableDates = [];
     let packages = [];
     let events = [];
+    let schedule = [];
     let scanMode = 'nfc'; // Default to NFC
 
     // Load convention info on page load
@@ -640,6 +641,9 @@
             eventsSection.classList.remove('hidden');
             renderEvents();
           }
+
+          schedule = json.schedule || [];
+          renderPublicSchedule();
         }
       } catch (err) {
         console.error('Failed to load convention info:', err);
@@ -766,6 +770,56 @@
           </div>
         </label>
       `;
+    }
+
+    function renderPublicSchedule() {
+      const container = document.getElementById('public-schedule-list');
+      if (!container) return;
+      if (schedule.length === 0) {
+        container.innerHTML = '<p class="text-sm text-gray-500 text-center py-8">El horario oficial estará disponible próximamente.</p>';
+        return;
+      }
+
+      const dayLabels = { saturday: 'Sábado', sunday: 'Domingo', Saturday: 'Sábado', Sunday: 'Domingo', 'Day 1': 'Día 1', 'Day 2': 'Día 2' };
+      const trackLabels = { 'Main Stage': 'Escenario principal', 'Tournament Arena': 'Zona de torneos', 'Artist Alley': 'Zona de artistas', 'Commander Zone': 'Zona de Commander', 'Featured / Main Event': 'Eventos principales', 'Panels & Special Events': 'Paneles y eventos especiales' };
+      const days = new Map();
+      schedule.forEach(evt => {
+        if (!days.has(evt.schedule_day)) days.set(evt.schedule_day, new Map());
+        const tracks = days.get(evt.schedule_day);
+        const track = evt.track || 'General';
+        if (!tracks.has(track)) tracks.set(track, []);
+        tracks.get(track).push(evt);
+      });
+
+      container.innerHTML = Array.from(days.entries()).map(([day, tracks], dayIndex) => `
+        <section>
+          <div class="flex items-center gap-3 mb-4">
+            <span class="px-3 py-1 rounded-lg bg-amber-100 text-amber-800 font-bold text-sm">DÍA ${dayIndex + 1}</span>
+            <h3 class="text-lg font-bold text-gray-800">${dayLabels[day] || day}</h3>
+          </div>
+          <div class="space-y-5">
+            ${Array.from(tracks.entries()).map(([track, dayEvents]) => `
+              <div>
+                <h4 class="text-xs font-bold uppercase tracking-wider text-amber-700 mb-2">${trackLabels[track] || track}</h4>
+                <div class="space-y-3">
+                  ${dayEvents.map(evt => `
+                    <article class="p-4 rounded-xl bg-gray-50 border border-gray-200/80" style="border-left:4px solid ${evt.schedule_color || '#b86a18'}">
+                      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div>
+                          <p class="text-xs font-bold text-amber-700 uppercase tracking-wide">${formatTime(evt.start_time)}${evt.end_time ? ` - ${formatTime(evt.end_time)}` : ''}</p>
+                          <h5 class="font-bold text-gray-800">${evt.name}</h5>
+                          ${(evt.category || evt.format) ? `<p class="text-xs text-gray-500 mt-1">${evt.category || ''}${evt.category && evt.format ? ' • ' : ''}${evt.format || ''}</p>` : ''}
+                        </div>
+                        <span class="text-xs px-2.5 py-1 rounded-full bg-gray-200 text-gray-700 font-medium">${trackLabels[track] || track}</span>
+                      </div>
+                    </article>
+                  `).join('')}
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </section>
+      `).join('');
     }
 
     function renderEvents() {
