@@ -617,8 +617,8 @@
         if (json.convention) {
           conventionTitle.textContent = json.convention.name;
           if (json.convention.start_date && json.convention.end_date) {
-            const start = new Date(json.convention.start_date).toLocaleDateString('es-CR', { month: 'short', day: 'numeric', year: 'numeric' });
-            const end = new Date(json.convention.end_date).toLocaleDateString('es-CR', { month: 'short', day: 'numeric', year: 'numeric' });
+            const start = new Date(`${json.convention.start_date}T12:00:00`).toLocaleDateString('es-CR', { month: 'short', day: 'numeric', year: 'numeric' });
+            const end = new Date(`${json.convention.end_date}T12:00:00`).toLocaleDateString('es-CR', { month: 'short', day: 'numeric', year: 'numeric' });
             conventionDates.textContent = `${start} - ${end}`;
             conventionDates.classList.remove('hidden');
           }
@@ -654,7 +654,7 @@
       attendanceDatesContainer.innerHTML = availableDates.map(date => `
         <label class="flex items-center gap-2 p-2 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition">
           <input type="checkbox" name="attendance_date" value="${date}" class="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500">
-          <span class="text-sm text-gray-700">${new Date(date).toLocaleDateString('es-CR', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+          <span class="text-sm text-gray-700">${new Date(`${date}T12:00:00`).toLocaleDateString('es-CR', { weekday: 'long', month: 'long', day: 'numeric' })}</span>
         </label>
       `).join('');
     }
