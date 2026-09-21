@@ -147,6 +147,15 @@ router.get('/search', async (req: Request, res: Response, next: NextFunction) =>
   }
 });
 
+router.get('/deleted/search', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const q = String(req.query.q || '').trim();
+    if (!q) return res.status(400).json({ error: 'Query parameter q is required' });
+    const users = await userService.searchDeletedUsersWithPayments(q, req.conventionId);
+    res.json({ success: true, users });
+  } catch (err) { next(err); }
+});
+
 // GET /api/users/:id - Get user with balances
 router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -293,8 +302,11 @@ router.delete('/:id', async (req: Request, res: Response, next: NextFunction) =>
     const userId = parseInt(req.params.id);
     if (isNaN(userId)) return res.status(400).json({ error: 'Invalid user ID' });
 
-    const deleted = await userService.deleteUser(userId);
-    if (!deleted) return res.status(404).json({ error: 'User not found' });
+    const result = await userService.deleteUser(userId, req.adminId ?? null);
+    if (result.hasRealPayment) {
+      return res.status(409).json({ error: 'This user has completed real-money payments and cannot be deleted.' });
+    }
+    if (!result.deleted) return res.status(404).json({ error: 'User not found' });
 
     await pool.query(
       `INSERT INTO admin_logs (action, details, user_id, admin_id) VALUES ($1, $2, $3, $4)`,

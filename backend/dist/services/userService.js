@@ -13,6 +13,7 @@ exports.regenerateQRCode = regenerateQRCode;
 exports.activateUser = activateUser;
 exports.deactivateUser = deactivateUser;
 exports.deleteUser = deleteUser;
+exports.searchDeletedUsersWithPayments = searchDeletedUsersWithPayments;
 const db_1 = require("../config/db");
 const transactionService_1 = require("./transactionService");
 const walletService_1 = require("./walletService");
@@ -31,28 +32,28 @@ async function createUser(name, nfcUid, email, isAdmin = false, conventionId, at
 }
 async function getUserByNfcUid(nfcUid, conventionId) {
     const query = conventionId
-        ? `SELECT * FROM users WHERE nfc_uid = $1 AND convention_id = $2`
-        : `SELECT * FROM users WHERE nfc_uid = $1`;
+        ? `SELECT * FROM users WHERE nfc_uid = $1 AND convention_id = $2 AND deleted_at IS NULL`
+        : `SELECT * FROM users WHERE nfc_uid = $1 AND deleted_at IS NULL`;
     const params = conventionId ? [nfcUid, conventionId] : [nfcUid];
     const result = await db_1.pool.query(query, params);
     return result.rows[0] ?? null;
 }
 async function getUserByQrCode(qrCode, conventionId) {
     const query = conventionId
-        ? `SELECT * FROM users WHERE qr_code = $1 AND convention_id = $2`
-        : `SELECT * FROM users WHERE qr_code = $1`;
+        ? `SELECT * FROM users WHERE qr_code = $1 AND convention_id = $2 AND deleted_at IS NULL`
+        : `SELECT * FROM users WHERE qr_code = $1 AND deleted_at IS NULL`;
     const params = conventionId ? [qrCode, conventionId] : [qrCode];
     const result = await db_1.pool.query(query, params);
     return result.rows[0] ?? null;
 }
 async function getUserById(id) {
-    const result = await db_1.pool.query(`SELECT * FROM users WHERE id = $1`, [id]);
+    const result = await db_1.pool.query(`SELECT * FROM users WHERE id = $1 AND deleted_at IS NULL`, [id]);
     return result.rows[0] ?? null;
 }
 async function getAllUsers(conventionId) {
     const query = conventionId
-        ? `SELECT * FROM users WHERE convention_id = $1 ORDER BY created_at DESC`
-        : `SELECT * FROM users ORDER BY created_at DESC`;
+        ? `SELECT * FROM users WHERE convention_id = $1 AND deleted_at IS NULL ORDER BY created_at DESC`
+        : `SELECT * FROM users WHERE deleted_at IS NULL ORDER BY created_at DESC`;
     const params = conventionId ? [conventionId] : [];
     const result = await db_1.pool.query(query, params);
     return result.rows;
@@ -113,8 +114,8 @@ async function updateUser(id, fields) {
 async function searchUsers(query, conventionId) {
     const q = `%${query}%`;
     const result = conventionId
-        ? await db_1.pool.query(`SELECT * FROM users WHERE convention_id = $1 AND (name ILIKE $2 OR last_name ILIKE $2 OR nfc_uid ILIKE $2 OR email ILIKE $2) ORDER BY name`, [conventionId, q])
-        : await db_1.pool.query(`SELECT * FROM users WHERE name ILIKE $1 OR last_name ILIKE $1 OR nfc_uid ILIKE $1 OR email ILIKE $1 ORDER BY name`, [q]);
+        ? await db_1.pool.query(`SELECT * FROM users WHERE convention_id = $1 AND deleted_at IS NULL AND (name ILIKE $2 OR last_name ILIKE $2 OR nfc_uid ILIKE $2 OR email ILIKE $2) ORDER BY name`, [conventionId, q])
+        : await db_1.pool.query(`SELECT * FROM users WHERE deleted_at IS NULL AND (name ILIKE $1 OR last_name ILIKE $1 OR nfc_uid ILIKE $1 OR email ILIKE $1) ORDER BY name`, [q]);
     return result.rows;
 }
 async function regenerateQRCode(userId) {
@@ -134,8 +135,31 @@ async function deactivateUser(userId) {
      WHERE id = $1 RETURNING *`, [userId]);
     return result.rows[0] ?? null;
 }
-async function deleteUser(userId) {
-    const result = await db_1.pool.query('DELETE FROM users WHERE id = $1', [userId]);
-    return (result.rowCount ?? 0) > 0;
+async function deleteUser(userId, deletedBy) {
+    const paid = await db_1.pool.query(`SELECT 1 FROM payments
+     WHERE user_id = $1 AND status = 'paid' AND COALESCE(provider, CASE WHEN id LIKE 'mock_%' THEN 'mock' ELSE 'legacy' END) <> 'mock'
+     LIMIT 1`, [userId]);
+    if (paid.rows.length > 0)
+        return { deleted: false, hasRealPayment: true };
+    const result = await db_1.pool.query(`UPDATE users
+     SET deleted_at = NOW(), deleted_by = $2, deletion_reason = 'admin_deleted', is_active = FALSE, updated_at = NOW()
+     WHERE id = $1 AND deleted_at IS NULL`, [userId, deletedBy]);
+    return { deleted: (result.rowCount ?? 0) > 0, hasRealPayment: false };
+}
+async function searchDeletedUsersWithPayments(query, conventionId) {
+    const q = `%${query}%`;
+    const params = conventionId ? [conventionId, q] : [q];
+    const conventionFilter = conventionId ? 'AND u.convention_id = $1' : '';
+    const queryParam = conventionId ? '$2' : '$1';
+    const result = await db_1.pool.query(`SELECT u.*, COUNT(p.id)::int AS payment_count,
+            COALESCE(SUM(p.amount) FILTER (WHERE p.status = 'paid'), 0) AS paid_total,
+            MAX(p.created_at) AS last_payment_at
+     FROM users u
+     LEFT JOIN payments p ON p.user_id = u.id
+     WHERE u.deleted_at IS NOT NULL ${conventionFilter}
+       AND (u.name ILIKE ${queryParam} OR u.last_name ILIKE ${queryParam} OR u.email ILIKE ${queryParam})
+     GROUP BY u.id
+     ORDER BY u.deleted_at DESC`, params);
+    return result.rows;
 }
 //# sourceMappingURL=userService.js.map

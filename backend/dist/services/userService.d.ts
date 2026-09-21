@@ -17,6 +17,9 @@ export interface User {
     convention_id: number | null;
     created_at: Date;
     updated_at: Date;
+    deleted_at: Date | null;
+    deleted_by: number | null;
+    deletion_reason: string | null;
 }
 export declare function createUser(name: string, nfcUid?: string, email?: string, isAdmin?: boolean, conventionId?: number, attendanceDates?: Date[]): Promise<User>;
 export declare function getUserByNfcUid(nfcUid: string, conventionId?: number): Promise<User | null>;
@@ -45,6 +48,9 @@ export declare function getUserWithBalances(userId: number, conventionId?: numbe
     convention_id: number | null;
     created_at: Date;
     updated_at: Date;
+    deleted_at: Date | null;
+    deleted_by: number | null;
+    deletion_reason: string | null;
 } | null>;
 export declare function getUserByNfcUidWithBalances(nfcUid: string, conventionId?: number): Promise<{
     voucher_balance: number;
@@ -68,11 +74,18 @@ export declare function getUserByNfcUidWithBalances(nfcUid: string, conventionId
     convention_id: number | null;
     created_at: Date;
     updated_at: Date;
+    deleted_at: Date | null;
+    deleted_by: number | null;
+    deletion_reason: string | null;
 } | null>;
 export declare function updateUser(id: number, fields: Partial<Pick<User, 'name' | 'nfc_uid' | 'email' | 'days_playing' | 'is_admin'>>): Promise<User | null>;
 export declare function searchUsers(query: string, conventionId?: number): Promise<User[]>;
 export declare function regenerateQRCode(userId: number): Promise<User>;
 export declare function activateUser(userId: number, adminId: number | null): Promise<User | null>;
 export declare function deactivateUser(userId: number): Promise<User | null>;
-export declare function deleteUser(userId: number): Promise<boolean>;
+export declare function deleteUser(userId: number, deletedBy: number | null): Promise<{
+    deleted: boolean;
+    hasRealPayment: boolean;
+}>;
+export declare function searchDeletedUsersWithPayments(query: string, conventionId?: number): Promise<any[]>;
 //# sourceMappingURL=userService.d.ts.map

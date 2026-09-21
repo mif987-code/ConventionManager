@@ -152,6 +152,18 @@ router.get('/search', async (req, res, next) => {
         next(err);
     }
 });
+router.get('/deleted/search', async (req, res, next) => {
+    try {
+        const q = String(req.query.q || '').trim();
+        if (!q)
+            return res.status(400).json({ error: 'Query parameter q is required' });
+        const users = await userService.searchDeletedUsersWithPayments(q, req.conventionId);
+        res.json({ success: true, users });
+    }
+    catch (err) {
+        next(err);
+    }
+});
 // GET /api/users/:id - Get user with balances
 router.get('/:id', async (req, res, next) => {
     try {
@@ -277,8 +289,11 @@ router.delete('/:id', async (req, res, next) => {
         const userId = parseInt(req.params.id);
         if (isNaN(userId))
             return res.status(400).json({ error: 'Invalid user ID' });
-        const deleted = await userService.deleteUser(userId);
-        if (!deleted)
+        const result = await userService.deleteUser(userId, req.adminId ?? null);
+        if (result.hasRealPayment) {
+            return res.status(409).json({ error: 'This user has completed real-money payments and cannot be deleted.' });
+        }
+        if (!result.deleted)
             return res.status(404).json({ error: 'User not found' });
         await db_1.pool.query(`INSERT INTO admin_logs (action, details, user_id, admin_id) VALUES ($1, $2, $3, $4)`, ['user_deleted', `Admin deleted user ${userId}`, null, req.adminId ?? null]);
         res.json({ success: true, message: 'User deleted' });

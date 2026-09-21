@@ -155,9 +155,10 @@ export async function createPayment(amount: number): Promise<PaymentIntent> {
 
 export async function storePayment(payment: PaymentIntent, userId: number, purpose: PaymentPurpose = 'topup'): Promise<void> {
   await pool.query(
-    `INSERT INTO payments (id, user_id, amount, status, payment_url, payment_link, purpose)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-    [payment.id, userId, payment.amount, payment.status, payment.paymentUrl, payment.paymentLink, purpose]
+    `INSERT INTO payments (id, user_id, amount, status, payment_url, payment_link, purpose, provider, payer_name, payer_email)
+     SELECT $1, u.id, $2, $3, $4, $5, $6, $7, NULLIF(TRIM(CONCAT_WS(' ', u.name, u.last_name)), ''), u.email
+     FROM users u WHERE u.id = $8`,
+    [payment.id, payment.amount, payment.status, payment.paymentUrl, payment.paymentLink, purpose, PROVIDER, userId]
   );
 }
 

@@ -96,7 +96,7 @@ function App() {
     { to: '/floor-plan', icon: <Map size={20} />, label: 'Floor Plan' },
     { to: '/event-types', icon: <Trophy size={20} />, label: 'Event Types' },
     { to: '/prize-templates', icon: <Ticket size={20} />, label: 'Prize Templates' },
-    { to: '/vouchers', icon: <CreditCard size={20} />, label: 'Vouchers and Tix' },
+    { to: '/vouchers', icon: <CreditCard size={20} />, label: 'Transactions (Coupons & Tix)' },
     { to: '/store', icon: <ShoppingBag size={20} />, label: 'Store' },
     { to: '/packages', icon: <Ticket size={20} />, label: 'Packages' },
     { to: '/scan', icon: <ScanLine size={20} />, label: 'NFC Scan' },

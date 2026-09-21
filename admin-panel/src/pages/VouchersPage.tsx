@@ -7,6 +7,7 @@ export default function VouchersPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searching, setSearching] = useState(false);
+  const [searchDeleted, setSearchDeleted] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [voucherHistory, setVoucherHistory] = useState<any[]>([]);
   const [tixHistory, setTixHistory] = useState<any[]>([]);
@@ -47,11 +48,13 @@ export default function VouchersPage() {
     if (query.trim().length < 1) { setSearchResults([]); return; }
     setSearching(true);
     try {
-      const res = await users.search(query.trim());
+      const res = searchDeleted && activeTab === 'payments'
+        ? await users.searchDeletedPayments(query.trim())
+        : await users.search(query.trim());
       setSearchResults(res.users || []);
     } catch (err: any) { setError(err.message); }
     finally { setSearching(false); }
-  }, []);
+  }, [searchDeleted, activeTab]);
 
   function handleSearchInput(value: string) {
     setSearchQuery(value);
@@ -392,7 +395,7 @@ export default function VouchersPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-800 mb-6">Vouchers & Tix</h1>
+      <h1 className="text-2xl font-bold text-gray-800 mb-6">Transactions (Coupons & Tix)</h1>
 
       {/* Tabs */}
       <div className="flex border-b border-gray-200 mb-6">
@@ -457,7 +460,7 @@ export default function VouchersPage() {
         <div className="relative flex-1">
           <Search size={18} className="absolute left-3 top-3.5 text-gray-400" />
           <input
-            placeholder="Search by player name or NFC UID..."
+            placeholder={searchDeleted && activeTab === 'payments' ? 'Search deleted users by name or email...' : 'Search by player name or NFC UID...'}
             value={searchQuery}
             onChange={(e) => handleSearchInput(e.target.value)}
             className="w-full pl-10 pr-8 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-lg"
@@ -480,6 +483,8 @@ export default function VouchersPage() {
                     <span className="font-medium text-gray-800">{u.name}</span>
                     <span className="text-gray-400 text-sm ml-2 font-mono">{u.nfc_uid}</span>
                     {u.email && <span className="text-gray-400 text-sm ml-2">{u.email}</span>}
+                    {u.deleted_at && <span className="text-red-500 text-xs ml-2">Deleted {new Date(u.deleted_at).toLocaleDateString()}</span>}
+                    {u.deleted_at && <span className="text-gray-500 text-xs ml-2">{u.payment_count} payments · {formatCRC(Number(u.paid_total || 0))} paid</span>}
                   </div>
                 </button>
               ))}
@@ -492,8 +497,22 @@ export default function VouchersPage() {
           )}
         </div>
 
+        {activeTab === 'payments' && (
+          <button
+            onClick={() => {
+              setSearchDeleted(!searchDeleted);
+              setSearchQuery('');
+              setSearchResults([]);
+              setUser(null);
+            }}
+            className={`px-4 py-3 rounded-lg text-sm font-medium whitespace-nowrap transition ${searchDeleted ? 'bg-amber-600 text-white' : 'bg-amber-50 text-amber-700 hover:bg-amber-100'}`}
+          >
+            {searchDeleted ? 'Searching Deleted Users' : 'Search Deleted Users'}
+          </button>
+        )}
+
         {/* Scan */}
-        {scanMode === 'nfc' ? (
+        {!searchDeleted && (scanMode === 'nfc' ? (
           nfcListening ? (
             <button onClick={() => { setNfcListening(false); setNfcStatus(''); }}
               className="flex items-center gap-2 bg-red-100 text-red-700 px-5 py-3 rounded-lg hover:bg-red-200 transition font-medium animate-pulse whitespace-nowrap">
@@ -520,7 +539,7 @@ export default function VouchersPage() {
               <QrCode size={18} /> Scan QR
             </button>
           </div>
-        )}
+        ))}
       </div>
 
       {activeTab === 'regular' && (
@@ -784,6 +803,7 @@ export default function VouchersPage() {
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
               <div className="px-6 py-4 border-b border-gray-200">
                 <h3 className="font-semibold text-gray-800">Payment History — {user.name}</h3>
+                {user.deleted_at && <p className="text-xs text-red-600 mt-1">Deleted user · Records retained for financial audit</p>}
               </div>
               <div className="max-h-96 overflow-auto">
                 <table className="w-full min-w-[480px]">
@@ -791,6 +811,7 @@ export default function VouchersPage() {
                     <tr>
                       <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase">Payment ID</th>
                       <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase">Type</th>
+                      <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase">Provider</th>
                       <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase">Amount</th>
                       <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase">Status</th>
                       <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase">Created</th>
@@ -802,6 +823,7 @@ export default function VouchersPage() {
                       <tr key={p.id}>
                         <td className="px-4 py-2 text-sm font-mono text-gray-700 break-all max-w-[160px]">{p.id}</td>
                         <td className="px-4 py-2 text-sm text-gray-600">{p.purpose === 'package' ? 'Package' : 'Top-up'}</td>
+                        <td className="px-4 py-2 text-sm text-gray-600 capitalize">{p.provider || (p.id.startsWith('mock_') ? 'mock' : 'legacy')}</td>
                         <td className="px-4 py-2 text-sm font-medium text-gray-800">{formatCRC(Math.round(p.amount))}</td>
                         <td className="px-4 py-2 text-sm">
                           <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
@@ -825,7 +847,7 @@ export default function VouchersPage() {
                       </tr>
                     ))}
                     {paymentHistory.length === 0 && (
-                      <tr><td colSpan={6} className="px-4 py-6 text-center text-gray-400">No payments found</td></tr>
+                      <tr><td colSpan={7} className="px-4 py-6 text-center text-gray-400">No payments found</td></tr>
                     )}
                   </tbody>
                 </table>
@@ -991,6 +1013,13 @@ export default function VouchersPage() {
       {/* Merchandise / Swag Tab */}
       {activeTab === 'merchandise' && (
         <div className="space-y-6">
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <p className="font-medium text-amber-900">Add merchandise and swag from Packages</p>
+              <p className="text-sm text-amber-700">Edit a package and use its Included Merchandise / Swag section. Items are assigned to players after a free registration or a completed package payment.</p>
+            </div>
+            <a href="/packages" className="text-sm font-semibold text-amber-800 hover:text-amber-900 underline whitespace-nowrap">Manage Packages</a>
+          </div>
           {!user ? (
             <p className="text-gray-500">Search for or scan a player above to view and manage their merchandise checklist.</p>
           ) : (

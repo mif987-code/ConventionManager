@@ -110,6 +110,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 export const users = {
   list: () => request<any>('/users'),
   search: (query: string) => request<any>(`/users/search?q=${encodeURIComponent(query)}`),
+  searchDeletedPayments: (query: string) => request<any>(`/users/deleted/search?q=${encodeURIComponent(query)}`),
   register: (name: string, nfcUid?: string, email?: string, attendanceDates?: string[], packageId?: number) =>
     request<any>('/users/register', { method: 'POST', body: JSON.stringify({ name, nfc_uid: nfcUid, email, attendance_dates: attendanceDates, package_id: packageId }) }),
   get: (id: number) => request<any>(`/users/${id}`),
