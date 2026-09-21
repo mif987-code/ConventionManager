@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { Plus, Trash2, Edit2, X, Check, Package as PackageIcon, Upload, Image as ImageIcon, Loader2 } from 'lucide-react';
-import { packages, specialVouchers } from '../api';
+import { packages, specialVouchers, store } from '../api';
 
 export default function PackagesPage() {
   const [packageList, setPackageList] = useState<any[]>([]);
   const [availableSpecialVouchers, setAvailableSpecialVouchers] = useState<any[]>([]);
+  const [availableStoreItems, setAvailableStoreItems] = useState<any[]>([]);
   const [selectedSpecialVoucherIds, setSelectedSpecialVoucherIds] = useState<number[]>([]);
   const [merchandiseItems, setMerchandiseItems] = useState<Array<{ item_name: string; image_url?: string | null; store_item_id?: number | null; stock: number; price_tix: number }>>([]);
   const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
@@ -23,8 +24,9 @@ export default function PackagesPage() {
         const svRes = await specialVouchers.list(parseInt(conventionId));
         setAvailableSpecialVouchers(svRes.special_vouchers || []);
       }
-      const res = await packages.list();
+      const [res, storeRes] = await Promise.all([packages.list(), store.listItems()]);
       setPackageList(res.packages || []);
+      setAvailableStoreItems(storeRes.items || []);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -304,7 +306,7 @@ export default function PackagesPage() {
             {/* Merchandise included with this package */}
             <div className="md:col-span-2 pt-3 border-t border-gray-100">
               <label className="block text-sm font-medium text-gray-700 mb-1">Included Merchandise / Swag</label>
-              <p className="text-xs text-gray-500 mb-3">Each item is published in Store immediately. Store sales and completed package purchases share this stock; claiming an assigned item does not subtract it twice.</p>
+              <p className="text-xs text-gray-500 mb-3">Select an existing Store item or create a new one here. Both views share the same name, image, stock, and Tix price; claiming an assigned item does not subtract stock twice.</p>
               
               {merchandiseItems.length === 0 ? (
                 <div className="p-3 bg-gray-50 rounded-lg border border-dashed border-gray-200 text-center">
@@ -364,6 +366,37 @@ export default function PackagesPage() {
                           onChange={(e) => handleImageUpload(idx, e)}
                         />
                       </div>
+
+                      <label className="w-48 text-xs text-gray-500">
+                        Store Item
+                        <select
+                          value={item.store_item_id || ''}
+                          onChange={(e) => {
+                            const updated = [...merchandiseItems];
+                            const storeItemId = e.target.value ? parseInt(e.target.value) : null;
+                            const storeItem = availableStoreItems.find((candidate: any) => candidate.id === storeItemId);
+                            updated[idx] = storeItem
+                              ? {
+                                  ...updated[idx],
+                                  store_item_id: storeItem.id,
+                                  item_name: storeItem.name,
+                                  image_url: storeItem.image_url || null,
+                                  stock: Number(storeItem.stock) || 0,
+                                  price_tix: Number(storeItem.price_tix) || 0,
+                                }
+                              : { ...updated[idx], store_item_id: null };
+                            setMerchandiseItems(updated);
+                          }}
+                          className="mt-1 w-full px-2 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                        >
+                          <option value="">Create new Store item</option>
+                          {availableStoreItems.map((storeItem: any) => (
+                            <option key={storeItem.id} value={storeItem.id}>
+                              {storeItem.name} — {storeItem.stock} stock / {storeItem.price_tix} Tix
+                            </option>
+                          ))}
+                        </select>
+                      </label>
 
                       {/* Name input */}
                       <input

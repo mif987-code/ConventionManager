@@ -189,8 +189,8 @@ export async function setPackageMerchandise(
       }
       if (!storeItemId) {
         const created = await client.query(
-          `INSERT INTO store_items (name, description, price_tix, stock, image_url, active, convention_id, language, condition, foil, cost)
-           VALUES ($1, $2, $3, $4, $5, TRUE, $6, 'N/A', 'N/A', FALSE, 0) RETURNING id`,
+          `INSERT INTO store_items (name, description, price_tix, stock, image_url, active, convention_id, language, condition, foil, cost, package_managed)
+           VALUES ($1, $2, $3, $4, $5, TRUE, $6, 'N/A', 'N/A', FALSE, 0, TRUE) RETURNING id`,
           [name.trim(), `Package merchandise from ${pkg.name}`, priceTix, stock, imageUrl, pkg.convention_id]
         );
         storeItemId = created.rows[0].id;
@@ -205,7 +205,12 @@ export async function setPackageMerchandise(
 
     const removedStoreIds = existing.rows.map(row => row.store_item_id).filter((id: number | null) => id && !retainedStoreIds.includes(id));
     if (removedStoreIds.length > 0) {
-      await client.query('UPDATE store_items SET active = FALSE, updated_at = NOW() WHERE id = ANY($1::int[])', [removedStoreIds]);
+      await client.query(
+        `UPDATE store_items si SET active = FALSE, updated_at = NOW()
+         WHERE si.id = ANY($1::int[]) AND si.package_managed = TRUE
+           AND NOT EXISTS (SELECT 1 FROM package_merchandise pm WHERE pm.store_item_id = si.id)`,
+        [removedStoreIds]
+      );
     }
     await client.query('COMMIT');
   } catch (err) {
