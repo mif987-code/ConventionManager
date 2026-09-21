@@ -230,7 +230,7 @@ router.post('/:id/send-password-reset', async (req: Request, res: Response, next
     const delivered = await sendPasswordResetEmail(user.email, `${user.name}${user.last_name ? ` ${user.last_name}` : ''}`, resetUrl, true);
     if (!delivered) {
       await pool.query(`UPDATE password_reset_tokens SET used_at = NOW() WHERE token_hash = $1`, [tokenHash]);
-      return res.status(503).json({ error: 'The reset email could not be sent. Check the Resend configuration and sender domain.' });
+      return res.status(503).json({ error: 'Resend returned no delivery confirmation. Verify the recipient address and review the Resend email logs.' });
     }
 
     await pool.query(

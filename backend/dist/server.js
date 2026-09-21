@@ -110,7 +110,15 @@ app.get('/', (_req, res) => {
 });
 // Health check (no auth required)
 app.get('/health', (_req, res) => {
-    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+    res.json({
+        status: 'ok',
+        timestamp: new Date().toISOString(),
+        version: process.env.RENDER_GIT_COMMIT?.slice(0, 8) || 'local',
+        email: {
+            resendApiKeyConfigured: Boolean(process.env.RESEND_API_KEY),
+            senderConfigured: Boolean(process.env.EMAIL_FROM),
+        },
+    });
 });
 // Error handler
 app.use(auth_1.errorHandler);
