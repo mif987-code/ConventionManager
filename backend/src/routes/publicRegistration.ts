@@ -24,7 +24,7 @@ const registrationLimiter = rateLimit({
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: 'Too many registrations. Please try again later.' },
+  message: { error: 'Demasiadas inscripciones. Inténtalo de nuevo más tarde.' },
 });
 
 // Verifies a Google reCAPTCHA v2 token server-side. If RECAPTCHA_SECRET_KEY
@@ -57,21 +57,21 @@ router.post('/preregister', registrationLimiter, async (req: Request, res: Respo
     const { name, last_name, email, password, age, dob, attendance_dates, package_id, packages: packagesInput, event_prereg_ids, recaptcha_token } = req.body;
 
     if (!name || !last_name || !email || !password) {
-      return res.status(400).json({ error: 'name, last_name, email, and password are required' });
+      return res.status(400).json({ error: 'El nombre, los apellidos, el correo y la contraseña son obligatorios' });
     }
     if (typeof name !== 'string' || !NAME_PATTERN.test(name.trim())) {
-      return res.status(400).json({ error: 'First name can only contain letters, spaces, hyphens, and apostrophes' });
+      return res.status(400).json({ error: 'El nombre solo puede contener letras, espacios, guiones y apóstrofes' });
     }
     if (typeof last_name !== 'string' || !NAME_PATTERN.test(last_name.trim())) {
-      return res.status(400).json({ error: 'Last name can only contain letters, spaces, hyphens, and apostrophes' });
+      return res.status(400).json({ error: 'Los apellidos solo pueden contener letras, espacios, guiones y apóstrofes' });
     }
     if (typeof password !== 'string' || password.length < 8) {
-      return res.status(400).json({ error: 'Password must be at least 8 characters' });
+      return res.status(400).json({ error: 'La contraseña debe tener al menos 8 caracteres' });
     }
 
     const recaptchaValid = await verifyRecaptcha(recaptcha_token);
     if (!recaptchaValid) {
-      return res.status(400).json({ error: 'CAPTCHA verification failed. Please try again.' });
+      return res.status(400).json({ error: 'No se pudo verificar el CAPTCHA. Inténtalo de nuevo.' });
     }
 
     // Normalize package selection: support both the legacy single `package_id`
@@ -85,7 +85,7 @@ router.post('/preregister', registrationLimiter, async (req: Request, res: Respo
     // Check if email already registered
     const existing = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
     if (existing.rows.length > 0) {
-      return res.status(409).json({ error: 'This email is already registered' });
+      return res.status(409).json({ error: 'Este correo ya está registrado' });
     }
 
     // Get active convention, fall back to most recent convention
