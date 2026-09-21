@@ -58,6 +58,32 @@ export async function sendQRCodeEmail(to: string, userName: string, qrCodeDataUr
 /**
  * Send an email confirming account activation.
  */
+export async function sendPasswordResetEmail(to: string, userName: string, resetUrl: string): Promise<boolean> {
+  if (!resend || !to) return false;
+
+  try {
+    await resend.emails.send({
+      from: fromEmail,
+      to,
+      subject: 'Restablece tu contraseña de SparkFest',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 24px; background: #0f172a; color: #f1f5f9; border-radius: 12px;">
+          <h2 style="color: #818cf8; margin-top: 0; text-align: center;">Restablecer contraseña</h2>
+          <p style="color: #94a3b8; font-size: 15px;">Hola <strong>${userName}</strong>, recibimos una solicitud para restablecer la contraseña de tu cuenta de SparkFest.</p>
+          <div style="text-align: center; margin: 24px 0;">
+            <a href="${resetUrl}" style="background: #6366f1; color: #ffffff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block;">Crear nueva contraseña</a>
+          </div>
+          <p style="color: #64748b; font-size: 13px;">Este enlace vence en una hora y solo puede utilizarse una vez. Si no solicitaste este cambio, puedes ignorar este correo.</p>
+        </div>
+      `,
+    });
+    return true;
+  } catch (err) {
+    console.error('[EmailService] Failed to send password reset email:', err);
+    return false;
+  }
+}
+
 export async function sendActivationEmail(to: string, userName: string): Promise<boolean> {
   if (!resend) {
     console.warn('[EmailService] RESEND_API_KEY is not configured. Skipping email.');

@@ -1,6 +1,6 @@
 {
-  "name": "Convention Player",
-  "short_name": "Player",
+  "name": "App de Jugadores de SparkFest",
+  "short_name": "Jugadores",
   "start_url": "/app/",
   "display": "standalone",
   "background_color": "#0f172a",

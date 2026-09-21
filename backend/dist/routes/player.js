@@ -40,6 +40,7 @@ const express_1 = require("express");
 const bcrypt_1 = __importDefault(require("bcrypt"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const express_rate_limit_1 = __importDefault(require("express-rate-limit"));
+const crypto_1 = require("crypto");
 const db_1 = require("../config/db");
 const userService = __importStar(require("../services/userService"));
 const storeService = __importStar(require("../services/storeService"));
@@ -57,7 +58,14 @@ const authLimiter = (0, express_rate_limit_1.default)({
     max: 20,
     standardHeaders: true,
     legacyHeaders: false,
-    message: { error: 'Too many login attempts. Please try again later.' },
+    message: { error: 'Demasiados intentos. Inténtalo de nuevo más tarde.' },
+});
+const passwordResetLimiter = (0, express_rate_limit_1.default)({
+    windowMs: 15 * 60 * 1000,
+    max: 5,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Demasiadas solicitudes. Inténtalo de nuevo más tarde.' },
 });
 if (!process.env.JWT_SECRET) {
     console.error('[Auth] JWT_SECRET environment variable is required');
@@ -72,7 +80,7 @@ function signToken(userId) {
 function playerAuth(req, res, next) {
     const header = req.headers.authorization;
     if (!header || !header.startsWith('Bearer ')) {
-        return res.status(401).json({ error: 'Missing or invalid token' });
+        return res.status(401).json({ error: 'Token ausente o inválido' });
     }
     try {
         const decoded = jsonwebtoken_1.default.verify(header.slice(7), JWT_SECRET);
@@ -80,12 +88,73 @@ function playerAuth(req, res, next) {
         next();
     }
     catch {
-        return res.status(401).json({ error: 'Invalid or expired token' });
+        return res.status(401).json({ error: 'Token inválido o vencido' });
     }
 }
 // =============================================
 //  PUBLIC (no auth)
 // =============================================
+router.get('/auth/config', async (_req, res, next) => {
+    try {
+        let result = await db_1.pool.query(`SELECT scan_mode FROM conventions WHERE status = 'active' ORDER BY created_at DESC LIMIT 1`);
+        if (result.rows.length === 0)
+            result = await db_1.pool.query(`SELECT scan_mode FROM conventions ORDER BY created_at DESC LIMIT 1`);
+        res.json({ scan_mode: result.rows[0]?.scan_mode || 'qr' });
+    }
+    catch (err) {
+        next(err);
+    }
+});
+router.post('/auth/forgot-password', passwordResetLimiter, async (req, res, next) => {
+    try {
+        const email = String(req.body.email || '').trim().toLowerCase();
+        if (!email)
+            return res.status(400).json({ error: 'El correo electrónico es obligatorio' });
+        const result = await db_1.pool.query(`SELECT id, name, last_name, email FROM users WHERE lower(email) = $1 LIMIT 1`, [email]);
+        const user = result.rows[0];
+        if (user) {
+            const token = (0, crypto_1.randomBytes)(32).toString('hex');
+            const tokenHash = (0, crypto_1.createHash)('sha256').update(token).digest('hex');
+            await db_1.pool.query(`UPDATE password_reset_tokens SET used_at = NOW() WHERE user_id = $1 AND used_at IS NULL`, [user.id]);
+            await db_1.pool.query(`INSERT INTO password_reset_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, NOW() + INTERVAL '1 hour')`, [user.id, tokenHash]);
+            const appUrl = process.env.PLAYER_APP_URL || 'https://register.sparkfestcr.com/app/';
+            const resetUrl = `${appUrl}${appUrl.includes('?') ? '&' : '?'}reset=${encodeURIComponent(token)}`;
+            await (0, emailService_1.sendPasswordResetEmail)(user.email, `${user.name}${user.last_name ? ` ${user.last_name}` : ''}`, resetUrl);
+        }
+        res.json({ success: true, message: 'Si existe una cuenta con ese correo, recibirás un enlace para restablecer tu contraseña.' });
+    }
+    catch (err) {
+        next(err);
+    }
+});
+router.post('/auth/reset-password', passwordResetLimiter, async (req, res, next) => {
+    const client = await db_1.pool.connect();
+    try {
+        const resetToken = String(req.body.token || '');
+        const password = String(req.body.password || '');
+        if (!resetToken || password.length < 8)
+            return res.status(400).json({ error: 'El enlace y una contraseña de al menos 8 caracteres son obligatorios' });
+        const tokenHash = (0, crypto_1.createHash)('sha256').update(resetToken).digest('hex');
+        await client.query('BEGIN');
+        const result = await client.query(`SELECT id, user_id FROM password_reset_tokens WHERE token_hash = $1 AND used_at IS NULL AND expires_at > NOW() FOR UPDATE`, [tokenHash]);
+        if (result.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ error: 'El enlace es inválido o ha vencido' });
+        }
+        const hash = await bcrypt_1.default.hash(password, 10);
+        await client.query(`UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2`, [hash, result.rows[0].user_id]);
+        await client.query(`UPDATE password_reset_tokens SET used_at = NOW() WHERE user_id = $1 AND used_at IS NULL`, [result.rows[0].user_id]);
+        await client.query('COMMIT');
+        res.json({ success: true, message: 'Contraseña actualizada correctamente' });
+    }
+    catch (err) {
+        await client.query('ROLLBACK');
+        next(err);
+    }
+    finally {
+        client.release();
+    }
+});
 // POST /player/auth/nfc - Login by NFC UID
 router.post('/auth/nfc', authLimiter, async (req, res, next) => {
     try {
@@ -112,16 +181,16 @@ router.post('/auth/login', authLimiter, async (req, res, next) => {
     try {
         const { email, password } = req.body;
         if (!email || !password)
-            return res.status(400).json({ error: 'email and password are required' });
+            return res.status(400).json({ error: 'El correo y la contraseña son obligatorios' });
         const result = await db_1.pool.query(`SELECT * FROM users WHERE email = $1`, [email]);
         const user = result.rows[0];
         if (!user)
-            return res.status(404).json({ error: 'No player found with that email' });
+            return res.status(404).json({ error: 'No existe un jugador con ese correo' });
         if (!user.password_hash)
-            return res.status(400).json({ error: 'Password not set. Please ask an organizer or use NFC login.' });
+            return res.status(400).json({ error: 'La contraseña no está configurada. Solicita ayuda a un organizador.' });
         const match = await bcrypt_1.default.compare(password, user.password_hash);
         if (!match)
-            return res.status(401).json({ error: 'Incorrect password' });
+            return res.status(401).json({ error: 'Contraseña incorrecta' });
         const token = signToken(user.id);
         const voucherBalance = await (0, transactionService_1.getBalance)(user.id, 'voucher');
         const tixBalance = await (0, transactionService_1.getBalance)(user.id, 'tix');
@@ -147,7 +216,7 @@ router.get('/me', playerAuth, async (req, res, next) => {
         // Get convention info
         let convention = null;
         if (user.convention_id) {
-            const convRes = await db_1.pool.query(`SELECT id, name FROM conventions WHERE id = $1`, [user.convention_id]);
+            const convRes = await db_1.pool.query(`SELECT id, name, scan_mode FROM conventions WHERE id = $1`, [user.convention_id]);
             if (convRes.rows.length > 0) {
                 convention = convRes.rows[0];
             }
@@ -159,7 +228,7 @@ router.get('/me', playerAuth, async (req, res, next) => {
        WHERE sva.user_id = $1 AND sva.consumed_at IS NULL
        ORDER BY sva.awarded_at DESC`, [userId]);
         // Get merchandise items for the player
-        const merchandiseRes = await db_1.pool.query(`SELECT id, item_name, is_claimed, claimed_at
+        const merchandiseRes = await db_1.pool.query(`SELECT id, item_name, image_url, is_claimed, claimed_at
        FROM user_merchandise
        WHERE user_id = $1
        ORDER BY id ASC`, [userId]);
@@ -194,10 +263,10 @@ router.put('/me/password', playerAuth, async (req, res, next) => {
         const userId = req.playerId;
         const { password } = req.body;
         if (!password || password.length < 8)
-            return res.status(400).json({ error: 'Password must be at least 8 characters' });
+            return res.status(400).json({ error: 'La contraseña debe tener al menos 8 caracteres' });
         const hash = await bcrypt_1.default.hash(password, 10);
         await db_1.pool.query(`UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2`, [hash, userId]);
-        res.json({ success: true, message: 'Password updated' });
+        res.json({ success: true, message: 'Contraseña actualizada' });
     }
     catch (err) {
         next(err);
