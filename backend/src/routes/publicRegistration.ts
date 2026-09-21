@@ -4,6 +4,7 @@ import rateLimit from 'express-rate-limit';
 import axios from 'axios';
 import { pool } from '../config/db';
 import * as paymentService from '../services/paymentService';
+import * as packageService from '../services/packageService';
 import { syncPreregistrationToSheet } from '../services/googleSheetsService';
 
 const router = Router();
@@ -81,6 +82,10 @@ router.post('/preregister', registrationLimiter, async (req: Request, res: Respo
           .filter((p: any) => p && p.package_id)
           .map((p: any) => ({ package_id: parseInt(p.package_id), quantity: Math.max(1, parseInt(p.quantity) || 1) }))
       : (package_id ? [{ package_id: parseInt(package_id), quantity: 1 }] : []);
+
+    for (const selection of selectedPackages) {
+      await packageService.validatePackageMerchandiseStock(selection.package_id, selection.quantity);
+    }
 
     // Check if email already registered
     const existing = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
@@ -189,6 +194,7 @@ router.post('/preregister', registrationLimiter, async (req: Request, res: Respo
               );
             }
           }
+          await packageService.awardPackageMerchandiseToUser(userId, conventionId, pkgId, quantity);
         }
       }
     }
@@ -247,6 +253,9 @@ router.post('/payment', async (req: Request, res: Response, next: NextFunction) 
 
     if (pkgRes.rows.length === 0) {
       return res.status(400).json({ error: 'No packages selected for this user' });
+    }
+    for (const pkg of pkgRes.rows) {
+      await packageService.validatePackageMerchandiseStock(pkg.package_id, pkg.quantity || 1);
     }
 
     const total = pkgRes.rows.reduce((sum, pkg) => {

@@ -132,25 +132,87 @@ export async function getPackageWithVouchers(packageId: number): Promise<any> {
   return result.rows[0];
 }
 
+export async function validatePackageMerchandiseStock(packageId: number, quantity: number = 1): Promise<void> {
+  const result = await pool.query(
+    `SELECT pm.item_name, si.stock
+     FROM package_merchandise pm
+     JOIN store_items si ON si.id = pm.store_item_id
+     WHERE pm.package_id = $1 AND si.stock < $2`,
+    [packageId, quantity]
+  );
+  if (result.rows.length > 0) {
+    const unavailable = result.rows.map(item => `${item.item_name} (${item.stock} available)`).join(', ');
+    throw Object.assign(new Error(`Not enough merchandise stock: ${unavailable}`), { status: 409 });
+  }
+}
+
 export async function getMerchandiseForPackage(packageId: number): Promise<any[]> {
   const result = await pool.query(
-    `SELECT * FROM package_merchandise WHERE package_id = $1 ORDER BY id ASC`,
+    `SELECT pm.*, si.stock, si.price_tix, si.active AS store_active
+     FROM package_merchandise pm
+     LEFT JOIN store_items si ON si.id = pm.store_item_id
+     WHERE pm.package_id = $1 ORDER BY pm.id ASC`,
     [packageId]
   );
   return result.rows;
 }
 
-export async function setPackageMerchandise(packageId: number, items: Array<{ item_name: string; image_url?: string | null } | string>): Promise<void> {
-  await pool.query('DELETE FROM package_merchandise WHERE package_id = $1', [packageId]);
-  for (const item of items) {
-    const name = typeof item === 'string' ? item : item?.item_name;
-    const imageUrl = typeof item === 'string' ? null : (item?.image_url || null);
-    if (name && name.trim()) {
-      await pool.query(
-        'INSERT INTO package_merchandise (package_id, item_name, image_url) VALUES ($1, $2, $3)',
-        [packageId, name.trim(), imageUrl]
+export async function setPackageMerchandise(
+  packageId: number,
+  items: Array<{ item_name: string; image_url?: string | null; store_item_id?: number | null; stock?: number; price_tix?: number } | string>
+): Promise<void> {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const packageResult = await client.query('SELECT convention_id, name FROM packages WHERE id = $1', [packageId]);
+    if (packageResult.rows.length === 0) throw new Error('Package not found');
+    const pkg = packageResult.rows[0];
+    const existing = await client.query('SELECT store_item_id FROM package_merchandise WHERE package_id = $1', [packageId]);
+    const retainedStoreIds: number[] = [];
+
+    await client.query('DELETE FROM package_merchandise WHERE package_id = $1', [packageId]);
+    for (const item of items) {
+      const name = typeof item === 'string' ? item : item?.item_name;
+      const imageUrl = typeof item === 'string' ? null : (item?.image_url || null);
+      if (!name?.trim()) continue;
+
+      let storeItemId = typeof item === 'string' ? null : (item.store_item_id || null);
+      const stock = typeof item === 'string' ? 0 : Math.max(0, Number(item.stock) || 0);
+      const priceTix = typeof item === 'string' ? 0 : Math.max(0, Number(item.price_tix) || 0);
+      if (storeItemId) {
+        const updated = await client.query(
+          `UPDATE store_items SET name = $2, description = $3, price_tix = $4, stock = $5, image_url = $6, active = TRUE, updated_at = NOW()
+           WHERE id = $1 RETURNING id`,
+          [storeItemId, name.trim(), `Package merchandise from ${pkg.name}`, priceTix, stock, imageUrl]
+        );
+        if (updated.rows.length === 0) storeItemId = null;
+      }
+      if (!storeItemId) {
+        const created = await client.query(
+          `INSERT INTO store_items (name, description, price_tix, stock, image_url, active, convention_id, language, condition, foil, cost)
+           VALUES ($1, $2, $3, $4, $5, TRUE, $6, 'N/A', 'N/A', FALSE, 0) RETURNING id`,
+          [name.trim(), `Package merchandise from ${pkg.name}`, priceTix, stock, imageUrl, pkg.convention_id]
+        );
+        storeItemId = created.rows[0].id;
+      }
+      if (!storeItemId) throw new Error('Failed to create linked store item');
+      retainedStoreIds.push(storeItemId);
+      await client.query(
+        'INSERT INTO package_merchandise (package_id, item_name, image_url, store_item_id) VALUES ($1, $2, $3, $4)',
+        [packageId, name.trim(), imageUrl, storeItemId]
       );
     }
+
+    const removedStoreIds = existing.rows.map(row => row.store_item_id).filter((id: number | null) => id && !retainedStoreIds.includes(id));
+    if (removedStoreIds.length > 0) {
+      await client.query('UPDATE store_items SET active = FALSE, updated_at = NOW() WHERE id = ANY($1::int[])', [removedStoreIds]);
+    }
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
   }
 }
 
@@ -180,14 +242,27 @@ export async function unclaimUserMerchandise(id: number): Promise<any> {
 }
 
 export async function awardPackageMerchandiseToUser(userId: number, conventionId: number, packageId: number, quantity: number = 1): Promise<void> {
-  const items = await getMerchandiseForPackage(packageId);
-  for (const item of items) {
-    for (let i = 0; i < quantity; i++) {
-      await pool.query(
-        `INSERT INTO user_merchandise (user_id, convention_id, package_id, item_name, image_url, is_claimed)
-         VALUES ($1, $2, $3, $4, $5, FALSE)`,
-        [userId, conventionId, packageId, item.item_name, item.image_url || null]
-      );
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const result = await client.query('SELECT * FROM package_merchandise WHERE package_id = $1 ORDER BY id', [packageId]);
+    for (const item of result.rows) {
+      if (item.store_item_id) {
+        await client.query('UPDATE store_items SET stock = stock - $2, updated_at = NOW() WHERE id = $1', [item.store_item_id, quantity]);
+      }
+      for (let i = 0; i < quantity; i++) {
+        await client.query(
+          `INSERT INTO user_merchandise (user_id, convention_id, package_id, store_item_id, item_name, image_url, is_claimed)
+           VALUES ($1, $2, $3, $4, $5, $6, FALSE)`,
+          [userId, conventionId, packageId, item.store_item_id || null, item.item_name, item.image_url || null]
+        );
+      }
     }
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
   }
 }

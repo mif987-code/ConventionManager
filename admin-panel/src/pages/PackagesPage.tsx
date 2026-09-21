@@ -6,7 +6,7 @@ export default function PackagesPage() {
   const [packageList, setPackageList] = useState<any[]>([]);
   const [availableSpecialVouchers, setAvailableSpecialVouchers] = useState<any[]>([]);
   const [selectedSpecialVoucherIds, setSelectedSpecialVoucherIds] = useState<number[]>([]);
-  const [merchandiseItems, setMerchandiseItems] = useState<Array<{ item_name: string; image_url?: string | null }>>([]);
+  const [merchandiseItems, setMerchandiseItems] = useState<Array<{ item_name: string; image_url?: string | null; store_item_id?: number | null; stock: number; price_tix: number }>>([]);
   const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -43,7 +43,10 @@ export default function PackagesPage() {
       setSelectedSpecialVoucherIds(pkgSvRes.special_voucher_ids || []);
       setMerchandiseItems((merchRes.merchandise || []).map((m: any) => ({
         item_name: m.item_name,
-        image_url: m.image_url || null
+        image_url: m.image_url || null,
+        store_item_id: m.store_item_id || null,
+        stock: Number(m.stock) || 0,
+        price_tix: Number(m.price_tix) || 0,
       })));
     } catch (err: any) {
       console.error('Failed to load package details:', err);
@@ -301,13 +304,14 @@ export default function PackagesPage() {
             {/* Merchandise included with this package */}
             <div className="md:col-span-2 pt-3 border-t border-gray-100">
               <label className="block text-sm font-medium text-gray-700 mb-1">Included Merchandise / Swag</label>
+              <p className="text-xs text-gray-500 mb-3">Each item is published in Store immediately. Store sales and completed package purchases share this stock; claiming an assigned item does not subtract it twice.</p>
               
               {merchandiseItems.length === 0 ? (
                 <div className="p-3 bg-gray-50 rounded-lg border border-dashed border-gray-200 text-center">
                   <p className="text-xs text-gray-500 mb-2">No merchandise added yet. Click "+ Add Merchandise" to include t-shirts, playmats, pins, etc.</p>
                   <button
                     type="button"
-                    onClick={() => setMerchandiseItems([...merchandiseItems, { item_name: '', image_url: null }])}
+                    onClick={() => setMerchandiseItems([...merchandiseItems, { item_name: '', image_url: null, store_item_id: null, stock: 0, price_tix: 0 }])}
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-lg text-xs font-semibold transition"
                   >
                     <Plus size={14} /> Add Merchandise
@@ -374,6 +378,38 @@ export default function PackagesPage() {
                         className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500 outline-none"
                       />
 
+                      <label className="w-24 text-xs text-gray-500">
+                        Stock
+                        <input
+                          type="number"
+                          min="0"
+                          required
+                          value={item.stock}
+                          onChange={(e) => {
+                            const updated = [...merchandiseItems];
+                            updated[idx].stock = Math.max(0, parseInt(e.target.value) || 0);
+                            setMerchandiseItems(updated);
+                          }}
+                          className="mt-1 w-full px-2 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                        />
+                      </label>
+
+                      <label className="w-24 text-xs text-gray-500">
+                        Price (Tix)
+                        <input
+                          type="number"
+                          min="0"
+                          required
+                          value={item.price_tix}
+                          onChange={(e) => {
+                            const updated = [...merchandiseItems];
+                            updated[idx].price_tix = Math.max(0, parseInt(e.target.value) || 0);
+                            setMerchandiseItems(updated);
+                          }}
+                          className="mt-1 w-full px-2 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                        />
+                      </label>
+
                       <button
                         type="button"
                         onClick={() => setMerchandiseItems(merchandiseItems.filter((_, i) => i !== idx))}
@@ -387,7 +423,7 @@ export default function PackagesPage() {
 
                   <button
                     type="button"
-                    onClick={() => setMerchandiseItems([...merchandiseItems, { item_name: '', image_url: null }])}
+                    onClick={() => setMerchandiseItems([...merchandiseItems, { item_name: '', image_url: null, store_item_id: null, stock: 0, price_tix: 0 }])}
                     className="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-700 pt-1"
                   >
                     <Plus size={14} /> Add Another Merchandise Item

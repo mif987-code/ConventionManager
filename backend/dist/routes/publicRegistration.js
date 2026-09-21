@@ -42,6 +42,7 @@ const express_rate_limit_1 = __importDefault(require("express-rate-limit"));
 const axios_1 = __importDefault(require("axios"));
 const db_1 = require("../config/db");
 const paymentService = __importStar(require("../services/paymentService"));
+const packageService = __importStar(require("../services/packageService"));
 const googleSheetsService_1 = require("../services/googleSheetsService");
 const router = (0, express_1.Router)();
 router.get('/merchandise-images/:id', async (req, res, next) => {
@@ -114,6 +115,9 @@ router.post('/preregister', registrationLimiter, async (req, res, next) => {
                 .filter((p) => p && p.package_id)
                 .map((p) => ({ package_id: parseInt(p.package_id), quantity: Math.max(1, parseInt(p.quantity) || 1) }))
             : (package_id ? [{ package_id: parseInt(package_id), quantity: 1 }] : []);
+        for (const selection of selectedPackages) {
+            await packageService.validatePackageMerchandiseStock(selection.package_id, selection.quantity);
+        }
         // Check if email already registered
         const existing = await db_1.pool.query('SELECT id FROM users WHERE email = $1', [email]);
         if (existing.rows.length > 0) {
@@ -182,6 +186,7 @@ router.post('/preregister', registrationLimiter, async (req, res, next) => {
                  VALUES ($1, $2, NULL, 'package_registration')`, [userId, sv.id]);
                         }
                     }
+                    await packageService.awardPackageMerchandiseToUser(userId, conventionId, pkgId, quantity);
                 }
             }
         }
@@ -229,6 +234,9 @@ router.post('/payment', async (req, res, next) => {
        WHERE up.user_id = $1`, [user_id]);
         if (pkgRes.rows.length === 0) {
             return res.status(400).json({ error: 'No packages selected for this user' });
+        }
+        for (const pkg of pkgRes.rows) {
+            await packageService.validatePackageMerchandiseStock(pkg.package_id, pkg.quantity || 1);
         }
         const total = pkgRes.rows.reduce((sum, pkg) => {
             return sum + (pkg.effective_cost * (pkg.quantity || 1));

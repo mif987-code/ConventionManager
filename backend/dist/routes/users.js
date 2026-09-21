@@ -72,6 +72,8 @@ router.post('/register', async (req, res, next) => {
                 return date;
             })
             : undefined;
+        if (package_id)
+            await packageService.validatePackageMerchandiseStock(package_id, 1);
         const user = await userService.createUser(name, nfc_uid, email, is_admin, conventionId, dates);
         // Insert package selection if provided
         if (package_id && conventionId) {
