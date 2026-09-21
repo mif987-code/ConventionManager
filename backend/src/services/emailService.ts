@@ -59,8 +59,12 @@ export async function sendQRCodeEmail(to: string, userName: string, qrCodeDataUr
 /**
  * Send an email confirming account activation.
  */
-export async function sendPasswordResetEmail(to: string, userName: string, resetUrl: string): Promise<boolean> {
-  if (!resend || !to) return false;
+export async function sendPasswordResetEmail(to: string, userName: string, resetUrl: string, throwOnError: boolean = false): Promise<boolean> {
+  if (!to) return false;
+  if (!resend) {
+    if (throwOnError) throw new Error('RESEND_API_KEY is not configured on the backend service.');
+    return false;
+  }
 
   try {
     const result = await resend.emails.send({
@@ -83,6 +87,7 @@ export async function sendPasswordResetEmail(to: string, userName: string, reset
     return true;
   } catch (err) {
     console.error('[EmailService] Failed to send password reset email:', err);
+    if (throwOnError) throw err;
     return false;
   }
 }

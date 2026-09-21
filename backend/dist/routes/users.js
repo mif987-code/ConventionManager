@@ -224,7 +224,7 @@ router.post('/:id/send-password-reset', async (req, res, next) => {
         await db_1.pool.query(`INSERT INTO password_reset_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, NOW() + INTERVAL '1 hour')`, [userId, tokenHash]);
         const appUrl = process.env.PLAYER_APP_URL || 'https://register.sparkfestcr.com/app/';
         const resetUrl = `${appUrl}${appUrl.includes('?') ? '&' : '?'}reset=${encodeURIComponent(token)}`;
-        const delivered = await (0, emailService_1.sendPasswordResetEmail)(user.email, `${user.name}${user.last_name ? ` ${user.last_name}` : ''}`, resetUrl);
+        const delivered = await (0, emailService_1.sendPasswordResetEmail)(user.email, `${user.name}${user.last_name ? ` ${user.last_name}` : ''}`, resetUrl, true);
         if (!delivered) {
             await db_1.pool.query(`UPDATE password_reset_tokens SET used_at = NOW() WHERE token_hash = $1`, [tokenHash]);
             return res.status(503).json({ error: 'The reset email could not be sent. Check the Resend configuration and sender domain.' });
