@@ -27,7 +27,7 @@ export async function sendQRCodeEmail(to: string, userName: string, qrCodeDataUr
         ]
       : [];
 
-    await resend.emails.send({
+    const result = await resend.emails.send({
       from: fromEmail,
       to,
       subject: 'Tu Código QR de Acceso - SparkFest',
@@ -47,6 +47,7 @@ export async function sendQRCodeEmail(to: string, userName: string, qrCodeDataUr
       `,
       attachments,
     });
+    if (result.error) throw new Error(result.error.message);
     console.log(`[EmailService] QR code email sent to ${to}`);
     return true;
   } catch (err) {
@@ -62,7 +63,7 @@ export async function sendPasswordResetEmail(to: string, userName: string, reset
   if (!resend || !to) return false;
 
   try {
-    await resend.emails.send({
+    const result = await resend.emails.send({
       from: fromEmail,
       to,
       subject: 'Restablece tu contraseña de SparkFest',
@@ -77,6 +78,8 @@ export async function sendPasswordResetEmail(to: string, userName: string, reset
         </div>
       `,
     });
+    if (result.error) throw new Error(result.error.message);
+    console.log(`[EmailService] Password reset email sent to ${to}`);
     return true;
   } catch (err) {
     console.error('[EmailService] Failed to send password reset email:', err);
@@ -92,7 +95,7 @@ export async function sendActivationEmail(to: string, userName: string): Promise
   if (!to) return false;
 
   try {
-    await resend.emails.send({
+    const result = await resend.emails.send({
       from: fromEmail,
       to,
       subject: '¡Tu cuenta de SparkFest ha sido activada!',
@@ -116,6 +119,7 @@ export async function sendActivationEmail(to: string, userName: string): Promise
         </div>
       `,
     });
+    if (result.error) throw new Error(result.error.message);
     console.log(`[EmailService] Activation email sent to ${to}`);
     return true;
   } catch (err) {

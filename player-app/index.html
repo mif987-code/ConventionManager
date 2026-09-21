@@ -9,14 +9,17 @@
   <link rel="manifest" href="manifest.json">
   <style>
     :root {
-      --bg: #0f172a; --surface: #1e293b; --surface2: #334155;
-      --accent: #6366f1; --accent-light: #818cf8;
-      --green: #22c55e; --red: #ef4444; --yellow: #eab308; --cyan: #06b6d4;
-      --text: #f1f5f9; --text2: #94a3b8; --text3: #64748b;
+      --bg: #060606; --surface: rgba(18,16,13,0.92); --surface2: rgba(48,39,28,0.94);
+      --accent: #c77a20; --accent-light: #f1b755;
+      --green: #64c987; --red: #ef645f; --yellow: #f1b755; --cyan: #d99535;
+      --text: #f8f3e8; --text2: #c9bca7; --text3: #8d7d68;
       --radius: 12px; --nav-h: 60px;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Inter', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); min-height: 100dvh; overflow-x: hidden; }
+    body { font-family: 'Inter', system-ui, -apple-system, sans-serif; background: linear-gradient(rgba(3,3,3,0.58), rgba(3,3,3,0.82)), url('/brand/spark-background.jpg') center top / cover fixed, var(--bg); color: var(--text); min-height: 100dvh; overflow-x: hidden; }
+    .brand-logo { width: min(340px, 88vw); height: auto; margin-bottom: 12px; filter: drop-shadow(0 8px 24px rgba(0,0,0,0.8)); }
+    .login-section, .card, .bal-card, .evt-card, .store-item, .coll-set { border: 1px solid rgba(241,183,85,0.18); box-shadow: 0 12px 30px rgba(0,0,0,0.24); backdrop-filter: blur(8px); }
+    #bottom-nav { backdrop-filter: blur(14px); }
     .hidden { display: none !important; }
 
     /* --- Login Screen --- */
@@ -134,6 +137,7 @@
 
 <!-- ===== LOGIN SCREEN ===== -->
 <div id="login-screen">
+  <img src="/brand/spark-logo.png" alt="Spark Fest: The Last Hope" class="brand-logo">
   <h1>App de Jugadores</h1>
   <p class="subtitle">Inicia sesión para administrar tu cuenta</p>
   <div class="login-box">

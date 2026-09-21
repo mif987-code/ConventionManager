@@ -9,13 +9,21 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://www.google.com/recaptcha/api.js" async defer></script>
   <style>
-    body { font-family: 'Inter', sans-serif; }
+    body { font-family: 'Inter', sans-serif; background: linear-gradient(rgba(3,3,3,0.55), rgba(3,3,3,0.82)), url('/brand/spark-background.jpg') center top / cover fixed; }
+    header { background: linear-gradient(180deg, rgba(5,5,5,0.8), rgba(12,9,5,0.92)) !important; }
+    main { background: rgba(8,7,6,0.54); backdrop-filter: blur(3px); }
+    main form, main .bg-white { background-color: rgba(255,252,246,0.96) !important; border-color: rgba(199,122,32,0.32) !important; }
+    .tab-btn.active { background-color: #b86a18 !important; box-shadow: 0 4px 16px rgba(199,122,32,0.32) !important; }
+    .brand-logo { width: min(520px, 92vw); height: auto; filter: drop-shadow(0 12px 28px rgba(0,0,0,0.86)); }
+    .brand-primary, .bg-indigo-600 { background: linear-gradient(135deg, #d28a2c, #8f4d12) !important; }
+    .text-indigo-600, .text-indigo-700, .text-indigo-400 { color: #b86a18 !important; }
+    .focus\\:ring-indigo-500:focus { --tw-ring-color: rgba(199,122,32,0.55) !important; }
     .fade-in { animation: fadeIn 0.3s ease-in; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
     .tab-btn.active {
-      background-color: #4f46e5;
+      background-color: #b86a18;
       color: #ffffff;
-      box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2), 0 2px 4px -2px rgba(79, 70, 229, 0.2);
+      box-shadow: 0 4px 6px -1px rgba(199, 122, 32, 0.25), 0 2px 4px -2px rgba(199, 122, 32, 0.2);
     }
   </style>
 </head>
@@ -27,6 +35,7 @@
     <div class="max-w-6xl mx-auto px-4 py-10 sm:py-14 relative z-10">
       <div class="flex flex-col md:flex-row items-center justify-between gap-8">
         <div class="text-center md:text-left space-y-3 max-w-2xl">
+          <img src="/brand/spark-logo.png" alt="Spark Fest: The Last Hope" class="brand-logo mx-auto md:mx-0">
           <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 text-xs font-semibold uppercase tracking-wider">
             <span class="w-2 h-2 rounded-full bg-indigo-400 animate-pulse"></span>
             Costa Rica's Premier TCG Festival
@@ -55,7 +64,7 @@
         </div>
 
         <div class="flex flex-col sm:flex-row md:flex-col gap-3 w-full sm:w-auto">
-          <button onclick="switchTab('register')" class="px-6 py-3.5 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-semibold shadow-lg shadow-indigo-500/30 transition transform hover:-translate-y-0.5 text-center flex items-center justify-center gap-2">
+          <button onclick="switchTab('register')" class="brand-primary px-6 py-3.5 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-semibold shadow-lg shadow-indigo-500/30 transition transform hover:-translate-y-0.5 text-center flex items-center justify-center gap-2">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
             </svg>

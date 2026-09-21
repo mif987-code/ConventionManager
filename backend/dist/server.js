@@ -94,6 +94,7 @@ app.use('/api/collectibles', collectibles_1.default);
 app.use('/api/preregistrations', preregistrations_1.default);
 // Serve uploaded images
 app.use('/uploads', express_1.default.static(path_1.default.join(__dirname, '../../uploads')));
+app.use('/brand', express_1.default.static(path_1.default.join(__dirname, '../../brand-assets')));
 // Serve registration site static files
 app.use('/register', express_1.default.static(path_1.default.join(__dirname, '../../registration-site')));
 // Serve NFC registration PWA

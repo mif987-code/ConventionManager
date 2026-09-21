@@ -1,10 +1,11 @@
 import { Router, Request, Response, NextFunction } from 'express';
+import { createHash, randomBytes } from 'crypto';
 import * as userService from '../services/userService';
 import * as paymentService from '../services/paymentService';
 import * as packageService from '../services/packageService';
 import { addTransaction } from '../services/transactionService';
 import { generateQRToken } from '../services/qrTokenService';
-import { sendQRCodeEmail, sendActivationEmail } from '../services/emailService';
+import { sendQRCodeEmail, sendActivationEmail, sendPasswordResetEmail } from '../services/emailService';
 import { pool } from '../config/db';
 
 const router = Router();
@@ -209,6 +210,35 @@ router.get('/:id/qr-token', async (req: Request, res: Response, next: NextFuncti
   } catch (err) {
     next(err);
   }
+});
+
+router.post('/:id/send-password-reset', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = parseInt(req.params.id);
+    if (isNaN(userId)) return res.status(400).json({ error: 'Invalid user ID' });
+    const result = await pool.query(`SELECT id, name, last_name, email FROM users WHERE id = $1`, [userId]);
+    const user = result.rows[0];
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    if (!user.email) return res.status(400).json({ error: 'This user does not have an email address' });
+
+    const token = randomBytes(32).toString('hex');
+    const tokenHash = createHash('sha256').update(token).digest('hex');
+    await pool.query(`UPDATE password_reset_tokens SET used_at = NOW() WHERE user_id = $1 AND used_at IS NULL`, [userId]);
+    await pool.query(`INSERT INTO password_reset_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, NOW() + INTERVAL '1 hour')`, [userId, tokenHash]);
+    const appUrl = process.env.PLAYER_APP_URL || 'https://register.sparkfestcr.com/app/';
+    const resetUrl = `${appUrl}${appUrl.includes('?') ? '&' : '?'}reset=${encodeURIComponent(token)}`;
+    const delivered = await sendPasswordResetEmail(user.email, `${user.name}${user.last_name ? ` ${user.last_name}` : ''}`, resetUrl);
+    if (!delivered) {
+      await pool.query(`UPDATE password_reset_tokens SET used_at = NOW() WHERE token_hash = $1`, [tokenHash]);
+      return res.status(503).json({ error: 'The reset email could not be sent. Check the Resend configuration and sender domain.' });
+    }
+
+    await pool.query(
+      `INSERT INTO admin_logs (action, details, user_id, admin_id) VALUES ($1, $2, $3, $4)`,
+      ['password_reset_sent', `Admin sent password reset email to user ${userId}`, userId, req.adminId ?? null]
+    );
+    res.json({ success: true, message: `Password reset email sent to ${user.email}` });
+  } catch (err) { next(err); }
 });
 
 // POST /api/users/:id/activate - Admin activates a user by scanning their QR

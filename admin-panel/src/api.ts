@@ -123,6 +123,8 @@ export const users = {
     request<any>(`/users/${id}/activate`, { method: 'POST' }),
   deactivate: (id: number) =>
     request<any>(`/users/${id}/deactivate`, { method: 'POST' }),
+  sendPasswordReset: (id: number) =>
+    request<any>(`/users/${id}/send-password-reset`, { method: 'POST' }),
   delete: (id: number) =>
     request<any>(`/users/${id}`, { method: 'DELETE' }),
   payments: (id: number) =>

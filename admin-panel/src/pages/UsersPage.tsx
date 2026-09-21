@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { UserPlus, Search, Link, X, Wifi, QrCode, X as CloseIcon, RefreshCw, Calendar, ScanLine, Copy, Package, Trash2 } from 'lucide-react';
+import { UserPlus, Search, Link, X, Wifi, QrCode, X as CloseIcon, RefreshCw, Calendar, ScanLine, Copy, Package, Trash2, Mail } from 'lucide-react';
 import { users, conventions, scan, packages } from '../api';
 
 export default function UsersPage() {
@@ -16,6 +16,7 @@ export default function UsersPage() {
   const [linkNfcUid, setLinkNfcUid] = useState('');
   const [showingQrUser, setShowingQrUser] = useState<any>(null);
   const [regeneratingQR, setRegeneratingQR] = useState(false);
+  const [sendingPasswordResetId, setSendingPasswordResetId] = useState<number | null>(null);
   const [convention, setConvention] = useState<any>(null);
   const [selectedAttendanceDates, setSelectedAttendanceDates] = useState<string[]>([]);
   const [scanMode, setScanMode] = useState<'nfc' | 'qr'>('nfc');
@@ -237,6 +238,19 @@ export default function UsersPage() {
       loadUsers();
     } catch (err: any) {
       setError(err.message);
+    }
+  }
+
+  async function handleSendPasswordReset(userId: number, email: string) {
+    if (!confirm(`Send a password reset email to ${email}?`)) return;
+    setSendingPasswordResetId(userId);
+    try {
+      const result = await users.sendPasswordReset(userId);
+      setSuccess(result.message);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setSendingPasswordResetId(null);
     }
   }
 
@@ -559,6 +573,12 @@ export default function UsersPage() {
                         <button onClick={() => handleActivate(u.id)}
                           className="flex items-center gap-1 text-xs text-green-600 hover:text-green-700 font-medium">
                           <ScanLine size={12} /> Activate
+                        </button>
+                      )}
+                      {u.email && (
+                        <button onClick={() => handleSendPasswordReset(u.id, u.email)} disabled={sendingPasswordResetId === u.id}
+                          className="flex items-center gap-1 text-xs text-amber-600 hover:text-amber-700 font-medium disabled:opacity-50">
+                          <Mail size={12} /> {sendingPasswordResetId === u.id ? 'Sending...' : 'Reset Password'}
                         </button>
                       )}
                       <button onClick={() => handleDelete(u.id, u.name)}

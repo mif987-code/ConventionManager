@@ -99,6 +99,7 @@ app.use('/api/preregistrations', preregistrationsRouter);
 
 // Serve uploaded images
 app.use('/uploads', express.static(path.join(__dirname, '../../uploads')));
+app.use('/brand', express.static(path.join(__dirname, '../../brand-assets')));
 
 // Serve registration site static files
 app.use('/register', express.static(path.join(__dirname, '../../registration-site')));
