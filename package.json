@@ -1,0 +1,15 @@
+{
+  "name": "convention-manager",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "admin-panel",
+    "backend"
+  ],
+  "scripts": {
+    "build": "npm run build --workspace=admin-panel && npm run build --workspace=backend",
+    "start": "cd backend && node dist/database/migrate.js && node dist/server.js",
+    "dev:backend": "npm run dev --workspace=backend",
+    "dev:admin": "npm run dev --workspace=admin-panel"
+  }
+}

@@ -113,6 +113,12 @@ app.use('/store', express.static(path.join(__dirname, '../../store-app')));
 // Serve Player App PWA (player-facing)
 app.use('/app', express.static(path.join(__dirname, '../../player-app')));
 
+// Serve Admin Panel React build
+app.use('/admin', express.static(path.join(__dirname, '../../admin-panel/dist')));
+app.get('/admin/*', (_req, res) => {
+  res.sendFile(path.join(__dirname, '../../admin-panel/dist/index.html'));
+});
+
 // Redirect root to the public registration form (NFC/admin apps stay reachable
 // only at their explicit paths, e.g. /nfc, and are not linked from root).
 app.get('/', (_req, res) => {
