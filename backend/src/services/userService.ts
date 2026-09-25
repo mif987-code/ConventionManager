@@ -174,8 +174,11 @@ export async function deactivateUser(userId: number): Promise<User | null> {
 
 export async function deleteUser(userId: number, deletedBy: number | null): Promise<{ deleted: boolean; hasRealPayment: boolean }> {
   const paid = await pool.query(
-    `SELECT 1 FROM payments
-     WHERE user_id = $1 AND status = 'paid' AND COALESCE(provider, CASE WHEN id LIKE 'mock_%' THEN 'mock' ELSE 'legacy' END) <> 'mock'
+    `SELECT 1 FROM payments p
+     LEFT JOIN payment_package_users ppu ON ppu.payment_id = p.id
+     WHERE (p.user_id = $1 OR ppu.user_id = $1)
+       AND p.status = 'paid'
+       AND COALESCE(p.provider, CASE WHEN p.id LIKE 'mock_%' THEN 'mock' ELSE 'legacy' END) <> 'mock'
      LIMIT 1`,
     [userId]
   );

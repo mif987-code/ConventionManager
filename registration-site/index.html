@@ -121,7 +121,22 @@
         </div>
 
         <div id="form-section">
+          <div class="bg-white rounded-2xl shadow-md border border-gray-200/80 p-5 mb-4">
+            <label for="participant-count" class="block text-sm font-bold text-gray-800 mb-2">¿Cuántas personas se van a registrar?</label>
+            <select id="participant-count" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm">
+              <option value="1">1 persona</option>
+              <option value="2">2 personas</option>
+              <option value="3">3 personas</option>
+              <option value="4">4 personas</option>
+              <option value="5">5 personas</option>
+            </select>
+            <div id="participant-progress" class="mt-4 space-y-2"></div>
+          </div>
           <form id="reg-form" class="bg-white rounded-2xl shadow-md border border-gray-200/80 p-6 sm:p-8 space-y-5">
+            <div class="flex items-center justify-between border-b border-gray-200 pb-3">
+              <h3 id="participant-title" class="font-bold text-gray-800">Participante 1 de 1</h3>
+              <span class="text-xs text-gray-500">Cada persona elige sus propios paquetes y eventos</span>
+            </div>
             <div class="grid grid-cols-2 gap-4">
               <div>
                 <label class="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1">Nombre <span class="text-red-500">*</span></label>
@@ -191,7 +206,10 @@
             </div>
 
             <!-- CAPTCHA -->
-            <div class="g-recaptcha" data-sitekey="6LfpCoktAAAAAI-t4EFgOK_kUngFNCx68otNahuB"></div>
+            <div id="captcha-section">
+              <p class="text-xs text-gray-500 mb-2">Verificación final para todas las personas.</p>
+              <div class="g-recaptcha" data-sitekey="6LfpCoktAAAAAI-t4EFgOK_kUngFNCx68otNahuB"></div>
+            </div>
 
             <!-- Error / loading -->
             <div id="error-msg" class="hidden text-sm bg-red-50 text-red-700 px-4 py-3 rounded-lg border border-red-200"></div>
@@ -601,7 +619,14 @@
     const packagesContainer = document.getElementById('packages-container');
     const eventsSection = document.getElementById('events-section');
     const eventsContainer = document.getElementById('events-container');
+    const participantCountSelect = document.getElementById('participant-count');
+    const participantProgress = document.getElementById('participant-progress');
+    const participantTitle = document.getElementById('participant-title');
+    const captchaSection = document.getElementById('captcha-section');
 
+    let participantCount = 1;
+    let currentParticipantIndex = 0;
+    let participantRegistrations = [];
     let availableDates = [];
     let packages = [];
     let events = [];
@@ -851,6 +876,54 @@
       eventsContainer.innerHTML = html;
     }
 
+    function renderParticipantProgress() {
+      participantTitle.textContent = `Participante ${currentParticipantIndex + 1} de ${participantCount}`;
+      participantProgress.innerHTML = Array.from({ length: participantCount }, (_, index) => {
+        const completed = participantRegistrations[index];
+        const active = index === currentParticipantIndex;
+        return `<div class="flex items-center gap-3 rounded-lg border px-3 py-2 ${active ? 'border-amber-500 bg-amber-50' : completed ? 'border-green-200 bg-green-50' : 'border-gray-200 bg-gray-50 opacity-60'}">
+          <span class="flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${completed ? 'bg-green-600 text-white' : active ? 'bg-amber-600 text-white' : 'bg-gray-300 text-gray-600'}">${completed ? '✓' : index + 1}</span>
+          <span class="text-sm ${active ? 'font-semibold text-gray-800' : 'text-gray-600'}">${completed ? `${completed.name} ${completed.last_name}` : `Participante ${index + 1}`}</span>
+          <span class="ml-auto text-xs text-gray-500">${completed ? 'Completado' : active ? 'En progreso' : 'Bloqueado'}</span>
+        </div>`;
+      }).join('');
+      captchaSection.classList.toggle('hidden', currentParticipantIndex < participantCount - 1);
+      submitBtn.innerHTML = currentParticipantIndex < participantCount - 1
+        ? 'Guardar participante y continuar'
+        : '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> Completar todas las preinscripciones';
+    }
+
+    function collectParticipantData() {
+      const selectedDates = Array.from(document.querySelectorAll('input[name="attendance_date"]:checked')).map(cb => cb.value);
+      const selectedEvents = Array.from(document.querySelectorAll('input[name="event_prereg"]:checked')).map(cb => parseInt(cb.value));
+      return {
+        name: document.getElementById('name').value.trim(),
+        last_name: document.getElementById('last_name').value.trim(),
+        email: document.getElementById('email').value.trim(),
+        password: document.getElementById('password').value,
+        dob: document.getElementById('dob').value || null,
+        age: document.getElementById('age').value ? parseInt(document.getElementById('age').value) : null,
+        attendance_dates: selectedDates,
+        packages: getSelectedPackages(),
+        event_prereg_ids: selectedEvents,
+      };
+    }
+
+    function clearParticipantForm() {
+      form.reset();
+      document.getElementById('dob').value = '';
+      document.querySelectorAll('[id^="qty-wrap-"]').forEach(element => element.classList.add('hidden'));
+      document.querySelectorAll('[id^="qty-"]').forEach(input => { input.value = 1; });
+    }
+
+    participantCountSelect.addEventListener('change', () => {
+      participantCount = parseInt(participantCountSelect.value, 10);
+      currentParticipantIndex = 0;
+      participantRegistrations = [];
+      clearParticipantForm();
+      renderParticipantProgress();
+    });
+
     // Populate Day/Month/Year dropdowns for Fecha de nacimiento
     const dobDaySelect = document.getElementById('dob_day');
     const dobMonthSelect = document.getElementById('dob_month');
@@ -893,92 +966,97 @@
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       errorMsg.classList.add('hidden');
-      submitBtn.disabled = true;
-      submitBtn.innerHTML = '<svg class="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Registrando...';
+      const participant = collectParticipantData();
+      const duplicateEmail = participantRegistrations.some(saved => saved.email.toLowerCase() === participant.email.toLowerCase());
+      if (duplicateEmail) {
+        errorMsg.textContent = 'Cada participante debe usar un correo electrónico diferente.';
+        errorMsg.classList.remove('hidden');
+        return;
+      }
 
-      const selectedDates = Array.from(document.querySelectorAll('input[name="attendance_date"]:checked')).map(cb => cb.value);
-      const selectedPackageSelections = getSelectedPackages();
-      const selectedEvents = Array.from(document.querySelectorAll('input[name="event_prereg"]:checked')).map(cb => parseInt(cb.value));
+      if (currentParticipantIndex < participantCount - 1) {
+        participantRegistrations.push(participant);
+        currentParticipantIndex++;
+        clearParticipantForm();
+        participantCountSelect.disabled = true;
+        renderParticipantProgress();
+        window.scrollTo({ top: form.offsetTop - 20, behavior: 'smooth' });
+        return;
+      }
 
       const recaptchaToken = typeof grecaptcha !== 'undefined' ? grecaptcha.getResponse() : '';
       if (!recaptchaToken) {
         errorMsg.textContent = 'Completa el CAPTCHA antes de enviar el formulario.';
         errorMsg.classList.remove('hidden');
-        submitBtn.disabled = false;
-        submitBtn.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> Completar preinscripción';
         return;
       }
 
-      const data = {
-        name: document.getElementById('name').value.trim(),
-        last_name: document.getElementById('last_name').value.trim(),
-        email: document.getElementById('email').value.trim(),
-        password: document.getElementById('password').value,
-        dob: document.getElementById('dob').value || null,
-        age: document.getElementById('age').value ? parseInt(document.getElementById('age').value) : null,
-        attendance_dates: selectedDates,
-        packages: selectedPackageSelections,
-        event_prereg_ids: selectedEvents,
-        recaptcha_token: recaptchaToken,
-      };
-
-      const selectedEventObjs = events.filter(e => selectedEvents.includes(e.id));
-      const selectedPackageDetails = selectedPackageSelections.map(sel => {
-        const pkg = packages.find(p => p.id === sel.package_id);
-        const unitCost = pkg ? pkg.effective_cost : 0;
-        return { ...sel, pkg, unitCost, lineCost: unitCost * sel.quantity };
-      });
+      const allParticipants = [...participantRegistrations, participant];
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<svg class="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Registrando el grupo...';
 
       try {
-        const res = await fetch(`${API_BASE}/preregister`, {
+        const res = await fetch(`${API_BASE}/preregister/batch`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(data),
+          body: JSON.stringify({ participants: allParticipants, recaptcha_token: recaptchaToken }),
         });
         const json = await res.json();
+        if (!res.ok) throw new Error(json.error || 'No se pudieron completar las inscripciones');
 
-        if (!res.ok) {
-          throw new Error(json.error || 'No se pudo completar la inscripción');
-        }
-
-        if (json.package_total_cost > 0) {
-          submitBtn.innerHTML = '<svg class="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Redirigiendo al pago...';
-
-          const payRes = await fetch(`${API_BASE}/payment`, {
+        const paidRegistrations = json.registrations.filter(registration => registration.package_total_cost > 0);
+        if (paidRegistrations.length > 0) {
+          submitBtn.innerHTML = '<svg class="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Redirigiendo al pago conjunto...';
+          const payRes = await fetch(`${API_BASE}/payment/batch`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ user_id: json.user.id }),
+            body: JSON.stringify({ user_ids: paidRegistrations.map(registration => registration.user.id) }),
           });
           const payJson = await payRes.json();
-
-          if (!payRes.ok) {
-            throw new Error(payJson.error || 'No se pudo preparar el pago');
-          }
-
-          if (!payJson.paymentUrl) {
-            throw new Error('No se recibió el enlace de pago');
-          }
-
+          if (!payRes.ok) throw new Error(payJson.error || 'No se pudo preparar el pago conjunto');
+          if (!payJson.paymentUrl) throw new Error('No se recibió el enlace de pago');
           window.location.href = payJson.paymentUrl;
           return;
         }
 
-        showSuccess({ ...data, id: json.user.id, attendanceDates: selectedDates }, selectedPackageDetails, selectedEventObjs.map(e => e.name));
+        showGroupSuccess(allParticipants, json.registrations);
       } catch (err) {
         errorMsg.textContent = err.message;
         errorMsg.classList.remove('hidden');
         if (typeof grecaptcha !== 'undefined') grecaptcha.reset();
       } finally {
         submitBtn.disabled = false;
-        submitBtn.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> Completar preinscripción';
+        renderParticipantProgress();
       }
     });
 
     function resetForm() {
-      form.reset();
+      participantCount = 1;
+      currentParticipantIndex = 0;
+      participantRegistrations = [];
+      participantCountSelect.value = '1';
+      participantCountSelect.disabled = false;
+      clearParticipantForm();
       if (typeof grecaptcha !== 'undefined') grecaptcha.reset();
       formSection.classList.remove('hidden');
       successSection.classList.add('hidden');
+      renderParticipantProgress();
+    }
+
+    function showGroupSuccess(participants, registrations) {
+      const successMessageEl = document.getElementById('success-message');
+      successMessageEl.textContent = scanMode === 'qr'
+        ? 'Cada participante recibirá por correo su código QR personal y privado el día antes del evento.'
+        : 'Todas las personas quedaron registradas. Preséntense en la mesa de la convención para vincular sus accesos.';
+      successDetails.innerHTML = registrations.map((registration, index) => `
+        <div class="${index > 0 ? 'border-t border-gray-200 pt-3 mt-3' : ''}">
+          <p class="font-semibold text-gray-800">${participants[index].name} ${participants[index].last_name}</p>
+          <p><span class="font-medium text-gray-700">Correo:</span> ${participants[index].email}</p>
+          <p><span class="font-medium text-gray-700">ID de inscripción:</span> #${registration.user.id}</p>
+        </div>
+      `).join('');
+      formSection.classList.add('hidden');
+      successSection.classList.remove('hidden');
     }
 
     function showSuccess(userData, selectedPackageDetails, selectedEventNames) {
@@ -1005,6 +1083,7 @@
     }
 
     // Initial load
+    renderParticipantProgress();
     loadConventionInfo();
   </script>
 </body>

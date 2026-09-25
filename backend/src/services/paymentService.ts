@@ -208,7 +208,16 @@ export async function handlePaymentWebhook(paymentId: string, status: string): P
 
     if (status === 'paid') {
       if (payment.purpose === 'package') {
-        await awardPaidPackages(client, payment.user_id);
+        const groupRes = await client.query(
+          `SELECT user_id FROM payment_package_users WHERE payment_id = $1 ORDER BY user_id`,
+          [payment.id]
+        );
+        const packageUserIds = groupRes.rows.length > 0
+          ? groupRes.rows.map((row: any) => row.user_id)
+          : [payment.user_id];
+        for (const userId of packageUserIds) {
+          await awardPaidPackages(client, userId);
+        }
       } else {
         const userRes = await client.query(
           `SELECT convention_id FROM users WHERE id = $1`,

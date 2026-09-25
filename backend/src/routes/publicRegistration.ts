@@ -52,27 +52,26 @@ async function verifyRecaptcha(token: string | undefined): Promise<boolean> {
 // here already use parameterized values, so injection was never possible).
 const NAME_PATTERN = /^[\p{L}][\p{L}\s'.-]{0,49}$/u;
 
-// POST /public/preregister - Public pre-registration (no API key needed)
-router.post('/preregister', registrationLimiter, async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { name, last_name, email, password, age, dob, attendance_dates, package_id, packages: packagesInput, event_prereg_ids, recaptcha_token } = req.body;
+class RegistrationError extends Error {
+  constructor(message: string, public status = 400) {
+    super(message);
+  }
+}
+
+async function preregisterParticipant(body: any) {
+    const { name, last_name, email, password, age, dob, attendance_dates, package_id, packages: packagesInput, event_prereg_ids } = body;
 
     if (!name || !last_name || !email || !password) {
-      return res.status(400).json({ error: 'El nombre, los apellidos, el correo y la contraseña son obligatorios' });
+      throw new RegistrationError('El nombre, los apellidos, el correo y la contraseña son obligatorios');
     }
     if (typeof name !== 'string' || !NAME_PATTERN.test(name.trim())) {
-      return res.status(400).json({ error: 'El nombre solo puede contener letras, espacios, guiones y apóstrofes' });
+      throw new RegistrationError('El nombre solo puede contener letras, espacios, guiones y apóstrofes');
     }
     if (typeof last_name !== 'string' || !NAME_PATTERN.test(last_name.trim())) {
-      return res.status(400).json({ error: 'Los apellidos solo pueden contener letras, espacios, guiones y apóstrofes' });
+      throw new RegistrationError('Los apellidos solo pueden contener letras, espacios, guiones y apóstrofes');
     }
     if (typeof password !== 'string' || password.length < 8) {
-      return res.status(400).json({ error: 'La contraseña debe tener al menos 8 caracteres' });
-    }
-
-    const recaptchaValid = await verifyRecaptcha(recaptcha_token);
-    if (!recaptchaValid) {
-      return res.status(400).json({ error: 'No se pudo verificar el CAPTCHA. Inténtalo de nuevo.' });
+      throw new RegistrationError('La contraseña debe tener al menos 8 caracteres');
     }
 
     // Normalize package selection: support both the legacy single `package_id`
@@ -90,7 +89,7 @@ router.post('/preregister', registrationLimiter, async (req: Request, res: Respo
     // Check if email already registered
     const existing = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
     if (existing.rows.length > 0) {
-      return res.status(409).json({ error: 'Este correo ya está registrado' });
+      throw new RegistrationError('Este correo ya está registrado', 409);
     }
 
     // Get active convention, fall back to most recent convention
@@ -108,7 +107,7 @@ router.post('/preregister', registrationLimiter, async (req: Request, res: Respo
     }
 
     if (!conventionId) {
-      return res.status(400).json({ error: 'No convention found. Please create a convention in the admin panel first.' });
+      throw new RegistrationError('No convention found. Please create a convention in the admin panel first.');
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
@@ -217,13 +216,64 @@ router.post('/preregister', registrationLimiter, async (req: Request, res: Respo
       }
     }
 
-    res.status(201).json({
+    return {
       success: true,
       user: result.rows[0],
       package_total_cost: totalPackageCost,
       package_breakdown: packageBreakdown,
-    });
+    };
+}
+
+// POST /public/preregister - Public pre-registration (no API key needed)
+router.post('/preregister', registrationLimiter, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const recaptchaValid = await verifyRecaptcha(req.body.recaptcha_token);
+    if (!recaptchaValid) throw new RegistrationError('No se pudo verificar el CAPTCHA. Inténtalo de nuevo.');
+    res.status(201).json(await preregisterParticipant(req.body));
   } catch (err) {
+    if (err instanceof RegistrationError) return res.status(err.status).json({ error: err.message });
+    next(err);
+  }
+});
+
+router.post('/preregister/batch', registrationLimiter, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const participants = req.body.participants;
+    if (!Array.isArray(participants) || participants.length < 1 || participants.length > 5) {
+      throw new RegistrationError('Debes registrar entre 1 y 5 participantes.');
+    }
+    for (const participant of participants) {
+      if (!participant.name || !participant.last_name || !participant.email || !participant.password) {
+        throw new RegistrationError('Todos los participantes deben incluir nombre, apellidos, correo y contraseña.');
+      }
+      if (!NAME_PATTERN.test(String(participant.name).trim()) || !NAME_PATTERN.test(String(participant.last_name).trim())) {
+        throw new RegistrationError('Los nombres solo pueden contener letras, espacios, guiones y apóstrofes.');
+      }
+      if (String(participant.password).length < 8) {
+        throw new RegistrationError('Todas las contraseñas deben tener al menos 8 caracteres.');
+      }
+    }
+    const emails = participants.map((participant: any) => String(participant.email || '').trim().toLowerCase());
+    if (new Set(emails).size !== emails.length) {
+      throw new RegistrationError('Cada participante debe usar un correo electrónico diferente.');
+    }
+    const existingEmails = await pool.query(
+      `SELECT email FROM users WHERE LOWER(email) = ANY($1::text[])`,
+      [emails]
+    );
+    if (existingEmails.rows.length > 0) {
+      throw new RegistrationError(`Este correo ya está registrado: ${existingEmails.rows[0].email}`, 409);
+    }
+    const recaptchaValid = await verifyRecaptcha(req.body.recaptcha_token);
+    if (!recaptchaValid) throw new RegistrationError('No se pudo verificar el CAPTCHA. Inténtalo de nuevo.');
+
+    const registrations = [];
+    for (const participant of participants) {
+      registrations.push(await preregisterParticipant(participant));
+    }
+    res.status(201).json({ success: true, registrations });
+  } catch (err) {
+    if (err instanceof RegistrationError) return res.status(err.status).json({ error: err.message });
     next(err);
   }
 });
@@ -275,6 +325,49 @@ router.post('/payment', async (req: Request, res: Response, next: NextFunction) 
       paymentUrl: payment.paymentUrl,
       amount: payment.amount,
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/payment/batch', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userIds = Array.from(new Set((Array.isArray(req.body.user_ids) ? req.body.user_ids : []).map((id: any) => parseInt(id, 10))))
+      .filter((id): id is number => Number.isInteger(id));
+    if (userIds.length < 1 || userIds.length > 5) {
+      return res.status(400).json({ error: 'Se requieren entre 1 y 5 participantes para el pago.' });
+    }
+
+    const pkgRes = await pool.query(
+      `SELECT up.user_id, up.package_id, up.quantity,
+              CASE WHEN p.prereg_cost IS NOT NULL
+                        AND (p.prereg_start_date IS NULL OR timezone('America/Costa_Rica', now())::date >= p.prereg_start_date)
+                        AND (p.prereg_end_date IS NULL OR timezone('America/Costa_Rica', now())::date <= p.prereg_end_date)
+                   THEN p.prereg_cost ELSE p.cost END AS effective_cost
+       FROM user_packages up
+       JOIN packages p ON p.id = up.package_id
+       WHERE up.user_id = ANY($1::int[])`,
+      [userIds]
+    );
+    const packageQuantities = new Map<number, number>();
+    for (const pkg of pkgRes.rows) {
+      packageQuantities.set(pkg.package_id, (packageQuantities.get(pkg.package_id) || 0) + (pkg.quantity || 1));
+    }
+    for (const [packageId, quantity] of packageQuantities) {
+      await packageService.validatePackageMerchandiseStock(packageId, quantity);
+    }
+    const total = pkgRes.rows.reduce((sum, pkg) => sum + (pkg.effective_cost * (pkg.quantity || 1)), 0);
+    if (total <= 0) return res.status(400).json({ error: 'El total de los paquetes es 0; no se requiere pago.' });
+
+    const payment = await paymentService.createPayment(total);
+    await paymentService.storePayment(payment, userIds[0], 'package');
+    for (const userId of userIds) {
+      await pool.query(
+        `INSERT INTO payment_package_users (payment_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+        [payment.id, userId]
+      );
+    }
+    res.json({ success: true, paymentId: payment.id, paymentUrl: payment.paymentUrl, amount: payment.amount });
   } catch (err) {
     next(err);
   }
