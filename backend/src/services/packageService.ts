@@ -14,6 +14,7 @@ export interface Package {
   prereg_end_date: string | null;
   regular_voucher_amount: number;
   package_type: PackageType;
+  max_age: number | null;
   is_active: boolean;
   created_at: Date;
 }
@@ -36,13 +37,14 @@ export async function createPackage(
   preregStartDate: string | null = null,
   preregEndDate: string | null = null,
   regularVoucherAmount: number = 0,
-  packageType: PackageType = 'day_pass'
+  packageType: PackageType = 'day_pass',
+  maxAge: number | null = null
 ): Promise<Package> {
   const result = await pool.query(
-    `INSERT INTO packages (convention_id, name, description, days, cost, prereg_cost, prereg_start_date, prereg_end_date, regular_voucher_amount, package_type, is_active)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, TRUE)
+    `INSERT INTO packages (convention_id, name, description, days, cost, prereg_cost, prereg_start_date, prereg_end_date, regular_voucher_amount, package_type, max_age, is_active)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, TRUE)
      RETURNING *`,
-    [conventionId, name, description, days, cost, preregCost, preregStartDate, preregEndDate, regularVoucherAmount, packageType]
+    [conventionId, name, description, days, cost, preregCost, preregStartDate, preregEndDate, regularVoucherAmount, packageType, maxAge]
   );
   return result.rows[0];
 }
@@ -58,12 +60,13 @@ export async function updatePackage(
   preregEndDate: string | null,
   regularVoucherAmount: number,
   is_active: boolean,
-  packageType: PackageType = 'day_pass'
+  packageType: PackageType = 'day_pass',
+  maxAge: number | null = null
 ): Promise<Package> {
   const result = await pool.query(
-    `UPDATE packages SET name = $2, description = $3, days = $4, cost = $5, prereg_cost = $6, prereg_start_date = $7, prereg_end_date = $8, regular_voucher_amount = $9, is_active = $10, package_type = $11
+    `UPDATE packages SET name = $2, description = $3, days = $4, cost = $5, prereg_cost = $6, prereg_start_date = $7, prereg_end_date = $8, regular_voucher_amount = $9, is_active = $10, package_type = $11, max_age = $12
      WHERE id = $1 RETURNING *`,
-    [id, name, description, days, cost, preregCost, preregStartDate, preregEndDate, regularVoucherAmount, is_active, packageType]
+    [id, name, description, days, cost, preregCost, preregStartDate, preregEndDate, regularVoucherAmount, is_active, packageType, maxAge]
   );
   return result.rows[0];
 }

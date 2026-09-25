@@ -47,7 +47,7 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
   const { conventionId } = req;
   if (!conventionId) return res.status(400).json({ error: 'Convention ID required' });
   try {
-    const { name, description, days, cost, prereg_cost, prereg_start_date, prereg_end_date, regular_voucher_amount, package_type } = req.body;
+    const { name, description, days, cost, prereg_cost, prereg_start_date, prereg_end_date, regular_voucher_amount, package_type, max_age } = req.body;
 
     if (!name || days === undefined || days === null || cost === undefined) {
       return res.status(400).json({ error: 'name, days, and cost are required' });
@@ -57,6 +57,9 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
     }
     if (prereg_start_date && prereg_end_date && prereg_start_date > prereg_end_date) {
       return res.status(400).json({ error: 'Pre-registration start date cannot be after end date' });
+    }
+    if (max_age !== undefined && max_age !== null && (!Number.isInteger(Number(max_age)) || Number(max_age) < 0 || Number(max_age) > 120)) {
+      return res.status(400).json({ error: 'Maximum age must be a whole number between 0 and 120' });
     }
 
     const pkg = await packageService.createPackage(
@@ -69,7 +72,8 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
       prereg_start_date || null,
       prereg_end_date || null,
       regular_voucher_amount || 0,
-      package_type || 'day_pass'
+      package_type || 'day_pass',
+      max_age === undefined || max_age === null || max_age === '' ? null : Number(max_age)
     );
     res.status(201).json({ success: true, package: pkg });
   } catch (err) {
@@ -80,12 +84,15 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
 // PUT /api/packages/:id - Update package
 router.put('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { name, description, days, cost, prereg_cost, prereg_start_date, prereg_end_date, regular_voucher_amount, is_active, package_type } = req.body;
+    const { name, description, days, cost, prereg_cost, prereg_start_date, prereg_end_date, regular_voucher_amount, is_active, package_type, max_age } = req.body;
     if (days !== undefined && days !== null && days < 0) {
       return res.status(400).json({ error: 'days cannot be negative' });
     }
     if (prereg_start_date && prereg_end_date && prereg_start_date > prereg_end_date) {
       return res.status(400).json({ error: 'Pre-registration start date cannot be after end date' });
+    }
+    if (max_age !== undefined && max_age !== null && (!Number.isInteger(Number(max_age)) || Number(max_age) < 0 || Number(max_age) > 120)) {
+      return res.status(400).json({ error: 'Maximum age must be a whole number between 0 and 120' });
     }
     const pkg = await packageService.updatePackage(
       parseInt(req.params.id),
@@ -98,7 +105,8 @@ router.put('/:id', async (req: Request, res: Response, next: NextFunction) => {
       prereg_end_date || null,
       regular_voucher_amount || 0,
       is_active,
-      package_type || 'day_pass'
+      package_type || 'day_pass',
+      max_age === undefined || max_age === null || max_age === '' ? null : Number(max_age)
     );
     res.json({ success: true, package: pkg });
   } catch (err) {

@@ -58,6 +58,19 @@ class RegistrationError extends Error {
   }
 }
 
+function ageOnDate(dobValue: string, dateValue: string): number | null {
+  const dobMatch = String(dobValue || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const dateMatch = String(dateValue || '').slice(0, 10).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!dobMatch || !dateMatch) return null;
+  const [, birthYear, birthMonth, birthDay] = dobMatch.map(Number);
+  const [, year, month, day] = dateMatch.map(Number);
+  const dob = new Date(Date.UTC(birthYear, birthMonth - 1, birthDay));
+  if (dob.getUTCFullYear() !== birthYear || dob.getUTCMonth() !== birthMonth - 1 || dob.getUTCDate() !== birthDay) return null;
+  let age = year - birthYear;
+  if (month < birthMonth || (month === birthMonth && day < birthDay)) age--;
+  return age;
+}
+
 async function preregisterParticipant(body: any) {
     const { name, last_name, email, password, age, dob, attendance_dates, package_id, packages: packagesInput, event_prereg_ids } = body;
 
@@ -83,6 +96,24 @@ async function preregisterParticipant(body: any) {
       : (package_id ? [{ package_id: parseInt(package_id), quantity: 1 }] : []);
 
     for (const selection of selectedPackages) {
+      const eligibilityRes = await pool.query(
+        `SELECT p.name, p.max_age, to_char(c.start_date, 'YYYY-MM-DD') AS convention_start_date
+         FROM packages p
+         JOIN conventions c ON c.id = p.convention_id
+         WHERE p.id = $1`,
+        [selection.package_id]
+      );
+      if (eligibilityRes.rows.length === 0) throw new RegistrationError('El paquete seleccionado no existe.');
+      const eligiblePackage = eligibilityRes.rows[0];
+      if (eligiblePackage.max_age !== null) {
+        const participantAge = ageOnDate(dob, eligiblePackage.convention_start_date);
+        if (participantAge === null) {
+          throw new RegistrationError(`Debes ingresar una fecha de nacimiento válida para seleccionar ${eligiblePackage.name}.`);
+        }
+        if (participantAge < 0 || participantAge > eligiblePackage.max_age) {
+          throw new RegistrationError(`${eligiblePackage.name} está disponible únicamente para participantes de ${eligiblePackage.max_age} años o menos al inicio de la convención.`);
+        }
+      }
       await packageService.validatePackageMerchandiseStock(selection.package_id, selection.quantity);
     }
 

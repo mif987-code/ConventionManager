@@ -13,7 +13,7 @@ export default function PackagesPage() {
   const [error, setError] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingPackage, setEditingPackage] = useState<any>(null);
-  const [form, setForm] = useState({ name: '', description: '', days: 1, cost: 0, prereg_cost: '', prereg_start_date: '', prereg_end_date: '', regular_voucher_amount: 0, is_active: true, package_type: 'day_pass' });
+  const [form, setForm] = useState({ name: '', description: '', days: 1, cost: 0, prereg_cost: '', prereg_start_date: '', prereg_end_date: '', regular_voucher_amount: 0, max_age: '', is_active: true, package_type: 'day_pass' });
   const fileInputRefs = useRef<{ [key: number]: HTMLInputElement | null }>({});
 
   async function loadPackages() {
@@ -83,13 +83,14 @@ export default function PackagesPage() {
     e.preventDefault();
     try {
       const preregCost = form.prereg_cost ? parseFloat(form.prereg_cost) : null;
+      const maxAge = form.max_age === '' ? null : parseInt(form.max_age, 10);
       let targetPackageId: number;
 
       if (editingPackage) {
-        await packages.update(editingPackage.id, form.name, form.description || null, form.days, form.cost, preregCost, form.prereg_start_date || null, form.prereg_end_date || null, form.regular_voucher_amount, form.is_active, form.package_type);
+        await packages.update(editingPackage.id, form.name, form.description || null, form.days, form.cost, preregCost, form.prereg_start_date || null, form.prereg_end_date || null, form.regular_voucher_amount, form.is_active, form.package_type, maxAge);
         targetPackageId = editingPackage.id;
       } else {
-        const createRes = await packages.create(form.name, form.description || null, form.days, form.cost, preregCost, form.prereg_start_date || null, form.prereg_end_date || null, form.regular_voucher_amount, form.package_type);
+        const createRes = await packages.create(form.name, form.description || null, form.days, form.cost, preregCost, form.prereg_start_date || null, form.prereg_end_date || null, form.regular_voucher_amount, form.package_type, maxAge);
         targetPackageId = createRes.package.id;
       }
 
@@ -133,6 +134,7 @@ export default function PackagesPage() {
       prereg_start_date: pkg.prereg_start_date ? String(pkg.prereg_start_date).slice(0, 10) : '',
       prereg_end_date: pkg.prereg_end_date ? String(pkg.prereg_end_date).slice(0, 10) : '',
       regular_voucher_amount: pkg.regular_voucher_amount || 0,
+      max_age: pkg.max_age != null ? String(pkg.max_age) : '',
       is_active: pkg.is_active,
       package_type: pkg.package_type || 'day_pass'
     });
@@ -151,7 +153,7 @@ export default function PackagesPage() {
   }
 
   function resetForm() {
-    setForm({ name: '', description: '', days: 1, cost: 0, prereg_cost: '', prereg_start_date: '', prereg_end_date: '', regular_voucher_amount: 0, is_active: true, package_type: 'day_pass' });
+    setForm({ name: '', description: '', days: 1, cost: 0, prereg_cost: '', prereg_start_date: '', prereg_end_date: '', regular_voucher_amount: 0, max_age: '', is_active: true, package_type: 'day_pass' });
     setSelectedSpecialVoucherIds([]);
     setMerchandiseItems([]);
     setEditingPackage(null);
@@ -281,6 +283,20 @@ export default function PackagesPage() {
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
               />
               <p className="text-xs text-gray-500 mt-1">Number of regular vouchers to award</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Maximum Eligible Age</label>
+              <input
+                type="number"
+                placeholder="No age restriction"
+                value={form.max_age}
+                onChange={(e) => setForm({ ...form, max_age: e.target.value })}
+                min="0"
+                max="120"
+                step="1"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+              />
+              <p className="text-xs text-gray-500 mt-1">Leave empty for all ages. Eligibility is calculated on the convention start date.</p>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
@@ -532,6 +548,7 @@ export default function PackagesPage() {
                   <td className="px-6 py-3">
                     <div className="text-sm font-medium text-gray-800">{pkg.name}</div>
                     {pkg.description && <div className="text-xs text-gray-400">{pkg.description}</div>}
+                    {pkg.max_age != null && <div className="text-xs font-medium text-amber-700">Maximum age: {pkg.max_age}</div>}
                   </td>
                   <td className="px-6 py-3 text-sm">
                     <span className="bg-indigo-50 text-indigo-700 text-xs px-2 py-0.5 rounded-full font-medium capitalize">

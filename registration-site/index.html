@@ -631,6 +631,7 @@
     let packages = [];
     let events = [];
     let schedule = [];
+    let conventionStartDate = null;
     let scanMode = 'nfc'; // Default to NFC
 
     // Load convention info on page load
@@ -641,6 +642,7 @@
 
         if (json.convention) {
           conventionTitle.textContent = json.convention.name;
+          conventionStartDate = json.convention.start_date || null;
           if (json.convention.start_date && json.convention.end_date) {
             const start = new Date(`${json.convention.start_date}T12:00:00`).toLocaleDateString('es-CR', { month: 'short', day: 'numeric', year: 'numeric' });
             const end = new Date(`${json.convention.end_date}T12:00:00`).toLocaleDateString('es-CR', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -691,13 +693,14 @@
         packageItems.length ? `<div><h3 class="text-sm font-bold text-gray-800 mb-2">Paquetes</h3><div class="space-y-3">${packageItems.map(packageCard).join('')}</div></div>` : '',
         merchandiseItems.length ? `<div class="pt-2"><h3 class="text-sm font-bold text-gray-800 mb-2">Mercancía</h3><div class="space-y-3">${merchandiseItems.map(packageCard).join('')}</div></div>` : '',
       ].join('');
+      refreshPackageAgeEligibility();
     }
 
     function packageCard(pkg) {
       const isMultiplierType = pkg.package_type === 'voucher_pack' || pkg.package_type === 'merchandise';
       return `
-        <label class="flex items-start gap-3 p-4 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition border border-gray-200">
-          <input type="${pkg.days > 0 ? 'radio' : 'checkbox'}" name="package" value="${pkg.id}" data-unit-cost="${pkg.effective_cost}"
+        <label id="package-card-${pkg.id}" class="flex items-start gap-3 p-4 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition border border-gray-200">
+          <input type="${pkg.days > 0 ? 'radio' : 'checkbox'}" name="package" value="${pkg.id}" data-unit-cost="${pkg.effective_cost}" data-max-age="${pkg.max_age ?? ''}"
             class="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500 mt-1"
             onchange="onPackageToggle(this, ${pkg.id})">
           <div class="flex-1">
@@ -706,6 +709,7 @@
               <span class="font-bold text-indigo-600">${formatCRC(pkg.effective_cost)}${isMultiplierType ? ' cada uno' : ''}</span>
             </div>
             ${pkg.description ? `<p class="text-sm text-gray-500 mt-1">${pkg.description}</p>` : ''}
+            ${pkg.max_age != null ? `<p class="text-xs font-semibold text-amber-700 mt-1">Disponible únicamente para participantes de ${pkg.max_age} años o menos al inicio de la convención.</p><p id="age-status-${pkg.id}" class="text-xs text-gray-500 mt-1">Ingresa la fecha de nacimiento para verificar elegibilidad.</p>` : ''}
             ${pkg.days > 0 ? `<p class="text-xs text-gray-400 mt-1">Incluye ${pkg.days} día${pkg.days !== 1 ? 's' : ''}</p>` : ''}
             ${pkg.prereg_active && pkg.prereg_cost !== pkg.cost ? `<p class="text-xs text-orange-600 mt-1">Precio de preinscripción (precio regular: ${formatCRC(pkg.cost)})${pkg.prereg_end_date ? ` · Disponible hasta el ${formatDate(pkg.prereg_end_date)}` : ''}</p>` : ''}
             ${pkg.prereg_cost && !pkg.prereg_active ? `<p class="text-xs text-gray-500 mt-1">Precio regular${pkg.prereg_start_date ? ` · El precio de preinscripción comienza el ${formatDate(pkg.prereg_start_date)}` : ''}</p>` : ''}
@@ -748,6 +752,39 @@
     }
 
     function updatePackageTotalsDisplay() {}
+
+    function calculateAgeOnDate(dobValue, dateValue) {
+      if (!dobValue || !dateValue) return null;
+      const [birthYear, birthMonth, birthDay] = dobValue.split('-').map(Number);
+      const [year, month, day] = String(dateValue).slice(0, 10).split('-').map(Number);
+      if (!birthYear || !birthMonth || !birthDay || !year || !month || !day) return null;
+      let calculatedAge = year - birthYear;
+      if (month < birthMonth || (month === birthMonth && day < birthDay)) calculatedAge--;
+      return calculatedAge;
+    }
+
+    function refreshPackageAgeEligibility() {
+      const dobValue = document.getElementById('dob').value;
+      document.querySelectorAll('input[name="package"][data-max-age]').forEach(input => {
+        if (input.dataset.maxAge === '') return;
+        const maxAge = parseInt(input.dataset.maxAge, 10);
+        const calculatedAge = calculateAgeOnDate(dobValue, conventionStartDate);
+        const eligible = calculatedAge !== null && calculatedAge >= 0 && calculatedAge <= maxAge;
+        input.disabled = !eligible;
+        if (!eligible) input.checked = false;
+        const card = document.getElementById(`package-card-${input.value}`);
+        if (card) card.classList.toggle('opacity-50', !eligible);
+        const status = document.getElementById(`age-status-${input.value}`);
+        if (status) {
+          status.textContent = calculatedAge === null
+            ? 'Ingresa la fecha de nacimiento para verificar elegibilidad.'
+            : eligible
+              ? `Elegible: tendrá ${calculatedAge} años al inicio de la convención.`
+              : `No elegible: tendrá ${calculatedAge} años al inicio de la convención.`;
+          status.className = `text-xs mt-1 ${eligible ? 'text-green-700' : calculatedAge === null ? 'text-gray-500' : 'text-red-600'}`;
+        }
+      });
+    }
 
     function getSelectedPackages() {
       const checked = Array.from(document.querySelectorAll('input[name="package"]:checked'));
@@ -914,6 +951,7 @@
       document.getElementById('dob').value = '';
       document.querySelectorAll('[id^="qty-wrap-"]').forEach(element => element.classList.add('hidden'));
       document.querySelectorAll('[id^="qty-"]').forEach(input => { input.value = 1; });
+      refreshPackageAgeEligibility();
     }
 
     participantCountSelect.addEventListener('change', () => {
@@ -948,6 +986,7 @@
       const dobHidden = document.getElementById('dob');
       if (!day || !month || !year) {
         dobHidden.value = '';
+        refreshPackageAgeEligibility();
         return;
       }
       const isoDob = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
@@ -960,6 +999,7 @@
       const m = today.getMonth() - dob.getMonth();
       if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age--;
       document.getElementById('age').value = age;
+      refreshPackageAgeEligibility();
     }
     [dobDaySelect, dobMonthSelect, dobYearSelect].forEach((el) => el.addEventListener('change', updateDobFromParts));
 
