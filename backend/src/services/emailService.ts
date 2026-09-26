@@ -5,6 +5,14 @@ const fromEmail = process.env.EMAIL_FROM || 'SparkFest <onboarding@resend.dev>';
 
 const resend = resendApiKey ? new Resend(resendApiKey) : null;
 
+async function withEmailTimeout<T>(promise: Promise<T>): Promise<T> {
+  const timeoutMs = parseInt(process.env.EMAIL_TIMEOUT_MS || '10000', 10);
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error('Email delivery timed out')), timeoutMs)),
+  ]);
+}
+
 /**
  * Send an email with user's QR badge.
  */
@@ -27,7 +35,7 @@ export async function sendQRCodeEmail(to: string, userName: string, qrCodeDataUr
         ]
       : [];
 
-    const result = await resend.emails.send({
+    const result = await withEmailTimeout(resend.emails.send({
       from: fromEmail,
       to,
       subject: 'Tu Código QR de Acceso - SparkFest',
@@ -46,7 +54,7 @@ export async function sendQRCodeEmail(to: string, userName: string, qrCodeDataUr
         </div>
       `,
       attachments,
-    });
+    }));
     if (result.error) throw new Error(result.error.message);
     console.log(`[EmailService] QR code email sent to ${to}`);
     return true;
@@ -67,7 +75,7 @@ export async function sendPasswordResetEmail(to: string, userName: string, reset
   }
 
   try {
-    const result = await resend.emails.send({
+    const result = await withEmailTimeout(resend.emails.send({
       from: fromEmail,
       to,
       subject: 'Restablece tu contraseña de SparkFest',
@@ -81,7 +89,7 @@ export async function sendPasswordResetEmail(to: string, userName: string, reset
           <p style="color: #64748b; font-size: 13px;">Este enlace vence en una hora y solo puede utilizarse una vez. Si no solicitaste este cambio, puedes ignorar este correo.</p>
         </div>
       `,
-    });
+    }));
     if (result.error) throw new Error(result.error.message);
     console.log(`[EmailService] Password reset email sent to ${to}`);
     return true;
@@ -100,7 +108,7 @@ export async function sendActivationEmail(to: string, userName: string): Promise
   if (!to) return false;
 
   try {
-    const result = await resend.emails.send({
+    const result = await withEmailTimeout(resend.emails.send({
       from: fromEmail,
       to,
       subject: '¡Tu cuenta de SparkFest ha sido activada!',
@@ -123,7 +131,7 @@ export async function sendActivationEmail(to: string, userName: string): Promise
           </div>
         </div>
       `,
-    });
+    }));
     if (result.error) throw new Error(result.error.message);
     console.log(`[EmailService] Activation email sent to ${to}`);
     return true;

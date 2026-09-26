@@ -3,9 +3,11 @@ import cors from 'cors';
 import path from 'path';
 import dotenv from 'dotenv';
 import rateLimit from 'express-rate-limit';
-import { testConnection } from './config/db';
+import { pool, testConnection } from './config/db';
 import { apiKeyAuth, conventionMiddleware, errorHandler } from './middleware/auth';
 import { startBackupSchedule } from './services/backupService';
+import { startBackgroundJobs } from './services/backgroundJobService';
+import { expirePendingPackagePayments } from './services/paymentService';
 
 import usersRouter from './routes/users';
 import vouchersRouter from './routes/vouchers';
@@ -126,16 +128,28 @@ app.get('/', (_req, res) => {
 });
 
 // Health check (no auth required)
-app.get('/health', (_req, res) => {
-  res.json({
-    status: 'ok',
-    timestamp: new Date().toISOString(),
-    version: process.env.RENDER_GIT_COMMIT?.slice(0, 8) || 'local',
-    email: {
-      resendApiKeyConfigured: Boolean(process.env.RESEND_API_KEY),
-      senderConfigured: Boolean(process.env.EMAIL_FROM),
-    },
-  });
+app.get('/health', async (_req, res) => {
+  try {
+    const operational = await pool.query(
+      `SELECT
+         (SELECT COUNT(*)::int FROM payments WHERE status = 'pending' AND created_at < NOW() - INTERVAL '30 minutes') AS stale_payments,
+         (SELECT COUNT(*)::int FROM inventory_reservations WHERE status = 'reserved' AND expires_at <= NOW()) AS expired_reservations,
+         (SELECT COUNT(*)::int FROM background_jobs WHERE status IN ('pending', 'failed')) AS queued_jobs`
+    );
+    res.json({
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      version: process.env.RENDER_GIT_COMMIT?.slice(0, 8) || 'local',
+      database: { total: pool.totalCount, idle: pool.idleCount, waiting: pool.waitingCount },
+      operational: operational.rows[0],
+      email: {
+        resendApiKeyConfigured: Boolean(process.env.RESEND_API_KEY),
+        senderConfigured: Boolean(process.env.EMAIL_FROM),
+      },
+    });
+  } catch (err) {
+    res.status(503).json({ status: 'error', timestamp: new Date().toISOString(), error: 'Database health check failed' });
+  }
 });
 
 // Error handler
@@ -150,6 +164,12 @@ async function start() {
   }
 
   startBackupSchedule();
+  startBackgroundJobs();
+  void expirePendingPackagePayments().catch(err => console.error('[Payments] Reservation cleanup failed:', err));
+  const reservationTimer = setInterval(() => {
+    void expirePendingPackagePayments().catch(err => console.error('[Payments] Reservation cleanup failed:', err));
+  }, 60000);
+  reservationTimer.unref();
 
   app.listen(PORT, () => {
     console.log(`[Server] Convention Manager API running on port ${PORT}`);

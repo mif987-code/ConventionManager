@@ -1,3 +1,4 @@
+import { PoolClient } from 'pg';
 import { pool } from '../config/db';
 
 export type PackageType = 'day_pass' | 'voucher_pack' | 'merchandise';
@@ -101,33 +102,29 @@ export async function removeSpecialVoucherFromPackage(packageId: number, special
 
 export async function getPackageWithVouchers(packageId: number): Promise<any> {
   const result = await pool.query(
-    `SELECT p.*, 
-            COALESCE(
-              json_agg(
-                DISTINCT jsonb_build_object(
-                  'id', sv.id,
-                  'name', sv.name,
-                  'amount', sv.amount,
-                  'description', sv.description,
-                  'icon', sv.icon,
-                  'color', sv.color
-                )
-              ) FILTER (WHERE sv.id IS NOT NULL),
-              '[]'
-            ) as special_vouchers,
-            COALESCE(
-              json_agg(
-                DISTINCT jsonb_build_object(
-                  'id', pm.id,
-                  'item_name', pm.item_name
-                )
-              ) FILTER (WHERE pm.id IS NOT NULL),
-              '[]'
-            ) as merchandise_items
+    `SELECT p.*,
+            COALESCE(json_agg(DISTINCT jsonb_build_object(
+              'id', sv.id,
+              'name', sv.name,
+              'amount', sv.amount,
+              'description', sv.description,
+              'icon', sv.icon,
+              'color', sv.color
+            )) FILTER (WHERE sv.id IS NOT NULL), '[]') as special_vouchers,
+            COALESCE(json_agg(DISTINCT jsonb_build_object(
+              'id', pm.id,
+              'item_name', pm.item_name,
+              'image_url', pm.image_url,
+              'store_item_id', pm.store_item_id,
+              'stock', si.stock,
+              'price_tix', si.price_tix,
+              'store_item_active', si.active
+            )) FILTER (WHERE pm.id IS NOT NULL), '[]') as merchandise_items
      FROM packages p
      LEFT JOIN package_special_vouchers psv ON psv.package_id = p.id
      LEFT JOIN special_vouchers sv ON sv.id = psv.special_voucher_id
      LEFT JOIN package_merchandise pm ON pm.package_id = p.id
+     LEFT JOIN store_items si ON si.id = pm.store_item_id
      WHERE p.id = $1
      GROUP BY p.id`,
     [packageId]
@@ -135,8 +132,9 @@ export async function getPackageWithVouchers(packageId: number): Promise<any> {
   return result.rows[0];
 }
 
-export async function validatePackageMerchandiseStock(packageId: number, quantity: number = 1): Promise<void> {
-  const result = await pool.query(
+export async function validatePackageMerchandiseStock(packageId: number, quantity: number = 1, client?: PoolClient): Promise<void> {
+  const db = client || pool;
+  const result = await db.query(
     `SELECT pm.item_name, si.stock
      FROM package_merchandise pm
      JOIN store_items si ON si.id = pm.store_item_id
@@ -151,10 +149,11 @@ export async function validatePackageMerchandiseStock(packageId: number, quantit
 
 export async function getMerchandiseForPackage(packageId: number): Promise<any[]> {
   const result = await pool.query(
-    `SELECT pm.*, si.stock, si.price_tix, si.active AS store_active
+    `SELECT pm.*, si.stock, si.price_tix, si.active AS store_item_active
      FROM package_merchandise pm
      LEFT JOIN store_items si ON si.id = pm.store_item_id
-     WHERE pm.package_id = $1 ORDER BY pm.id ASC`,
+     WHERE pm.package_id = $1
+     ORDER BY pm.id`,
     [packageId]
   );
   return result.rows;
@@ -170,49 +169,55 @@ export async function setPackageMerchandise(
     const packageResult = await client.query('SELECT convention_id, name FROM packages WHERE id = $1', [packageId]);
     if (packageResult.rows.length === 0) throw new Error('Package not found');
     const pkg = packageResult.rows[0];
-    const existing = await client.query('SELECT store_item_id FROM package_merchandise WHERE package_id = $1', [packageId]);
-    const retainedStoreIds: number[] = [];
-
+    const previousRes = await client.query('SELECT store_item_id FROM package_merchandise WHERE package_id = $1 AND store_item_id IS NOT NULL', [packageId]);
+    const previousStoreItemIds = previousRes.rows.map((row: any) => row.store_item_id);
+    const retainedStoreItemIds: number[] = [];
     await client.query('DELETE FROM package_merchandise WHERE package_id = $1', [packageId]);
-    for (const item of items) {
-      const name = typeof item === 'string' ? item : item?.item_name;
-      const imageUrl = typeof item === 'string' ? null : (item?.image_url || null);
-      if (!name?.trim()) continue;
 
-      let storeItemId = typeof item === 'string' ? null : (item.store_item_id || null);
+    for (const item of items) {
+      const name = typeof item === 'string' ? item : item.item_name;
+      const imageUrl = typeof item === 'string' ? null : (item.image_url || null);
+      if (!name?.trim()) continue;
       const stock = typeof item === 'string' ? 0 : Math.max(0, Number(item.stock) || 0);
       const priceTix = typeof item === 'string' ? 0 : Math.max(0, Number(item.price_tix) || 0);
+      let storeItemId = typeof item === 'string' ? null : (item.store_item_id ? Number(item.store_item_id) : null);
+
       if (storeItemId) {
-        const updated = await client.query(
-          `UPDATE store_items SET name = $2, description = $3, price_tix = $4, stock = $5, image_url = $6, active = TRUE, updated_at = NOW()
-           WHERE id = $1 RETURNING id`,
+        const updateRes = await client.query(
+          `UPDATE store_items
+           SET name = $2, description = $3, price_tix = $4, stock = $5, image_url = $6, active = TRUE, updated_at = NOW()
+           WHERE id = $1
+           RETURNING id`,
           [storeItemId, name.trim(), `Package merchandise from ${pkg.name}`, priceTix, stock, imageUrl]
         );
-        if (updated.rows.length === 0) storeItemId = null;
+        if (updateRes.rows.length === 0) storeItemId = null;
       }
       if (!storeItemId) {
-        const created = await client.query(
+        const storeRes = await client.query(
           `INSERT INTO store_items (name, description, price_tix, stock, image_url, active, convention_id, language, condition, foil, cost, package_managed)
-           VALUES ($1, $2, $3, $4, $5, TRUE, $6, 'N/A', 'N/A', FALSE, 0, TRUE) RETURNING id`,
+           VALUES ($1, $2, $3, $4, $5, TRUE, $6, 'N/A', 'N/A', FALSE, 0, TRUE)
+           RETURNING id`,
           [name.trim(), `Package merchandise from ${pkg.name}`, priceTix, stock, imageUrl, pkg.convention_id]
         );
-        storeItemId = created.rows[0].id;
+        storeItemId = storeRes.rows[0].id;
       }
-      if (!storeItemId) throw new Error('Failed to create linked store item');
-      retainedStoreIds.push(storeItemId);
+      if (!storeItemId) throw new Error('Could not resolve linked store item');
+      retainedStoreItemIds.push(storeItemId);
       await client.query(
-        'INSERT INTO package_merchandise (package_id, item_name, image_url, store_item_id) VALUES ($1, $2, $3, $4)',
+        `INSERT INTO package_merchandise (package_id, item_name, image_url, store_item_id)
+         VALUES ($1, $2, $3, $4)`,
         [packageId, name.trim(), imageUrl, storeItemId]
       );
     }
 
-    const removedStoreIds = existing.rows.map(row => row.store_item_id).filter((id: number | null) => id && !retainedStoreIds.includes(id));
-    if (removedStoreIds.length > 0) {
+    const removedIds = previousStoreItemIds.filter((id: number) => !retainedStoreItemIds.includes(id));
+    if (removedIds.length > 0) {
       await client.query(
-        `UPDATE store_items si SET active = FALSE, updated_at = NOW()
+        `UPDATE store_items si
+         SET active = FALSE, updated_at = NOW()
          WHERE si.id = ANY($1::int[]) AND si.package_managed = TRUE
            AND NOT EXISTS (SELECT 1 FROM package_merchandise pm WHERE pm.store_item_id = si.id)`,
-        [removedStoreIds]
+        [removedIds]
       );
     }
     await client.query('COMMIT');
@@ -249,14 +254,20 @@ export async function unclaimUserMerchandise(id: number): Promise<any> {
   return result.rows[0];
 }
 
-export async function awardPackageMerchandiseToUser(userId: number, conventionId: number, packageId: number, quantity: number = 1): Promise<void> {
-  const client = await pool.connect();
+export async function awardPackageMerchandiseToUser(userId: number, conventionId: number, packageId: number, quantity: number = 1, transactionClient?: PoolClient): Promise<void> {
+  const client = transactionClient || await pool.connect();
+  const ownsTransaction = !transactionClient;
   try {
-    await client.query('BEGIN');
+    if (ownsTransaction) await client.query('BEGIN');
     const result = await client.query('SELECT * FROM package_merchandise WHERE package_id = $1 ORDER BY id', [packageId]);
     for (const item of result.rows) {
       if (item.store_item_id) {
-        await client.query('UPDATE store_items SET stock = stock - $2, updated_at = NOW() WHERE id = $1', [item.store_item_id, quantity]);
+        const stockResult = await client.query(
+          `UPDATE store_items SET stock = stock - $2, updated_at = NOW()
+           WHERE id = $1 AND stock >= $2 RETURNING stock`,
+          [item.store_item_id, quantity]
+        );
+        if (stockResult.rows.length === 0) throw Object.assign(new Error(`Not enough merchandise stock: ${item.item_name}`), { status: 409 });
       }
       for (let i = 0; i < quantity; i++) {
         await client.query(
@@ -266,11 +277,11 @@ export async function awardPackageMerchandiseToUser(userId: number, conventionId
         );
       }
     }
-    await client.query('COMMIT');
+    if (ownsTransaction) await client.query('COMMIT');
   } catch (err) {
-    await client.query('ROLLBACK');
+    if (ownsTransaction) await client.query('ROLLBACK');
     throw err;
   } finally {
-    client.release();
+    if (ownsTransaction) client.release();
   }
 }

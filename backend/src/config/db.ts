@@ -26,9 +26,9 @@ export const pool = new Pool({
   database: requireEnv('DB_NAME', 'convention_manager'),
   password: requireEnv('DB_PASSWORD'),
   port: parseInt(requireEnv('DB_PORT', '5432'), 10),
-  max: 20,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 10000,
+  max: parseInt(process.env.DB_POOL_MAX || '10', 10),
+  idleTimeoutMillis: parseInt(process.env.DB_IDLE_TIMEOUT_MS || '30000', 10),
+  connectionTimeoutMillis: parseInt(process.env.DB_CONNECTION_TIMEOUT_MS || '10000', 10),
   // Managed Postgres providers (Render, etc.) require SSL and use certificates
   // not in Node's default CA store; local development doesn't need/support it.
   ssl: isLocalHost ? false : { rejectUnauthorized: false },

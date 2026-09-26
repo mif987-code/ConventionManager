@@ -2,10 +2,12 @@ import { Router, Request, Response, NextFunction } from 'express';
 import bcrypt from 'bcrypt';
 import rateLimit from 'express-rate-limit';
 import axios from 'axios';
+import { PoolClient } from 'pg';
 import { pool } from '../config/db';
 import * as paymentService from '../services/paymentService';
 import * as packageService from '../services/packageService';
-import { syncPreregistrationToSheet } from '../services/googleSheetsService';
+import { enqueueGoogleSheetsSync } from '../services/backgroundJobService';
+import { withTransaction } from '../utils/db';
 
 const router = Router();
 
@@ -21,8 +23,8 @@ router.get('/merchandise-images/:id', async (req: Request, res: Response, next: 
 
 // Cap registrations per IP to blunt scripted signup floods.
 const registrationLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 10,
+  windowMs: parseInt(process.env.REGISTRATION_RATE_WINDOW_MS || String(15 * 60 * 1000), 10),
+  max: parseInt(process.env.REGISTRATION_RATE_MAX || '30', 10),
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Demasiadas inscripciones. Inténtalo de nuevo más tarde.' },
@@ -38,7 +40,9 @@ async function verifyRecaptcha(token: string | undefined): Promise<boolean> {
 
   try {
     const params = new URLSearchParams({ secret, response: token });
-    const { data } = await axios.post('https://www.google.com/recaptcha/api/siteverify', params);
+    const { data } = await axios.post('https://www.google.com/recaptcha/api/siteverify', params, {
+      timeout: parseInt(process.env.RECAPTCHA_TIMEOUT_MS || '8000', 10),
+    });
     return Boolean(data.success);
   } catch (err) {
     console.error('[Recaptcha] Verification request failed:', (err as Error).message);
@@ -71,7 +75,7 @@ function ageOnDate(dobValue: string, dateValue: string): number | null {
   return age;
 }
 
-async function preregisterParticipant(body: any) {
+async function preregisterParticipant(body: any, client: PoolClient) {
     const { name, last_name, email, password, age, dob, attendance_dates, package_id, packages: packagesInput, event_prereg_ids } = body;
 
     if (!name || !last_name || !email || !password) {
@@ -96,7 +100,7 @@ async function preregisterParticipant(body: any) {
       : (package_id ? [{ package_id: parseInt(package_id), quantity: 1 }] : []);
 
     for (const selection of selectedPackages) {
-      const eligibilityRes = await pool.query(
+      const eligibilityRes = await client.query(
         `SELECT p.name, p.max_age, to_char(c.start_date, 'YYYY-MM-DD') AS convention_start_date
          FROM packages p
          JOIN conventions c ON c.id = p.convention_id
@@ -114,24 +118,24 @@ async function preregisterParticipant(body: any) {
           throw new RegistrationError(`${eligiblePackage.name} está disponible únicamente para participantes de ${eligiblePackage.max_age} años o menos al inicio de la convención.`);
         }
       }
-      await packageService.validatePackageMerchandiseStock(selection.package_id, selection.quantity);
+      await packageService.validatePackageMerchandiseStock(selection.package_id, selection.quantity, client);
     }
 
     // Check if email already registered
-    const existing = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
+    const existing = await client.query('SELECT id FROM users WHERE LOWER(email) = LOWER($1) AND deleted_at IS NULL', [email]);
     if (existing.rows.length > 0) {
       throw new RegistrationError('Este correo ya está registrado', 409);
     }
 
     // Get active convention, fall back to most recent convention
-    let convRes = await pool.query(
+    let convRes = await client.query(
       `SELECT id FROM conventions WHERE status = 'active' ORDER BY created_at DESC LIMIT 1`
     );
     let conventionId = convRes.rows.length > 0 ? convRes.rows[0].id : null;
 
     // If no active convention, try to get the most recent convention
     if (!conventionId) {
-      convRes = await pool.query(
+      convRes = await client.query(
         `SELECT id FROM conventions ORDER BY created_at DESC LIMIT 1`
       );
       conventionId = convRes.rows.length > 0 ? convRes.rows[0].id : null;
@@ -141,9 +145,9 @@ async function preregisterParticipant(body: any) {
       throw new RegistrationError('No convention found. Please create a convention in the admin panel first.');
     }
 
-    const passwordHash = await bcrypt.hash(password, 10);
+    const passwordHash = body.password_hash || await bcrypt.hash(password, 10);
 
-    const result = await pool.query(
+    const result = await client.query(
       `INSERT INTO users (name, last_name, email, age, dob, is_preregistered, convention_id, password_hash)
        VALUES ($1, $2, $3, $4, $5, true, $6, $7)
        RETURNING id, name, last_name, email, age, dob, is_preregistered, created_at`,
@@ -154,7 +158,7 @@ async function preregisterParticipant(body: any) {
     const userId = result.rows[0].id;
     if (attendance_dates && Array.isArray(attendance_dates) && attendance_dates.length > 0) {
       for (const dateStr of attendance_dates) {
-        await pool.query(
+        await client.query(
           `INSERT INTO user_attendance (user_id, convention_id, attendance_date)
            VALUES ($1, $2, $3)
            ON CONFLICT (user_id, convention_id, attendance_date) DO NOTHING`,
@@ -170,7 +174,7 @@ async function preregisterParticipant(body: any) {
     for (const selection of selectedPackages) {
       const { package_id: pkgId, quantity } = selection;
 
-      await pool.query(
+      await client.query(
         `INSERT INTO user_packages (user_id, convention_id, package_id, quantity)
          VALUES ($1, $2, $3, $4)
          ON CONFLICT (user_id, convention_id, package_id) DO UPDATE SET quantity = $4`,
@@ -178,7 +182,7 @@ async function preregisterParticipant(body: any) {
       );
 
       // Get package details to check if payment is required
-      const packageRes = await pool.query(
+      const packageRes = await client.query(
         `SELECT id, name, regular_voucher_amount, prereg_cost, cost, package_type,
                 CASE WHEN prereg_cost IS NOT NULL
                           AND (prereg_start_date IS NULL OR timezone('America/Costa_Rica', now())::date >= prereg_start_date)
@@ -197,7 +201,7 @@ async function preregisterParticipant(body: any) {
 
         // Only award vouchers if package has no cost (free package)
         if (packageCost === 0 && pkg.regular_voucher_amount > 0) {
-          await pool.query(
+          await client.query(
             `INSERT INTO voucher_transactions (user_id, amount, description)
              VALUES ($1, $2, $3)`,
             [userId, pkg.regular_voucher_amount * quantity, `Package registration bonus (${pkg.name} x${quantity})`]
@@ -205,7 +209,7 @@ async function preregisterParticipant(body: any) {
         }
 
         // Get special vouchers for this package
-        const specialVouchersRes = await pool.query(
+        const specialVouchersRes = await client.query(
           `SELECT sv.id, sv.amount, sv.name
            FROM package_special_vouchers psv
            JOIN special_vouchers sv ON sv.id = psv.special_voucher_id
@@ -217,14 +221,14 @@ async function preregisterParticipant(body: any) {
         if (packageCost === 0) {
           for (const sv of specialVouchersRes.rows) {
             for (let i = 0; i < quantity; i++) {
-              await pool.query(
+              await client.query(
                 `INSERT INTO special_voucher_awards (user_id, special_voucher_id, event_id, awarded_by)
                  VALUES ($1, $2, NULL, 'package_registration')`,
                 [userId, sv.id]
               );
             }
           }
-          await packageService.awardPackageMerchandiseToUser(userId, conventionId, pkgId, quantity);
+          await packageService.awardPackageMerchandiseToUser(userId, conventionId, pkgId, quantity, client);
         }
       }
     }
@@ -233,16 +237,29 @@ async function preregisterParticipant(body: any) {
     if (event_prereg_ids && Array.isArray(event_prereg_ids) && event_prereg_ids.length > 0) {
       const fullName = `${name} ${last_name}`.trim();
       for (const eventId of event_prereg_ids) {
-        await pool.query(
+        const capacity = await client.query(
+          `SELECT e.name, et.max_players,
+                  (SELECT COUNT(*)::int FROM event_participants ep WHERE ep.event_id = e.id) AS participant_count
+           FROM events e
+           JOIN event_types et ON et.id = e.event_type_id
+           WHERE e.id = $1
+           FOR UPDATE OF e`,
+          [eventId]
+        );
+        if (capacity.rows.length === 0) throw new RegistrationError('El evento seleccionado no existe.');
+        if (capacity.rows[0].participant_count >= capacity.rows[0].max_players) {
+          throw new RegistrationError(`${capacity.rows[0].name} ya no tiene espacios disponibles.`, 409);
+        }
+        await client.query(
           `INSERT INTO event_participants (user_id, event_id, convention_id, preregistered)
            VALUES ($1, $2, $3, true)
            ON CONFLICT (user_id, event_id) DO UPDATE SET preregistered = true`,
           [userId, eventId, conventionId]
         );
 
-        const eventRes = await pool.query(`SELECT name FROM events WHERE id = $1`, [eventId]);
+        const eventRes = await client.query(`SELECT name FROM events WHERE id = $1`, [eventId]);
         if (eventRes.rows.length > 0) {
-          await syncPreregistrationToSheet(eventRes.rows[0].name, fullName, email);
+          await enqueueGoogleSheetsSync(client, eventRes.rows[0].name, fullName, email);
         }
       }
     }
@@ -260,9 +277,10 @@ router.post('/preregister', registrationLimiter, async (req: Request, res: Respo
   try {
     const recaptchaValid = await verifyRecaptcha(req.body.recaptcha_token);
     if (!recaptchaValid) throw new RegistrationError('No se pudo verificar el CAPTCHA. Inténtalo de nuevo.');
-    res.status(201).json(await preregisterParticipant(req.body));
+    res.status(201).json(await withTransaction(client => preregisterParticipant(req.body, client)));
   } catch (err) {
     if (err instanceof RegistrationError) return res.status(err.status).json({ error: err.message });
+    if ((err as any)?.code === '23505') return res.status(409).json({ error: 'Este correo ya está registrado.' });
     next(err);
   }
 });
@@ -288,23 +306,44 @@ router.post('/preregister/batch', registrationLimiter, async (req: Request, res:
     if (new Set(emails).size !== emails.length) {
       throw new RegistrationError('Cada participante debe usar un correo electrónico diferente.');
     }
-    const existingEmails = await pool.query(
-      `SELECT email FROM users WHERE LOWER(email) = ANY($1::text[])`,
-      [emails]
-    );
-    if (existingEmails.rows.length > 0) {
-      throw new RegistrationError(`Este correo ya está registrado: ${existingEmails.rows[0].email}`, 409);
-    }
     const recaptchaValid = await verifyRecaptcha(req.body.recaptcha_token);
     if (!recaptchaValid) throw new RegistrationError('No se pudo verificar el CAPTCHA. Inténtalo de nuevo.');
 
-    const registrations = [];
-    for (const participant of participants) {
-      registrations.push(await preregisterParticipant(participant));
-    }
-    res.status(201).json({ success: true, registrations });
+    const preparedParticipants = await Promise.all(participants.map(async (participant: any) => ({
+      ...participant,
+      password_hash: await bcrypt.hash(participant.password, 10),
+    })));
+    const batchResult = await withTransaction(async client => {
+      const existingEmails = await client.query(
+        `SELECT email FROM users WHERE LOWER(email) = ANY($1::text[]) AND deleted_at IS NULL`,
+        [emails]
+      );
+      if (existingEmails.rows.length > 0) {
+        throw new RegistrationError(`Este correo ya está registrado: ${existingEmails.rows[0].email}`, 409);
+      }
+      const results = [];
+      for (const participant of preparedParticipants) {
+        results.push(await preregisterParticipant(participant, client));
+      }
+      const paidRegistrations = results.filter(registration => registration.package_total_cost > 0);
+      let payment: paymentService.PaymentIntent | null = null;
+      if (paidRegistrations.length > 0) {
+        const total = paidRegistrations.reduce((sum, registration) => sum + registration.package_total_cost, 0);
+        payment = await paymentService.createPayment(total);
+        await paymentService.storePackagePaymentWithReservations(payment, paidRegistrations.map(registration => registration.user.id), client);
+      }
+      return { registrations: results, payment };
+    });
+    res.status(201).json({
+      success: true,
+      registrations: batchResult.registrations,
+      paymentId: batchResult.payment?.id || null,
+      paymentUrl: batchResult.payment?.paymentUrl || null,
+      amount: batchResult.payment?.amount || 0,
+    });
   } catch (err) {
     if (err instanceof RegistrationError) return res.status(err.status).json({ error: err.message });
+    if ((err as any)?.code === '23505') return res.status(409).json({ error: 'Este correo ya está registrado.' });
     next(err);
   }
 });
@@ -348,7 +387,7 @@ router.post('/payment', async (req: Request, res: Response, next: NextFunction) 
     }
 
     const payment = await paymentService.createPayment(total);
-    await paymentService.storePayment(payment, parseInt(user_id, 10), 'package');
+    await paymentService.storePackagePaymentWithReservations(payment, [parseInt(user_id, 10)]);
 
     res.json({
       success: true,
@@ -391,13 +430,7 @@ router.post('/payment/batch', async (req: Request, res: Response, next: NextFunc
     if (total <= 0) return res.status(400).json({ error: 'El total de los paquetes es 0; no se requiere pago.' });
 
     const payment = await paymentService.createPayment(total);
-    await paymentService.storePayment(payment, userIds[0], 'package');
-    for (const userId of userIds) {
-      await pool.query(
-        `INSERT INTO payment_package_users (payment_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-        [payment.id, userId]
-      );
-    }
+    await paymentService.storePackagePaymentWithReservations(payment, userIds);
     res.json({ success: true, paymentId: payment.id, paymentUrl: payment.paymentUrl, amount: payment.amount });
   } catch (err) {
     next(err);

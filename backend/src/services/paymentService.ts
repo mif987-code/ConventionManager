@@ -1,3 +1,4 @@
+import { PoolClient } from 'pg';
 import { pool } from '../config/db';
 import * as walletService from './walletService';
 
@@ -40,6 +41,7 @@ async function createTilopayPayment(amount: number): Promise<PaymentIntent> {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ apiUser, apiKey }),
+    signal: AbortSignal.timeout(parseInt(process.env.PAYMENT_API_TIMEOUT_MS || '20000', 10)),
   });
   const authData = await authRes.json() as any;
   if (!authRes.ok || !authData.access_token) {
@@ -63,6 +65,7 @@ async function createTilopayPayment(amount: number): Promise<PaymentIntent> {
       billToFirstName: 'Convention',
       billToLastName: 'Attendee',
     }),
+    signal: AbortSignal.timeout(parseInt(process.env.PAYMENT_API_TIMEOUT_MS || '20000', 10)),
   });
   const payData = await payRes.json() as any;
   if (!payRes.ok || !payData.redirect) {
@@ -118,6 +121,7 @@ async function createOnvoPayment(amount: number): Promise<PaymentIntent> {
       cancelUrl,
       metadata: { orderId },
     }),
+    signal: AbortSignal.timeout(parseInt(process.env.PAYMENT_API_TIMEOUT_MS || '20000', 10)),
   });
   const data = await res.json() as any;
   if (!res.ok || !data.url) {
@@ -160,6 +164,104 @@ export async function storePayment(payment: PaymentIntent, userId: number, purpo
      FROM users u WHERE u.id = $8`,
     [payment.id, payment.amount, payment.status, payment.paymentUrl, payment.paymentLink, purpose, PROVIDER, userId]
   );
+}
+
+export async function storePackagePaymentWithReservations(payment: PaymentIntent, userIds: number[], transactionClient?: PoolClient): Promise<void> {
+  const client = transactionClient || await pool.connect();
+  const ownsTransaction = !transactionClient;
+  try {
+    if (ownsTransaction) await client.query('BEGIN');
+    const existing = await client.query(
+      `SELECT DISTINCT p.id FROM payments p
+       LEFT JOIN payment_package_users ppu ON ppu.payment_id = p.id
+       WHERE p.status = 'pending' AND p.purpose = 'package'
+         AND p.created_at > NOW() - ($2 * INTERVAL '1 minute')
+         AND (p.user_id = ANY($1::int[]) OR ppu.user_id = ANY($1::int[]))
+       LIMIT 1`,
+      [userIds, parseInt(process.env.PAYMENT_RESERVATION_MINUTES || '30', 10)]
+    );
+    if (existing.rows.length > 0) throw Object.assign(new Error('A pending package payment already exists for this registration'), { status: 409 });
+    await client.query(
+      `INSERT INTO payments (id, user_id, amount, status, payment_url, payment_link, purpose, provider, payer_name, payer_email)
+       SELECT $1, u.id, $2, $3, $4, $5, 'package', $6, NULLIF(TRIM(CONCAT_WS(' ', u.name, u.last_name)), ''), u.email
+       FROM users u WHERE u.id = $7`,
+      [payment.id, payment.amount, payment.status, payment.paymentUrl, payment.paymentLink, PROVIDER, userIds[0]]
+    );
+    for (const userId of userIds) {
+      await client.query(
+        `INSERT INTO payment_package_users (payment_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+        [payment.id, userId]
+      );
+    }
+    const items = await client.query(
+      `SELECT up.user_id, up.package_id, pm.store_item_id, SUM(up.quantity)::int AS quantity
+       FROM user_packages up
+       JOIN package_merchandise pm ON pm.package_id = up.package_id
+       WHERE up.user_id = ANY($1::int[]) AND pm.store_item_id IS NOT NULL
+       GROUP BY up.user_id, up.package_id, pm.store_item_id
+       ORDER BY pm.store_item_id`,
+      [userIds]
+    );
+    const expiryMinutes = parseInt(process.env.PAYMENT_RESERVATION_MINUTES || '30', 10);
+    for (const item of items.rows) {
+      const stockResult = await client.query(
+        `UPDATE store_items SET stock = stock - $2, updated_at = NOW()
+         WHERE id = $1 AND stock >= $2 RETURNING stock`,
+        [item.store_item_id, item.quantity]
+      );
+      if (stockResult.rows.length === 0) throw Object.assign(new Error('Merchandise sold out while creating checkout'), { status: 409 });
+      await client.query(
+        `INSERT INTO inventory_reservations (payment_id, user_id, package_id, store_item_id, quantity, expires_at)
+         VALUES ($1, $2, $3, $4, $5, NOW() + ($6 * INTERVAL '1 minute'))`,
+        [payment.id, item.user_id, item.package_id, item.store_item_id, item.quantity, expiryMinutes]
+      );
+    }
+    if (ownsTransaction) await client.query('COMMIT');
+  } catch (err) {
+    if (ownsTransaction) await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    if (ownsTransaction) client.release();
+  }
+}
+
+async function releaseReservations(client: PoolClient, paymentId: string, status: 'released' | 'expired'): Promise<void> {
+  const reservations = await client.query(
+    `UPDATE inventory_reservations SET status = $2, updated_at = NOW()
+     WHERE payment_id = $1 AND status = 'reserved'
+     RETURNING store_item_id, quantity`,
+    [paymentId, status]
+  );
+  for (const reservation of reservations.rows) {
+    await client.query(
+      `UPDATE store_items SET stock = stock + $2, updated_at = NOW() WHERE id = $1`,
+      [reservation.store_item_id, reservation.quantity]
+    );
+  }
+}
+
+export async function expirePendingPackagePayments(): Promise<number> {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const expired = await client.query(
+      `SELECT payment_id FROM inventory_reservations
+       WHERE status = 'reserved' AND expires_at <= NOW()
+       FOR UPDATE SKIP LOCKED`
+    );
+    const paymentIds = Array.from(new Set(expired.rows.map((row: any) => row.payment_id))) as string[];
+    for (const paymentId of paymentIds) {
+      await releaseReservations(client, paymentId, 'expired');
+      await client.query(`UPDATE payments SET status = 'failed', updated_at = NOW() WHERE id = $1 AND status = 'pending'`, [paymentId]);
+    }
+    await client.query('COMMIT');
+    return paymentIds.length;
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
 }
 
 export async function getPayment(paymentId: string): Promise<any> {
@@ -215,8 +317,13 @@ export async function handlePaymentWebhook(paymentId: string, status: string): P
         const packageUserIds = groupRes.rows.length > 0
           ? groupRes.rows.map((row: any) => row.user_id)
           : [payment.user_id];
+        const reserved = await client.query(
+          `UPDATE inventory_reservations SET status = 'completed', updated_at = NOW()
+           WHERE payment_id = $1 AND status = 'reserved' RETURNING id`,
+          [payment.id]
+        );
         for (const userId of packageUserIds) {
-          await awardPaidPackages(client, userId);
+          await awardPaidPackages(client, userId, reserved.rows.length > 0);
         }
       } else {
         const userRes = await client.query(
@@ -238,6 +345,8 @@ export async function handlePaymentWebhook(paymentId: string, status: string): P
           client
         );
       }
+    } else {
+      await releaseReservations(client, payment.id, 'released');
     }
 
     await client.query('COMMIT');
@@ -252,7 +361,7 @@ export async function handlePaymentWebhook(paymentId: string, status: string): P
 // A paid package grants the same benefits a free package grants at registration
 // (see publicRegistration.ts): regular vouchers and linked special vouchers, per
 // unit purchased. Package purchases never add wallet credit.
-async function awardPaidPackages(client: any, userId: number): Promise<void> {
+async function awardPaidPackages(client: any, userId: number, stockReserved: boolean): Promise<void> {
   const pkgRes = await client.query(
     `SELECT up.package_id, up.quantity, p.name, p.regular_voucher_amount,
             CASE WHEN p.prereg_cost IS NOT NULL
@@ -306,8 +415,13 @@ async function awardPaidPackages(client: any, userId: number): Promise<void> {
     const conventionId = userRes.rows[0]?.convention_id;
 
     for (const item of merchandiseRes.rows) {
-      if (item.store_item_id) {
-        await client.query('UPDATE store_items SET stock = stock - $2, updated_at = NOW() WHERE id = $1', [item.store_item_id, quantity]);
+      if (item.store_item_id && !stockReserved) {
+        const stockResult = await client.query(
+          `UPDATE store_items SET stock = stock - $2, updated_at = NOW()
+           WHERE id = $1 AND stock >= $2 RETURNING stock`,
+          [item.store_item_id, quantity]
+        );
+        if (stockResult.rows.length === 0) throw new Error(`Not enough merchandise stock: ${item.item_name}`);
       }
       for (let i = 0; i < quantity; i++) {
         await client.query(

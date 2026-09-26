@@ -1047,15 +1047,8 @@
         const paidRegistrations = json.registrations.filter(registration => registration.package_total_cost > 0);
         if (paidRegistrations.length > 0) {
           submitBtn.innerHTML = '<svg class="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Redirigiendo al pago conjunto...';
-          const payRes = await fetch(`${API_BASE}/payment/batch`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ user_ids: paidRegistrations.map(registration => registration.user.id) }),
-          });
-          const payJson = await payRes.json();
-          if (!payRes.ok) throw new Error(payJson.error || 'No se pudo preparar el pago conjunto');
-          if (!payJson.paymentUrl) throw new Error('No se recibió el enlace de pago');
-          window.location.href = payJson.paymentUrl;
+          if (!json.paymentUrl) throw new Error('No se recibió el enlace de pago');
+          window.location.href = json.paymentUrl;
           return;
         }
 

@@ -7,10 +7,10 @@ import { pool } from '../config/db';
 import * as userService from '../services/userService';
 import * as storeService from '../services/storeService';
 import * as eventService from '../services/eventService';
-import { sendPasswordResetEmail, sendQRCodeEmail } from '../services/emailService';
+import { sendPasswordResetEmail } from '../services/emailService';
 import { getBalance } from '../services/transactionService';
 import * as walletService from '../services/walletService';
-import { syncPreregistrationToSheet } from '../services/googleSheetsService';
+import { enqueueEmail, enqueueGoogleSheetsSync } from '../services/backgroundJobService';
 
 const router = Router();
 
@@ -259,9 +259,7 @@ router.post('/regenerate-qr', playerAuth, async (req: Request, res: Response, ne
 
     // Send email with new QR code
     if (updatedUser?.email && updatedUser?.qr_code) {
-      sendQRCodeEmail(updatedUser.email, updatedUser.name, updatedUser.qr_code).catch(err =>
-        console.error('[EmailService] Background QR regenerate email error:', err)
-      );
+      await enqueueEmail(pool, 'qr_email', { to: updatedUser.email, userName: updatedUser.name, qrCodeDataUrl: updatedUser.qr_code });
     }
     
     res.json({ success: true, qr_code: updatedUser.qr_code, message: 'QR code regenerated' });
@@ -419,7 +417,7 @@ router.post('/preregistrations/:id', playerAuth, async (req: Request, res: Respo
       [userId, eventId, row.convention_id]
     );
 
-    await syncPreregistrationToSheet(row.event_name, `${row.user_name} ${row.user_last_name}`.trim(), row.user_email);
+    await enqueueGoogleSheetsSync(pool, row.event_name, `${row.user_name} ${row.user_last_name}`.trim(), row.user_email);
 
     res.json({ success: true, message: 'Pre-registered successfully' });
   } catch (err) { next(err); }

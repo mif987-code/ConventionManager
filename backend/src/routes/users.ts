@@ -5,7 +5,8 @@ import * as paymentService from '../services/paymentService';
 import * as packageService from '../services/packageService';
 import { addTransaction } from '../services/transactionService';
 import { generateQRToken } from '../services/qrTokenService';
-import { sendQRCodeEmail, sendActivationEmail, sendPasswordResetEmail } from '../services/emailService';
+import { sendPasswordResetEmail } from '../services/emailService';
+import { enqueueEmail } from '../services/backgroundJobService';
 import { pool } from '../config/db';
 
 const router = Router();
@@ -100,9 +101,7 @@ router.post('/register', async (req: Request, res: Response, next: NextFunction)
 
     // If user has an email and a QR code, send QR code email
     if (user.email && user.qr_code) {
-      sendQRCodeEmail(user.email, user.name, user.qr_code).catch(err =>
-        console.error('[EmailService] Background QR email error:', err)
-      );
+      await enqueueEmail(pool, 'qr_email', { to: user.email, userName: user.name, qrCodeDataUrl: user.qr_code });
     }
 
     res.status(201).json({ success: true, user });
@@ -199,9 +198,7 @@ router.post('/:id/regenerate-qr', async (req: Request, res: Response, next: Next
     );
 
     if (user?.email && user?.qr_code) {
-      sendQRCodeEmail(user.email, user.name, user.qr_code).catch(err =>
-        console.error('[EmailService] Background QR regenerate email error:', err)
-      );
+      await enqueueEmail(pool, 'qr_email', { to: user.email, userName: user.name, qrCodeDataUrl: user.qr_code });
     }
 
     res.json({ success: true, user });
@@ -266,9 +263,7 @@ router.post('/:id/activate', async (req: Request, res: Response, next: NextFunct
     );
 
     if (user.email) {
-      sendActivationEmail(user.email, user.name).catch(err =>
-        console.error('[EmailService] Background activation email error:', err)
-      );
+      await enqueueEmail(pool, 'activation_email', { to: user.email, userName: user.name });
     }
 
     res.json({ success: true, user });
