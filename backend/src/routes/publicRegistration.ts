@@ -99,26 +99,45 @@ async function preregisterParticipant(body: any, client: PoolClient) {
           .map((p: any) => ({ package_id: parseInt(p.package_id), quantity: Math.max(1, parseInt(p.quantity) || 1) }))
       : (package_id ? [{ package_id: parseInt(package_id), quantity: 1 }] : []);
 
-    for (const selection of selectedPackages) {
+    if (selectedPackages.length > 0) {
+      const packageIds = selectedPackages.map(s => s.package_id);
       const eligibilityRes = await client.query(
-        `SELECT p.name, p.max_age, to_char(c.start_date, 'YYYY-MM-DD') AS convention_start_date
+        `SELECT p.id, p.name, p.max_age, to_char(c.start_date, 'YYYY-MM-DD') AS convention_start_date
          FROM packages p
          JOIN conventions c ON c.id = p.convention_id
-         WHERE p.id = $1`,
-        [selection.package_id]
+         WHERE p.id = ANY($1::int[])`,
+        [packageIds]
       );
-      if (eligibilityRes.rows.length === 0) throw new RegistrationError('El paquete seleccionado no existe.');
-      const eligiblePackage = eligibilityRes.rows[0];
-      if (eligiblePackage.max_age !== null) {
-        const participantAge = ageOnDate(dob, eligiblePackage.convention_start_date);
-        if (participantAge === null) {
-          throw new RegistrationError(`Debes ingresar una fecha de nacimiento válida para seleccionar ${eligiblePackage.name}.`);
-        }
-        if (participantAge < 0 || participantAge > eligiblePackage.max_age) {
-          throw new RegistrationError(`${eligiblePackage.name} está disponible únicamente para participantes de ${eligiblePackage.max_age} años o menos al inicio de la convención.`);
+      const eligibilityById = new Map(eligibilityRes.rows.map(r => [r.id, r]));
+      for (const selection of selectedPackages) {
+        const eligiblePackage = eligibilityById.get(selection.package_id);
+        if (!eligiblePackage) throw new RegistrationError('El paquete seleccionado no existe.');
+        if (eligiblePackage.max_age !== null) {
+          const participantAge = ageOnDate(dob, eligiblePackage.convention_start_date);
+          if (participantAge === null) {
+            throw new RegistrationError(`Debes ingresar una fecha de nacimiento válida para seleccionar ${eligiblePackage.name}.`);
+          }
+          if (participantAge < 0 || participantAge > eligiblePackage.max_age) {
+            throw new RegistrationError(`${eligiblePackage.name} está disponible únicamente para participantes de ${eligiblePackage.max_age} años o menos al inicio de la convención.`);
+          }
         }
       }
-      await packageService.validatePackageMerchandiseStock(selection.package_id, selection.quantity, client);
+
+      const stockRes = await client.query(
+        `WITH needed AS (SELECT unnest($1::int[]) AS package_id, unnest($2::int[]) AS quantity)
+         SELECT n.package_id, pm.item_name, si.stock, n.quantity
+         FROM needed n
+         JOIN package_merchandise pm ON pm.package_id = n.package_id
+         JOIN store_items si ON si.id = pm.store_item_id
+         WHERE si.stock < n.quantity`,
+        [selectedPackages.map(s => s.package_id), selectedPackages.map(s => s.quantity)]
+      );
+      if (stockRes.rows.length > 0) {
+        const unavailable = stockRes.rows.map(item =>
+          `${item.item_name} (${item.stock} disponible${item.quantity > 1 ? `, requiere ${item.quantity}` : ''})`
+        ).join(', ');
+        throw Object.assign(new Error(`No hay suficiente stock: ${unavailable}`), { status: 409 });
+      }
     }
 
     // Check if email already registered
@@ -145,7 +164,10 @@ async function preregisterParticipant(body: any, client: PoolClient) {
       throw new RegistrationError('No convention found. Please create a convention in the admin panel first.');
     }
 
-    const passwordHash = body.password_hash || await bcrypt.hash(password, 10);
+    const passwordHash = body.password_hash;
+    if (!passwordHash || typeof passwordHash !== 'string') {
+      throw new RegistrationError('La contraseña no se preparó correctamente. Inténtalo de nuevo.');
+    }
 
     const result = await client.query(
       `INSERT INTO users (name, last_name, email, age, dob, is_preregistered, convention_id, password_hash)
@@ -171,6 +193,31 @@ async function preregisterParticipant(body: any, client: PoolClient) {
     let totalPackageCost = 0;
     const packageBreakdown: any[] = [];
 
+    const packageIds = selectedPackages.map(s => s.package_id);
+    const packageCostRes = packageIds.length > 0 ? await client.query(
+      `SELECT id, name, regular_voucher_amount,
+              CASE WHEN prereg_cost IS NOT NULL
+                        AND (prereg_start_date IS NULL OR timezone('America/Costa_Rica', now())::date >= prereg_start_date)
+                        AND (prereg_end_date IS NULL OR timezone('America/Costa_Rica', now())::date <= prereg_end_date)
+                   THEN prereg_cost ELSE cost END AS effective_cost
+       FROM packages WHERE id = ANY($1::int[])`,
+      [packageIds]
+    ) : { rows: [] };
+    const pkgById = new Map(packageCostRes.rows.map((r: any) => [r.id, r]));
+
+    const specialVouchersRes = packageIds.length > 0 ? await client.query(
+      `SELECT sv.id, psv.package_id
+       FROM package_special_vouchers psv
+       JOIN special_vouchers sv ON sv.id = psv.special_voucher_id
+       WHERE psv.package_id = ANY($1::int[])`,
+      [packageIds]
+    ) : { rows: [] };
+    const specialVouchersByPackage = new Map<number, number[]>();
+    for (const row of specialVouchersRes.rows) {
+      if (!specialVouchersByPackage.has(row.package_id)) specialVouchersByPackage.set(row.package_id, []);
+      specialVouchersByPackage.get(row.package_id)!.push(row.id);
+    }
+
     for (const selection of selectedPackages) {
       const { package_id: pkgId, quantity } = selection;
 
@@ -181,55 +228,35 @@ async function preregisterParticipant(body: any, client: PoolClient) {
         [userId, conventionId, pkgId, quantity]
       );
 
-      // Get package details to check if payment is required
-      const packageRes = await client.query(
-        `SELECT id, name, regular_voucher_amount, prereg_cost, cost, package_type,
-                CASE WHEN prereg_cost IS NOT NULL
-                          AND (prereg_start_date IS NULL OR timezone('America/Costa_Rica', now())::date >= prereg_start_date)
-                          AND (prereg_end_date IS NULL OR timezone('America/Costa_Rica', now())::date <= prereg_end_date)
-                     THEN prereg_cost ELSE cost END AS effective_cost
-         FROM packages WHERE id = $1`,
-        [pkgId]
-      );
+      const pkg = pkgById.get(pkgId);
+      if (!pkg) continue;
+      const unitCost = pkg.effective_cost;
+      const packageCost = unitCost * quantity;
+      totalPackageCost += packageCost;
+      packageBreakdown.push({ package_id: pkg.id, name: pkg.name, quantity, unit_cost: unitCost, total_cost: packageCost });
 
-      if (packageRes.rows.length > 0) {
-        const pkg = packageRes.rows[0];
-        const unitCost = pkg.effective_cost;
-        const packageCost = unitCost * quantity;
-        totalPackageCost += packageCost;
-        packageBreakdown.push({ package_id: pkg.id, name: pkg.name, quantity, unit_cost: unitCost, total_cost: packageCost });
-
-        // Only award vouchers if package has no cost (free package)
-        if (packageCost === 0 && pkg.regular_voucher_amount > 0) {
-          await client.query(
-            `INSERT INTO voucher_transactions (user_id, amount, description)
-             VALUES ($1, $2, $3)`,
-            [userId, pkg.regular_voucher_amount * quantity, `Package registration bonus (${pkg.name} x${quantity})`]
-          );
-        }
-
-        // Get special vouchers for this package
-        const specialVouchersRes = await client.query(
-          `SELECT sv.id, sv.amount, sv.name
-           FROM package_special_vouchers psv
-           JOIN special_vouchers sv ON sv.id = psv.special_voucher_id
-           WHERE psv.package_id = $1`,
-          [pkgId]
+      // Only award vouchers if package has no cost (free package)
+      if (packageCost === 0 && pkg.regular_voucher_amount > 0) {
+        await client.query(
+          `INSERT INTO voucher_transactions (user_id, amount, description)
+           VALUES ($1, $2, $3)`,
+          [userId, pkg.regular_voucher_amount * quantity, `Package registration bonus (${pkg.name} x${quantity})`]
         );
+      }
 
-        // Award special vouchers only if package is free (one award record per unit purchased)
-        if (packageCost === 0) {
-          for (const sv of specialVouchersRes.rows) {
-            for (let i = 0; i < quantity; i++) {
-              await client.query(
-                `INSERT INTO special_voucher_awards (user_id, special_voucher_id, event_id, awarded_by)
-                 VALUES ($1, $2, NULL, 'package_registration')`,
-                [userId, sv.id]
-              );
-            }
+      // Award special vouchers only if package is free (one award record per unit purchased)
+      if (packageCost === 0) {
+        const svIds = specialVouchersByPackage.get(pkgId) || [];
+        for (const svId of svIds) {
+          for (let i = 0; i < quantity; i++) {
+            await client.query(
+              `INSERT INTO special_voucher_awards (user_id, special_voucher_id, event_id, awarded_by)
+               VALUES ($1, $2, NULL, 'package_registration')`,
+              [userId, svId]
+            );
           }
-          await packageService.awardPackageMerchandiseToUser(userId, conventionId, pkgId, quantity, client);
         }
+        await packageService.awardPackageMerchandiseToUser(userId, conventionId, pkgId, quantity, client);
       }
     }
 
@@ -237,9 +264,9 @@ async function preregisterParticipant(body: any, client: PoolClient) {
     if (event_prereg_ids && Array.isArray(event_prereg_ids) && event_prereg_ids.length > 0) {
       const fullName = `${name} ${last_name}`.trim();
       for (const eventId of event_prereg_ids) {
+        // Acquire the event lock immediately before the capacity check and insert.
         const capacity = await client.query(
-          `SELECT e.name, et.max_players,
-                  (SELECT COUNT(*)::int FROM event_participants ep WHERE ep.event_id = e.id) AS participant_count
+          `SELECT e.name, et.max_players
            FROM events e
            JOIN event_types et ON et.id = e.event_type_id
            WHERE e.id = $1
@@ -247,20 +274,33 @@ async function preregisterParticipant(body: any, client: PoolClient) {
           [eventId]
         );
         if (capacity.rows.length === 0) throw new RegistrationError('El evento seleccionado no existe.');
-        if (capacity.rows[0].participant_count >= capacity.rows[0].max_players) {
-          throw new RegistrationError(`${capacity.rows[0].name} ya no tiene espacios disponibles.`, 409);
-        }
-        await client.query(
-          `INSERT INTO event_participants (user_id, event_id, convention_id, preregistered)
-           VALUES ($1, $2, $3, true)
-           ON CONFLICT (user_id, event_id) DO UPDATE SET preregistered = true`,
-          [userId, eventId, conventionId]
-        );
+        const { name: eventName, max_players: maxPlayers } = capacity.rows[0];
 
-        const eventRes = await client.query(`SELECT name FROM events WHERE id = $1`, [eventId]);
-        if (eventRes.rows.length > 0) {
-          await enqueueGoogleSheetsSync(client, eventRes.rows[0].name, fullName, email);
+        // If this user is already in the event, just refresh preregistration and sync.
+        const existingRes = await client.query(
+          `SELECT id FROM event_participants WHERE user_id = $1 AND event_id = $2`,
+          [userId, eventId]
+        );
+        if (existingRes.rows.length > 0) {
+          await client.query(
+            `UPDATE event_participants SET preregistered = true WHERE id = $1`,
+            [existingRes.rows[0].id]
+          );
+          await enqueueGoogleSheetsSync(client, eventName, fullName, email);
+          continue;
         }
+
+        const insertRes = await client.query(
+          `INSERT INTO event_participants (user_id, event_id, convention_id, preregistered)
+           SELECT $1, $2, $3, true
+           WHERE (SELECT COUNT(*)::int FROM event_participants ep WHERE ep.event_id = $2) < $4
+           RETURNING id`,
+          [userId, eventId, conventionId, maxPlayers]
+        );
+        if (insertRes.rowCount === 0) {
+          throw new RegistrationError(`${eventName} ya no tiene espacios disponibles.`, 409);
+        }
+        await enqueueGoogleSheetsSync(client, eventName, fullName, email);
       }
     }
 
@@ -277,7 +317,15 @@ router.post('/preregister', registrationLimiter, async (req: Request, res: Respo
   try {
     const recaptchaValid = await verifyRecaptcha(req.body.recaptcha_token);
     if (!recaptchaValid) throw new RegistrationError('No se pudo verificar el CAPTCHA. Inténtalo de nuevo.');
-    res.status(201).json(await withTransaction(client => preregisterParticipant(req.body, client)));
+
+    const { password } = req.body;
+    if (typeof password !== 'string' || password.length < 8) {
+      throw new RegistrationError('La contraseña debe tener al menos 8 caracteres');
+    }
+    const passwordHash = await bcrypt.hash(password, 10);
+    const body = { ...req.body, password_hash: passwordHash };
+
+    res.status(201).json(await withTransaction(client => preregisterParticipant(body, client)));
   } catch (err) {
     if (err instanceof RegistrationError) return res.status(err.status).json({ error: err.message });
     if ((err as any)?.code === '23505') return res.status(409).json({ error: 'Este correo ya está registrado.' });
@@ -313,7 +361,9 @@ router.post('/preregister/batch', registrationLimiter, async (req: Request, res:
       ...participant,
       password_hash: await bcrypt.hash(participant.password, 10),
     })));
-    const batchResult = await withTransaction(async client => {
+
+    // Phase 1: create users/packages/events inside a transaction, then release the connection.
+    const registrations = await withTransaction(async client => {
       const existingEmails = await client.query(
         `SELECT email FROM users WHERE LOWER(email) = ANY($1::text[]) AND deleted_at IS NULL`,
         [emails]
@@ -325,15 +375,20 @@ router.post('/preregister/batch', registrationLimiter, async (req: Request, res:
       for (const participant of preparedParticipants) {
         results.push(await preregisterParticipant(participant, client));
       }
-      const paidRegistrations = results.filter(registration => registration.package_total_cost > 0);
-      let payment: paymentService.PaymentIntent | null = null;
-      if (paidRegistrations.length > 0) {
-        const total = paidRegistrations.reduce((sum, registration) => sum + registration.package_total_cost, 0);
-        payment = await paymentService.createPayment(total);
-        await paymentService.storePackagePaymentWithReservations(payment, paidRegistrations.map(registration => registration.user.id), client);
-      }
-      return { registrations: results, payment };
+      return results;
     });
+
+    // Phase 2: call the external payment provider outside the transaction, then store the
+    // payment record and reserve inventory in a separate short transaction.
+    const paidRegistrations = registrations.filter(registration => registration.package_total_cost > 0);
+    let payment: paymentService.PaymentIntent | null = null;
+    if (paidRegistrations.length > 0) {
+      const total = paidRegistrations.reduce((sum, registration) => sum + registration.package_total_cost, 0);
+      payment = await paymentService.createPayment(total);
+      await paymentService.storePackagePaymentWithReservations(payment, paidRegistrations.map(registration => registration.user.id));
+    }
+
+    const batchResult = { registrations, payment };
     res.status(201).json({
       success: true,
       registrations: batchResult.registrations,
