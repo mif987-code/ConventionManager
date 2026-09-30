@@ -232,6 +232,8 @@ export const scan = {
     request<any>('/scan/qr', { method: 'POST', body: JSON.stringify({ qr_code }) }),
   balanceQr: (qr_code: string) =>
     request<any>('/scan/qr/balance', { method: 'POST', body: JSON.stringify({ qr_code }) }),
+  lookupToken: (token: string) =>
+    request<any>('/scan/token', { method: 'POST', body: JSON.stringify({ token }) }),
 };
 
 // Store

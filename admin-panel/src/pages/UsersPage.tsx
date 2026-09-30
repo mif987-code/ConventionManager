@@ -1,10 +1,11 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { UserPlus, Search, Link, X, Wifi, QrCode, X as CloseIcon, RefreshCw, Calendar, ScanLine, Copy, Package, Trash2, Mail } from 'lucide-react';
 import { users, conventions, scan, packages } from '../api';
 
 export default function UsersPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [userList, setUserList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -136,7 +137,27 @@ export default function UsersPage() {
     return dates;
   }
 
-  useEffect(() => { loadUsers(); loadConvention(); }, []);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const pending = location.state as { userId?: number; userName?: string } | null;
+      if (pending?.userId) {
+        try {
+          await users.activate(pending.userId);
+          if (!cancelled) setSuccess(`User ${pending.userName || pending.userId} activated.`);
+        } catch (err: any) {
+          if (!cancelled) setError(err.message);
+        } finally {
+          navigate(location.pathname, { replace: true, state: {} });
+        }
+      }
+      if (!cancelled) {
+        await loadUsers();
+        await loadConvention();
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   async function handleRegister(e: React.FormEvent) {
     e.preventDefault();

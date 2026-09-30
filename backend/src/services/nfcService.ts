@@ -55,7 +55,7 @@ export async function handleQrTokenScan(token: string, deviceIdentifier?: string
     return { found: false, message: 'User not found' };
   }
   if (!user.is_active) {
-    return { found: false, message: 'Account not activated. Please visit an admin to activate your account.' };
+    return { found: false, message: 'Account not activated. Please visit an admin to activate your account.', user_id: user.id, user: { id: user.id, name: user.name, email: user.email } };
   }
 
   // If the convention tracks attendance, enforce that the user attends today.
@@ -82,5 +82,6 @@ export async function handleQrTokenScan(token: string, deviceIdentifier?: string
 
   await markTokenAsUsed(token, user.id);
 
-  return { found: true, user: { ...user, voucher_balance: voucherBalance, tix_balance: tixBalance } };
+  const { password_hash, ...safeUser } = user as any;
+  return { found: true, user: { ...safeUser, voucher_balance: voucherBalance, tix_balance: tixBalance } };
 }

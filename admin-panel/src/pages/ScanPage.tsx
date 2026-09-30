@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ScanLine, QrCode } from 'lucide-react';
 import { scan, conventions } from '../api';
 
 export default function ScanPage() {
+  const navigate = useNavigate();
   const [scanMode, setScanMode] = useState<'nfc' | 'qr'>('qr');
   const [inputValue, setInputValue] = useState('');
   const [result, setResult] = useState<any>(null);
@@ -36,7 +38,14 @@ export default function ScanPage() {
         const res = await scan.lookup(inputValue);
         setResult(res.user);
       } else {
-        const res = await scan.lookupQr(inputValue);
+        const res = await scan.lookupToken(inputValue);
+        if (!res.found) {
+          if (res.user_id) {
+            navigate('/users', { state: { userId: res.user_id, userName: res.user?.name, message: res.message } });
+            return;
+          }
+          throw new Error(res.message || 'Invalid QR token');
+        }
         setResult(res.user);
       }
     } catch (err: any) {
