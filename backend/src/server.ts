@@ -76,7 +76,7 @@ app.use('/api/sets', setsRouter); // Sets lookup (public, no auth needed)
 app.use('/api/cards', cardsRouter); // Cards lookup (public, no auth needed)
 
 // Admin login is public (adminAuth applies to other /api routes)
-app.use('/api/admin/login', adminAuthRouter);
+app.use('/api/admin', adminAuthRouter);
 
 // API auth on all /api routes
 app.use('/api', adminAuth);
