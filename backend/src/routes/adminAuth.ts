@@ -77,9 +77,9 @@ router.post('/invite', adminAuth, requirePermission('super'), async (req: Reques
       return res.status(400).json({ error: 'A valid email is required' });
     }
 
-    const existing = await pool.query(`SELECT id FROM users WHERE LOWER(email) = LOWER($1) AND deleted_at IS NULL`, [email]);
+    const existing = await pool.query(`SELECT id FROM users WHERE LOWER(email) = LOWER($1) AND is_admin = true AND deleted_at IS NULL`, [email]);
     if (existing.rows.length > 0) {
-      return res.status(409).json({ error: 'A user with that email already exists' });
+      return res.status(409).json({ error: 'An admin with that email already exists' });
     }
 
     const user = await createUser(name.trim(), undefined, email.trim(), true, undefined, undefined);

@@ -75,7 +75,7 @@ function ageOnDate(dobValue: string, dateValue: string): number | null {
   return age;
 }
 
-async function preregisterParticipant(body: any, client: PoolClient) {
+async function preregisterParticipant(body: any, client: PoolClient, conventionIdArg?: number) {
     const { name, last_name, email, password, age, dob, attendance_dates, package_id, packages: packagesInput, event_prereg_ids } = body;
 
     if (!name || !last_name || !email || !password) {
@@ -89,6 +89,20 @@ async function preregisterParticipant(body: any, client: PoolClient) {
     }
     if (typeof password !== 'string' || password.length < 8) {
       throw new RegistrationError('La contraseña debe tener al menos 8 caracteres');
+    }
+
+    // Resolve convention first (caller can pre-fetch for batch registrations)
+    let conventionId = conventionIdArg;
+    if (!conventionId) {
+      const activeConv = await client.query(`SELECT id FROM conventions WHERE status = 'active' ORDER BY created_at DESC LIMIT 1`);
+      conventionId = activeConv.rows.length > 0 ? activeConv.rows[0].id : null;
+      if (!conventionId) {
+        const fallbackConv = await client.query(`SELECT id FROM conventions ORDER BY created_at DESC LIMIT 1`);
+        conventionId = fallbackConv.rows.length > 0 ? fallbackConv.rows[0].id : null;
+      }
+    }
+    if (!conventionId) {
+      throw new RegistrationError('No convention found. Please create a convention in the admin panel first.');
     }
 
     // Normalize package selection: support both the legacy single `package_id`
@@ -140,28 +154,10 @@ async function preregisterParticipant(body: any, client: PoolClient) {
       }
     }
 
-    // Check if email already registered
-    const existing = await client.query('SELECT id FROM users WHERE LOWER(email) = LOWER($1) AND deleted_at IS NULL', [email]);
+    // Check if email already registered in this convention
+    const existing = await client.query('SELECT id FROM users WHERE LOWER(email) = LOWER($1) AND convention_id = $2 AND deleted_at IS NULL', [email, conventionId]);
     if (existing.rows.length > 0) {
       throw new RegistrationError('Este correo ya está registrado', 409);
-    }
-
-    // Get active convention, fall back to most recent convention
-    let convRes = await client.query(
-      `SELECT id FROM conventions WHERE status = 'active' ORDER BY created_at DESC LIMIT 1`
-    );
-    let conventionId = convRes.rows.length > 0 ? convRes.rows[0].id : null;
-
-    // If no active convention, try to get the most recent convention
-    if (!conventionId) {
-      convRes = await client.query(
-        `SELECT id FROM conventions ORDER BY created_at DESC LIMIT 1`
-      );
-      conventionId = convRes.rows.length > 0 ? convRes.rows[0].id : null;
-    }
-
-    if (!conventionId) {
-      throw new RegistrationError('No convention found. Please create a convention in the admin panel first.');
     }
 
     const passwordHash = body.password_hash;
@@ -362,18 +358,30 @@ router.post('/preregister/batch', registrationLimiter, async (req: Request, res:
       password_hash: await bcrypt.hash(participant.password, 10),
     })));
 
+    // Resolve the convention once before the transaction
+    let batchConventionId: number | null = null;
+    const activeConv = await pool.query(`SELECT id FROM conventions WHERE status = 'active' ORDER BY created_at DESC LIMIT 1`);
+    batchConventionId = activeConv.rows.length > 0 ? activeConv.rows[0].id : null;
+    if (!batchConventionId) {
+      const fallbackConv = await pool.query(`SELECT id FROM conventions ORDER BY created_at DESC LIMIT 1`);
+      batchConventionId = fallbackConv.rows.length > 0 ? fallbackConv.rows[0].id : null;
+    }
+    if (!batchConventionId) {
+      throw new RegistrationError('No convention found. Please create a convention in the admin panel first.');
+    }
+
     // Phase 1: create users/packages/events inside a transaction, then release the connection.
     const registrations = await withTransaction(async client => {
       const existingEmails = await client.query(
-        `SELECT email FROM users WHERE LOWER(email) = ANY($1::text[]) AND deleted_at IS NULL`,
-        [emails]
+        `SELECT email FROM users WHERE LOWER(email) = ANY($1::text[]) AND convention_id = $2 AND deleted_at IS NULL`,
+        [emails, batchConventionId]
       );
       if (existingEmails.rows.length > 0) {
         throw new RegistrationError(`Este correo ya está registrado: ${existingEmails.rows[0].email}`, 409);
       }
       const results = [];
       for (const participant of preparedParticipants) {
-        results.push(await preregisterParticipant(participant, client));
+        results.push(await preregisterParticipant(participant, client, batchConventionId));
       }
       return results;
     });
@@ -510,13 +518,26 @@ router.get('/payment/:id/status', async (req: Request, res: Response, next: Next
   }
 });
 
-// GET /public/preregister/check?email=... - Check if email already registered
+// GET /public/preregister/check?email=... - Check if email already registered for active convention
 router.get('/preregister/check', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const email = req.query.email as string;
     if (!email) return res.status(400).json({ error: 'email query param required' });
 
-    const existing = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
+    let convRes = await pool.query(`SELECT id FROM conventions WHERE status = 'active' ORDER BY created_at DESC LIMIT 1`);
+    let conventionId = convRes.rows.length > 0 ? convRes.rows[0].id : null;
+    if (!conventionId) {
+      convRes = await pool.query(`SELECT id FROM conventions ORDER BY created_at DESC LIMIT 1`);
+      conventionId = convRes.rows.length > 0 ? convRes.rows[0].id : null;
+    }
+    if (!conventionId) {
+      return res.json({ registered: false });
+    }
+
+    const existing = await pool.query(
+      'SELECT id FROM users WHERE LOWER(email) = LOWER($1) AND convention_id = $2 AND deleted_at IS NULL',
+      [email, conventionId]
+    );
     res.json({ registered: existing.rows.length > 0 });
   } catch (err) {
     next(err);
