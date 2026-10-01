@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Routes, Route, NavLink, useLocation } from 'react-router-dom';
 import { Users, Calendar, CreditCard, ScanLine, Trophy, Settings as SettingsIcon, Ticket, ShoppingBag, BarChart3, Shield, LogOut, Map, Menu, X as XIcon, WifiOff, Star, CalendarClock, UserCheck } from 'lucide-react';
-import { getApiKey, setApiKey, getAdminToken, setAdminToken, auth } from './api';
+import { getApiKey, setApiKey, getAdminToken, setAdminToken, getAdminPermissions, setAdminPermissions, auth } from './api';
 import { useNetworkStatus } from './hooks/useNetworkStatus';
 import DashboardPage from './pages/DashboardPage';
 import UsersPage from './pages/UsersPage';
@@ -29,6 +29,7 @@ function App() {
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
+  const [permissions, setPermissions] = useState<string[]>(getAdminPermissions());
   const [conventionId, setConventionId] = useState<string | null>(localStorage.getItem('cm_convention_id'));
   const [conventionName, setConventionName] = useState<string | null>(localStorage.getItem('cm_convention_name'));
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -36,6 +37,7 @@ function App() {
 
   useEffect(() => {
     setAuthenticated(!!(getApiKey() || getAdminToken()));
+    setPermissions(getAdminPermissions());
   }, []);
 
   // Reload convention from localStorage when route changes (after creating/selecting convention)
@@ -86,6 +88,8 @@ function App() {
               if (keyInput.trim()) {
                 setAdminToken('');
                 setApiKey(keyInput.trim());
+                setAdminPermissions(['super']);
+                setPermissions(['super']);
                 setAuthenticated(true);
               }
             }}>
@@ -113,6 +117,8 @@ function App() {
                 const res = await auth.login(email.trim(), password);
                 setApiKey('');
                 setAdminToken(res.token);
+                setAdminPermissions(res.admin.permissions || []);
+                setPermissions(res.admin.permissions || []);
                 setAuthenticated(true);
               } catch (err: any) {
                 setLoginError(err.message || 'Login failed');
@@ -153,22 +159,24 @@ function App() {
     return <ConventionSelectPage />;
   }
 
+  const can = (perm: string | null) => !perm || permissions.includes('super') || permissions.includes(perm);
+
   const navItems = [
-    { to: '/', icon: <SettingsIcon size={20} />, label: 'Dashboard' },
-    { to: '/users', icon: <Users size={20} />, label: 'Users' },
-    { to: '/events', icon: <Calendar size={20} />, label: 'Events' },
-    { to: '/schedule', icon: <CalendarClock size={20} />, label: 'Schedule' },
-    { to: '/preregistered', icon: <UserCheck size={20} />, label: 'Preregistered' },
-    { to: '/floor-plan', icon: <Map size={20} />, label: 'Floor Plan' },
-    { to: '/event-types', icon: <Trophy size={20} />, label: 'Event Types' },
-    { to: '/prize-templates', icon: <Ticket size={20} />, label: 'Prize Templates' },
-    { to: '/vouchers', icon: <CreditCard size={20} />, label: 'Transactions (Coupons & Tix)' },
-    { to: '/store', icon: <ShoppingBag size={20} />, label: 'Store' },
-    { to: '/packages', icon: <Ticket size={20} />, label: 'Packages' },
-    { to: '/scan', icon: <ScanLine size={20} />, label: 'NFC Scan' },
-    { to: '/stats', icon: <BarChart3 size={20} />, label: 'Statistics' },
-    { to: '/collection', icon: <Star size={20} />, label: 'Collection' },
-  ];
+    { to: '/', icon: <SettingsIcon size={20} />, label: 'Dashboard', perm: null },
+    { to: '/users', icon: <Users size={20} />, label: 'Users', perm: 'users' },
+    { to: '/events', icon: <Calendar size={20} />, label: 'Events', perm: 'events' },
+    { to: '/schedule', icon: <CalendarClock size={20} />, label: 'Schedule', perm: 'events' },
+    { to: '/preregistered', icon: <UserCheck size={20} />, label: 'Preregistered', perm: 'events' },
+    { to: '/floor-plan', icon: <Map size={20} />, label: 'Floor Plan', perm: 'super' },
+    { to: '/event-types', icon: <Trophy size={20} />, label: 'Event Types', perm: 'super' },
+    { to: '/prize-templates', icon: <Ticket size={20} />, label: 'Prize Templates', perm: 'super' },
+    { to: '/vouchers', icon: <CreditCard size={20} />, label: 'Transactions (Coupons & Tix)', perm: 'vouchers' },
+    { to: '/store', icon: <ShoppingBag size={20} />, label: 'Store', perm: 'store' },
+    { to: '/packages', icon: <Ticket size={20} />, label: 'Packages', perm: 'super' },
+    { to: '/scan', icon: <ScanLine size={20} />, label: 'NFC Scan', perm: 'register' },
+    { to: '/stats', icon: <BarChart3 size={20} />, label: 'Statistics', perm: 'stats' },
+    { to: '/collection', icon: <Star size={20} />, label: 'Collection', perm: 'super' },
+  ].filter(item => can(item.perm));
 
   const sidebarContent = (
     <>
@@ -212,7 +220,7 @@ function App() {
           <LogOut size={14} /> Switch Convention
         </button>
         <button
-          onClick={() => { setApiKey(''); setAdminToken(''); setAuthenticated(false); }}
+          onClick={() => { setApiKey(''); setAdminToken(''); setAdminPermissions([]); setPermissions([]); setAuthenticated(false); }}
           className="w-full text-sm text-gray-500 hover:text-red-600 transition py-2"
         >
           Disconnect

@@ -21,6 +21,18 @@ export function getAdminToken(): string {
   return adminToken;
 }
 
+export function setAdminPermissions(perms: string[]) {
+  localStorage.setItem('cm_admin_permissions', JSON.stringify(perms));
+}
+
+export function getAdminPermissions(): string[] {
+  try {
+    return JSON.parse(localStorage.getItem('cm_admin_permissions') || '[]');
+  } catch {
+    return [];
+  }
+}
+
 // --- Network status & retry queue ---
 
 type QueuedRequest = {
