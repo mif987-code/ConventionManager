@@ -19,9 +19,84 @@ import FloorPlanPage from './pages/FloorPlanPage';
 import CollectionPage from './pages/CollectionPage';
 import SchedulePage from './pages/SchedulePage';
 import PreregisteredPage from './pages/PreregisteredPage';
+import PermissionsPage from './pages/PermissionsPage';
+
+function ResetPasswordForm({ token }: { token: string }) {
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError('');
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters');
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch('/player/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Request failed');
+      setSuccess(true);
+    } catch (err: any) {
+      setError(err.message || 'Failed to set password');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (success) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-600 p-4">
+        <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md text-center">
+          <h2 className="text-xl font-bold text-gray-800 mb-2">Password created</h2>
+          <p className="text-gray-600 mb-4">Your admin password has been set. You can now sign in.</p>
+          <a href="/admin/" className="text-indigo-600 font-medium hover:underline">Go to admin login</a>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-600 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
+        <h2 className="text-xl font-bold text-gray-800 mb-2">Create admin password</h2>
+        <p className="text-sm text-gray-500 mb-4">Set a secure password for your admin account.</p>
+        <form onSubmit={handleSubmit}>
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Password (min 8 characters)"
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
+          />
+          {error && <p className="text-red-600 text-sm mt-2">{error}</p>}
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full mt-4 bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-700 transition font-medium disabled:opacity-60"
+          >
+            {loading ? 'Saving...' : 'Set password'}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
 
 function App() {
   const location = useLocation();
+  const resetToken = new URLSearchParams(location.search).get('reset');
+  if (resetToken) {
+    return <ResetPasswordForm token={resetToken} />;
+  }
+
   const [authenticated, setAuthenticated] = useState(!!(getApiKey() || getAdminToken()));
   const [keyInput, setKeyInput] = useState('');
   const [loginMode, setLoginMode] = useState<'api' | 'email'>('email');
@@ -176,6 +251,7 @@ function App() {
     { to: '/scan', icon: <ScanLine size={20} />, label: 'NFC Scan', perm: 'register' },
     { to: '/stats', icon: <BarChart3 size={20} />, label: 'Statistics', perm: 'stats' },
     { to: '/collection', icon: <Star size={20} />, label: 'Collection', perm: 'super' },
+    { to: '/permissions', icon: <Shield size={20} />, label: 'Permissions', perm: 'super' },
   ].filter(item => can(item.perm));
 
   const sidebarContent = (
@@ -275,6 +351,7 @@ function App() {
             <Route path="/scan" element={<ScanPage />} />
             <Route path="/stats" element={<StatsPage />} />
             <Route path="/collection" element={<CollectionPage />} />
+            <Route path="/permissions" element={<PermissionsPage />} />
         </Routes>
         </div>
       </main>

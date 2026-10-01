@@ -300,6 +300,8 @@ export const permissions = {
     request<any>(`/permissions/${userId}/promote`, { method: 'POST', body: JSON.stringify({ permissions: perms }) }),
   demote: (userId: number) =>
     request<any>(`/permissions/${userId}/demote`, { method: 'POST' }),
+  invite: (name: string, email: string, perms: string[]) =>
+    request<any>('/admin/invite', { method: 'POST', body: JSON.stringify({ name, email, permissions: perms }) }),
 };
 
 // Conventions

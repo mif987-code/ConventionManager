@@ -21,6 +21,13 @@ export default function PermissionsPage() {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
 
+  // Invite admin state
+  const [inviteName, setInviteName] = useState('');
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [invitePerms, setInvitePerms] = useState<Set<string>>(new Set());
+  const [inviteLoading, setInviteLoading] = useState(false);
+  const [inviteMessage, setInviteMessage] = useState('');
+
   // Promote user modal
   const [showPromote, setShowPromote] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -43,6 +50,27 @@ export default function PermissionsPage() {
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleInvite() {
+    if (!inviteName.trim() || !inviteEmail.trim()) {
+      setInviteMessage('Name and email are required');
+      return;
+    }
+    setInviteLoading(true);
+    setInviteMessage('');
+    try {
+      await permissions.invite(inviteName.trim(), inviteEmail.trim(), Array.from(invitePerms));
+      setInviteName('');
+      setInviteEmail('');
+      setInvitePerms(new Set());
+      setInviteMessage('Invitation sent. The new admin will receive an email to set their password.');
+      load();
+    } catch (err: any) {
+      setInviteMessage(err.message || 'Invitation failed');
+    } finally {
+      setInviteLoading(false);
     }
   }
 
@@ -127,6 +155,52 @@ export default function PermissionsPage() {
           className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition text-sm font-medium">
           <UserPlus size={16} /> Promote User
         </button>
+      </div>
+
+      {/* Invite Admin */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+        <h2 className="font-semibold text-gray-800 mb-4">Invite Admin</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+          <input
+            value={inviteName}
+            onChange={(e) => setInviteName(e.target.value)}
+            placeholder="Full name"
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+          />
+          <input
+            type="email"
+            value={inviteEmail}
+            onChange={(e) => setInviteEmail(e.target.value)}
+            placeholder="Email"
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+          />
+        </div>
+        <p className="text-sm font-medium text-gray-700 mb-2">Permissions:</p>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
+          {categories.map(cat => {
+            const info = PERM_LABELS[cat] || { label: cat, desc: '', color: 'bg-gray-100 text-gray-700' };
+            const checked = invitePerms.has(cat);
+            return (
+              <button key={cat} onClick={() => setInvitePerms(togglePerm(invitePerms, cat))}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-left text-sm transition ${
+                  checked ? 'border-indigo-300 bg-indigo-50' : 'border-gray-200 hover:bg-gray-50'}`}>
+                <div className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 ${
+                  checked ? 'bg-indigo-600 border-indigo-600' : 'border-gray-300'}`}>
+                  {checked && <Check size={10} className="text-white" />}
+                </div>
+                <span className="font-medium text-gray-800">{info.label}</span>
+              </button>
+            );
+          })}
+        </div>
+        <button onClick={handleInvite} disabled={inviteLoading}
+          className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition text-sm font-medium disabled:opacity-50">
+          {inviteLoading ? <Loader2 size={14} className="animate-spin" /> : <UserPlus size={14} />}
+          Send invitation
+        </button>
+        {inviteMessage && (
+          <p className={`text-sm mt-3 ${inviteMessage.includes('sent') ? 'text-green-600' : 'text-red-600'}`}>{inviteMessage}</p>
+        )}
       </div>
 
       {error && (
