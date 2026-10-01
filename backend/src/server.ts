@@ -4,7 +4,7 @@ import path from 'path';
 import dotenv from 'dotenv';
 import rateLimit from 'express-rate-limit';
 import { pool, testConnection } from './config/db';
-import { apiKeyAuth, conventionMiddleware, errorHandler } from './middleware/auth';
+import { adminAuth, conventionMiddleware, errorHandler, requirePermission } from './middleware/auth';
 import { startBackupSchedule } from './services/backupService';
 import { startBackgroundJobs } from './services/backgroundJobService';
 import { expirePendingPackagePayments } from './services/paymentService';
@@ -33,6 +33,7 @@ import walletRouter from './routes/wallet';
 import floorPlanRouter from './routes/floorPlan';
 import collectiblesRouter from './routes/collectibles';
 import preregistrationsRouter from './routes/preregistrations';
+import adminAuthRouter from './routes/adminAuth';
 
 dotenv.config();
 
@@ -74,30 +75,33 @@ app.use('/webhooks/payments', paymentWebhooksRouter); // payment provider webhoo
 app.use('/api/sets', setsRouter); // Sets lookup (public, no auth needed)
 app.use('/api/cards', cardsRouter); // Cards lookup (public, no auth needed)
 
-// API Key auth on all /api routes
-app.use('/api', apiKeyAuth);
+// Admin login is public (adminAuth applies to other /api routes)
+app.use('/api/admin/login', adminAuthRouter);
+
+// API auth on all /api routes
+app.use('/api', adminAuth);
 app.use('/api', conventionMiddleware);
 
-// Routes
-app.use('/api/users', usersRouter);
-app.use('/api/vouchers', vouchersRouter);
-app.use('/api/events', eventsRouter);
-app.use('/api/scan', scanRouter);
-app.use('/api/tix', tixRouter);
-app.use('/api/prize-templates', prizeTemplatesRouter);
-app.use('/api/store', storeRouter);
-app.use('/api/stats', statsRouter);
-app.use('/api/permissions', permissionsRouter);
-app.use('/api/conventions', conventionsRouter);
-app.use('/api/admin/settings', adminSettingsRouter);
-app.use('/api/attendance', attendanceRouter);
-app.use('/api/special-vouchers', specialVouchersRouter);
-app.use('/api/packages', packagesRouter);
-app.use('/api/payments', paymentsRouter);
-app.use('/api/wallet', walletRouter);
-app.use('/api/floor-plan', floorPlanRouter);
-app.use('/api/collectibles', collectiblesRouter);
-app.use('/api/preregistrations', preregistrationsRouter);
+// Routes with permission enforcement
+app.use('/api/users', requirePermission('users'), usersRouter);
+app.use('/api/vouchers', requirePermission('vouchers'), vouchersRouter);
+app.use('/api/events', requirePermission('events'), eventsRouter);
+app.use('/api/scan', requirePermission('register'), scanRouter);
+app.use('/api/tix', requirePermission('tix'), tixRouter);
+app.use('/api/prize-templates', requirePermission('super'), prizeTemplatesRouter);
+app.use('/api/store', requirePermission('store'), storeRouter);
+app.use('/api/stats', requirePermission('stats'), statsRouter);
+app.use('/api/permissions', requirePermission('super'), permissionsRouter);
+app.use('/api/conventions', requirePermission('super'), conventionsRouter);
+app.use('/api/admin/settings', requirePermission('super'), adminSettingsRouter);
+app.use('/api/attendance', requirePermission('register'), attendanceRouter);
+app.use('/api/special-vouchers', requirePermission('super'), specialVouchersRouter);
+app.use('/api/packages', requirePermission('super'), packagesRouter);
+app.use('/api/payments', requirePermission('super'), paymentsRouter);
+app.use('/api/wallet', requirePermission('super'), walletRouter);
+app.use('/api/floor-plan', requirePermission('super'), floorPlanRouter);
+app.use('/api/collectibles', requirePermission('super'), collectiblesRouter);
+app.use('/api/preregistrations', requirePermission('events'), preregistrationsRouter);
 
 // Serve uploaded images
 app.use('/uploads', express.static(path.join(__dirname, '../../uploads')));

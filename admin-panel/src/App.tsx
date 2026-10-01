@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Routes, Route, NavLink, useLocation } from 'react-router-dom';
 import { Users, Calendar, CreditCard, ScanLine, Trophy, Settings as SettingsIcon, Ticket, ShoppingBag, BarChart3, Shield, LogOut, Map, Menu, X as XIcon, WifiOff, Star, CalendarClock, UserCheck } from 'lucide-react';
-import { getApiKey, setApiKey } from './api';
+import { getApiKey, setApiKey, getAdminToken, setAdminToken, auth } from './api';
 import { useNetworkStatus } from './hooks/useNetworkStatus';
 import DashboardPage from './pages/DashboardPage';
 import UsersPage from './pages/UsersPage';
@@ -22,15 +22,20 @@ import PreregisteredPage from './pages/PreregisteredPage';
 
 function App() {
   const location = useLocation();
-  const [authenticated, setAuthenticated] = useState(!!getApiKey());
+  const [authenticated, setAuthenticated] = useState(!!(getApiKey() || getAdminToken()));
   const [keyInput, setKeyInput] = useState('');
+  const [loginMode, setLoginMode] = useState<'api' | 'email'>('email');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loginError, setLoginError] = useState('');
+  const [loginLoading, setLoginLoading] = useState(false);
   const [conventionId, setConventionId] = useState<string | null>(localStorage.getItem('cm_convention_id'));
   const [conventionName, setConventionName] = useState<string | null>(localStorage.getItem('cm_convention_name'));
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { isOnline, queuedCount } = useNetworkStatus();
 
   useEffect(() => {
-    setAuthenticated(!!getApiKey());
+    setAuthenticated(!!(getApiKey() || getAdminToken()));
   }, []);
 
   // Reload convention from localStorage when route changes (after creating/selecting convention)
@@ -55,29 +60,90 @@ function App() {
           <div className="text-center mb-6">
             <div className="text-4xl mb-2">🎮</div>
             <h1 className="text-2xl font-bold text-gray-800">Convention Manager</h1>
-            <p className="text-gray-500 mt-1">Enter your API key to continue</p>
+            <p className="text-gray-500 mt-1">Admin access</p>
           </div>
-          <form onSubmit={(e) => {
-            e.preventDefault();
-            if (keyInput.trim()) {
-              setApiKey(keyInput.trim());
-              setAuthenticated(true);
-            }
-          }}>
-            <input
-              type="password"
-              value={keyInput}
-              onChange={(e) => setKeyInput(e.target.value)}
-              placeholder="API Key"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
-            />
+
+          <div className="flex rounded-lg bg-gray-100 p-1 mb-6">
             <button
-              type="submit"
-              className="w-full mt-4 bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-700 transition font-medium"
+              type="button"
+              onClick={() => setLoginMode('email')}
+              className={`flex-1 py-2 text-sm font-medium rounded-md transition ${loginMode === 'email' ? 'bg-white text-indigo-700 shadow' : 'text-gray-600'}`}
             >
-              Connect
+              Admin email
             </button>
-          </form>
+            <button
+              type="button"
+              onClick={() => setLoginMode('api')}
+              className={`flex-1 py-2 text-sm font-medium rounded-md transition ${loginMode === 'api' ? 'bg-white text-indigo-700 shadow' : 'text-gray-600'}`}
+            >
+              API key
+            </button>
+          </div>
+
+          {loginMode === 'api' ? (
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              if (keyInput.trim()) {
+                setAdminToken('');
+                setApiKey(keyInput.trim());
+                setAuthenticated(true);
+              }
+            }}>
+              <input
+                type="password"
+                value={keyInput}
+                onChange={(e) => setKeyInput(e.target.value)}
+                placeholder="API Key"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
+              />
+              <button
+                type="submit"
+                className="w-full mt-4 bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-700 transition font-medium"
+              >
+                Connect
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              setLoginError('');
+              if (!email.trim() || !password) return;
+              setLoginLoading(true);
+              try {
+                const res = await auth.login(email.trim(), password);
+                setApiKey('');
+                setAdminToken(res.token);
+                setAuthenticated(true);
+              } catch (err: any) {
+                setLoginError(err.message || 'Login failed');
+              } finally {
+                setLoginLoading(false);
+              }
+            }}>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Admin email"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none mb-3"
+              />
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Password"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
+              />
+              {loginError && <p className="text-red-600 text-sm mt-2">{loginError}</p>}
+              <button
+                type="submit"
+                disabled={loginLoading}
+                className="w-full mt-4 bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-700 transition font-medium disabled:opacity-60"
+              >
+                {loginLoading ? 'Signing in...' : 'Sign in'}
+              </button>
+            </form>
+          )}
         </div>
       </div>
     );
@@ -146,7 +212,7 @@ function App() {
           <LogOut size={14} /> Switch Convention
         </button>
         <button
-          onClick={() => { setApiKey(''); setAuthenticated(false); }}
+          onClick={() => { setApiKey(''); setAdminToken(''); setAuthenticated(false); }}
           className="w-full text-sm text-gray-500 hover:text-red-600 transition py-2"
         >
           Disconnect

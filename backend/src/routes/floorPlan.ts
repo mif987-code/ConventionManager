@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { apiKeyAuth as requireAuth, adminOnly as requireAdmin } from '../middleware/auth';
+// Authentication and permission checks are handled globally in server.ts
 import {
   saveFloorPlan, getFloorPlan,
   getTableStatuses, reserveTable, releaseTable
@@ -8,7 +8,7 @@ import {
 const router = Router();
 
 // GET /floor-plan — full plan JSON
-router.get('/', requireAuth, async (req, res) => {
+router.get('/', async (req, res) => {
   const { conventionId } = req;
   if (!conventionId) return res.status(400).json({ error: 'Convention ID required' });
   try {
@@ -21,7 +21,7 @@ router.get('/', requireAuth, async (req, res) => {
 });
 
 // POST /floor-plan — save plan
-router.post('/', requireAuth, async (req, res) => {
+router.post('/', async (req, res) => {
   const { conventionId } = req;
   if (!conventionId) return res.status(400).json({ error: 'Convention ID required' });
   try {
@@ -33,7 +33,7 @@ router.post('/', requireAuth, async (req, res) => {
 });
 
 // GET /floor-plan/tables — all tables with reservation status
-router.get('/tables', requireAuth, async (req, res) => {
+router.get('/tables', async (req, res) => {
   const { conventionId } = req;
   if (!conventionId) return res.status(400).json({ error: 'Convention ID required' });
   try {
@@ -45,7 +45,7 @@ router.get('/tables', requireAuth, async (req, res) => {
 });
 
 // POST /floor-plan/tables/:tableId/reserve
-router.post('/tables/:tableId/reserve', requireAuth, async (req, res) => {
+router.post('/tables/:tableId/reserve', async (req, res) => {
   const { conventionId, adminId } = req;
   if (!conventionId) return res.status(400).json({ error: 'Convention ID required' });
   try {
@@ -59,7 +59,7 @@ router.post('/tables/:tableId/reserve', requireAuth, async (req, res) => {
 });
 
 // POST /floor-plan/tables/release/:eventId
-router.post('/tables/release/:eventId', requireAuth, async (req, res) => {
+router.post('/tables/release/:eventId', async (req, res) => {
   const { conventionId } = req;
   if (!conventionId) return res.status(400).json({ error: 'Convention ID required' });
   try {

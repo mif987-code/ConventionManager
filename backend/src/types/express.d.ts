@@ -8,5 +8,7 @@ declare module 'express-serve-static-core' {
     adminId?: number;
     /** Set by admin auth middleware */
     isAdmin?: boolean;
+    /** Admin permission categories from user.admin_permissions */
+    adminPermissions?: string[];
   }
 }

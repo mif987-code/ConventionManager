@@ -1,6 +1,7 @@
 const API_BASE = '/api';
 
 let apiKey = localStorage.getItem('cm_api_key') || '';
+let adminToken = localStorage.getItem('cm_admin_token') || '';
 
 export function setApiKey(key: string) {
   apiKey = key;
@@ -9,6 +10,15 @@ export function setApiKey(key: string) {
 
 export function getApiKey(): string {
   return apiKey;
+}
+
+export function setAdminToken(token: string) {
+  adminToken = token;
+  localStorage.setItem('cm_admin_token', token);
+}
+
+export function getAdminToken(): string {
+  return adminToken;
 }
 
 // --- Network status & retry queue ---
@@ -70,14 +80,17 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const method = (options.method || 'GET').toUpperCase();
 
   try {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (adminToken) headers.Authorization = `Bearer ${adminToken}`;
+    else if (apiKey) headers['x-api-key'] = apiKey;
+    if (conventionId) headers['x-convention-id'] = conventionId;
+    if (options.headers) Object.assign(headers, options.headers as Record<string, string>);
+
     const res = await fetch(`${API_BASE}${path}`, {
       ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        ...(conventionId && { 'x-convention-id': conventionId }),
-        ...options.headers,
-      },
+      headers,
     });
 
     const text = await res.text();
@@ -234,6 +247,12 @@ export const scan = {
     request<any>('/scan/qr/balance', { method: 'POST', body: JSON.stringify({ qr_code }) }),
   lookupToken: (token: string) =>
     request<any>('/scan/token', { method: 'POST', body: JSON.stringify({ token }) }),
+};
+
+// Auth
+export const auth = {
+  login: (email: string, password: string) =>
+    request<any>('/admin/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
 };
 
 // Store
