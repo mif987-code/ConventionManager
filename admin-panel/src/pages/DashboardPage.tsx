@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
+import PermissionsPage from './PermissionsPage';
 import { Users, Calendar, CreditCard, ScanLine, Trash2, AlertTriangle, Lock, Download, Save, QrCode, Shield, UserPlus, X, Search, Check, Loader2, ChevronDown, ChevronUp, Key, Eye, EyeOff, Settings } from 'lucide-react';
 import { users, events, conventions, permissions } from '../api';
 
@@ -284,9 +285,7 @@ export default function DashboardPage() {
   }
 
   useEffect(() => {
-    if (activeTab === 'permissions') {
-      loadPermissions();
-    } else if (activeTab === 'settings') {
+    if (activeTab === 'settings') {
       loadSettings();
     }
   }, [activeTab]);
@@ -437,125 +436,7 @@ export default function DashboardPage() {
         )
       )}
 
-      {activeTab === 'permissions' && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-semibold text-gray-800">Admin Permissions</h2>
-            <button
-              onClick={() => { setShowPromote(true); setPromotePerms(new Set()); }}
-              className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition text-sm font-medium"
-            >
-              <UserPlus size={16} /> Add Admin
-            </button>
-          </div>
-
-          {showPromote && (
-            <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 mb-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-medium text-gray-800">Promote User to Admin</h3>
-                <button onClick={() => { setShowPromote(false); setSearchQuery(''); setSearchResults([]); setSelectedUser(null); }} className="text-gray-400 hover:text-gray-600">
-                  <X size={20} />
-                </button>
-              </div>
-              <div className="relative mb-4">
-                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search users..."
-                  value={searchQuery}
-                  onChange={(e) => handleSearchInput(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
-                />
-              </div>
-              {searching && <div className="text-sm text-gray-500">Searching...</div>}
-              {searchResults.length > 0 && (
-                <div className="border border-gray-200 rounded-lg overflow-hidden mb-4 max-h-48 overflow-y-auto">
-                  {searchResults.map((u) => (
-                    <button
-                      key={u.id}
-                      onClick={() => { setSelectedUser(u); setSearchResults([]); }}
-                      className={`w-full text-left px-4 py-2 hover:bg-gray-100 transition ${selectedUser?.id === u.id ? 'bg-indigo-50' : ''}`}
-                    >
-                      <span className="font-medium">{u.name}</span>
-                      {u.email && <span className="text-sm text-gray-500 ml-2">{u.email}</span>}
-                    </button>
-                  ))}
-                </div>
-              )}
-              {selectedUser && (
-                <div className="bg-white border border-gray-200 rounded-lg p-3 mb-4">
-                  <p className="text-sm text-gray-600">Selected: <span className="font-medium text-gray-800">{selectedUser.name}</span></p>
-                </div>
-              )}
-              <div className="mb-4">
-                <p className="text-sm font-medium text-gray-700 mb-2">Permissions:</p>
-                <div className="flex flex-wrap gap-2">
-                  {Object.entries(PERM_LABELS).map(([key, { label, color }]) => (
-                    <button
-                      key={key}
-                      onClick={() => setPromotePerms(togglePerm(promotePerms, key))}
-                      className={`px-3 py-1 rounded-full text-xs font-medium transition ${promotePerms.has(key) ? color : 'bg-gray-100 text-gray-600'}`}
-                    >
-                      {promotePerms.has(key) && <Check size={12} className="inline mr-1" />}
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <button
-                onClick={handlePromote}
-                disabled={!selectedUser || promotePerms.size === 0 || saving}
-                className="w-full bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 transition font-medium disabled:opacity-50"
-              >
-                {saving ? 'Promoting...' : 'Promote to Admin'}
-              </button>
-            </div>
-          )}
-
-          <div className="space-y-3">
-            {admins.map((admin) => (
-              <div key={admin.id} className="border border-gray-200 rounded-lg p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium text-gray-800">{admin.name}</p>
-                    <p className="text-sm text-gray-500">{admin.email || 'No email'}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setExpandedId(expandedId === admin.id ? null : admin.id)}
-                      className="text-gray-400 hover:text-gray-600"
-                    >
-                      {expandedId === admin.id ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-                    </button>
-                    <button
-                      onClick={() => handleDemote(admin.id)}
-                      disabled={saving}
-                      className="text-red-600 hover:text-red-700 text-sm font-medium disabled:opacity-50"
-                    >
-                      Remove
-                    </button>
-                  </div>
-                </div>
-                {expandedId === admin.id && (
-                  <div className="mt-3 pt-3 border-t border-gray-100">
-                    <p className="text-sm font-medium text-gray-700 mb-2">Permissions:</p>
-                    <div className="flex flex-wrap gap-2">
-                      {(admin.admin_permissions || []).map((perm: string) => (
-                        <span key={perm} className={`px-2 py-1 rounded-full text-xs font-medium ${PERM_LABELS[perm]?.color || 'bg-gray-100 text-gray-600'}`}>
-                          {PERM_LABELS[perm]?.label || perm}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
-            {admins.length === 0 && (
-              <p className="text-gray-500 text-center py-8">No admins yet</p>
-            )}
-          </div>
-        </div>
-      )}
+      {activeTab === 'permissions' && <PermissionsPage />}
 
       {activeTab === 'settings' && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
