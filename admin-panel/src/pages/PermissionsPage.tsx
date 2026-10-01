@@ -125,6 +125,10 @@ export default function PermissionsPage() {
   }
 
   function togglePerm(perms: Set<string>, perm: string): Set<string> {
+    if (perm === 'super') {
+      return perms.has('super') ? new Set() : new Set(['super']);
+    }
+    if (perms.has('super')) return perms; // super already grants everything
     const next = new Set(perms);
     if (next.has(perm)) next.delete(perm); else next.add(perm);
     return next;
@@ -182,8 +186,9 @@ export default function PermissionsPage() {
             const checked = invitePerms.has(cat);
             return (
               <button key={cat} onClick={() => setInvitePerms(togglePerm(invitePerms, cat))}
+                disabled={invitePerms.has('super') && cat !== 'super'}
                 className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-left text-sm transition ${
-                  checked ? 'border-indigo-300 bg-indigo-50' : 'border-gray-200 hover:bg-gray-50'}`}>
+                  checked ? 'border-indigo-300 bg-indigo-50' : 'border-gray-200 hover:bg-gray-50'} disabled:opacity-40 disabled:cursor-not-allowed`}>
                 <div className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 ${
                   checked ? 'bg-indigo-600 border-indigo-600' : 'border-gray-300'}`}>
                   {checked && <Check size={10} className="text-white" />}
@@ -258,8 +263,9 @@ export default function PermissionsPage() {
                   const checked = promotePerms.has(cat);
                   return (
                     <button key={cat} onClick={() => setPromotePerms(togglePerm(promotePerms, cat))}
+                      disabled={promotePerms.has('super') && cat !== 'super'}
                       className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-left text-sm transition ${
-                        checked ? 'border-indigo-300 bg-indigo-50' : 'border-gray-200 hover:bg-gray-50'}`}>
+                        checked ? 'border-indigo-300 bg-indigo-50' : 'border-gray-200 hover:bg-gray-50'} disabled:opacity-40 disabled:cursor-not-allowed`}>
                       <div className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 ${
                         checked ? 'bg-indigo-600 border-indigo-600' : 'border-gray-300'}`}>
                         {checked && <Check size={10} className="text-white" />}
@@ -347,6 +353,10 @@ function AdminPermEditor({ categories, currentPerms, saving, onSave, onDemote }:
 
   function toggle(perm: string) {
     setPerms(prev => {
+      if (perm === 'super') {
+        return prev.has('super') ? new Set() : new Set(['super']);
+      }
+      if (prev.has('super')) return prev;
       const next = new Set(prev);
       if (next.has(perm)) next.delete(perm); else next.add(perm);
       return next;
@@ -361,8 +371,9 @@ function AdminPermEditor({ categories, currentPerms, saving, onSave, onDemote }:
           const checked = perms.has(cat);
           return (
             <button key={cat} onClick={() => toggle(cat)}
+              disabled={perms.has('super') && cat !== 'super'}
               className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-left text-sm transition ${
-                checked ? 'border-indigo-300 bg-indigo-50' : 'border-gray-200 hover:bg-gray-50'}`}>
+                checked ? 'border-indigo-300 bg-indigo-50' : 'border-gray-200 hover:bg-gray-50'} disabled:opacity-40 disabled:cursor-not-allowed`}>
               <div className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 ${
                 checked ? 'bg-indigo-600 border-indigo-600' : 'border-gray-300'}`}>
                 {checked && <Check size={10} className="text-white" />}

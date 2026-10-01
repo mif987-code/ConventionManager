@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import PermissionsPage from './PermissionsPage';
 import { Users, Calendar, CreditCard, ScanLine, Trash2, AlertTriangle, Lock, Download, Save, QrCode, Shield, UserPlus, X, Search, Check, Loader2, ChevronDown, ChevronUp, Key, Eye, EyeOff, Settings } from 'lucide-react';
 import { users, events, conventions, permissions } from '../api';
 
@@ -316,7 +315,6 @@ export default function DashboardPage() {
         <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
         <div className="flex gap-2">
           <TabButton id="overview" label="Overview" icon={<Settings size={18} />} />
-          <TabButton id="permissions" label="Permissions" icon={<Shield size={18} />} />
           <TabButton id="settings" label="Settings" icon={<Key size={18} />} />
         </div>
       </div>
@@ -435,8 +433,6 @@ export default function DashboardPage() {
           </>
         )
       )}
-
-      {activeTab === 'permissions' && <PermissionsPage />}
 
       {activeTab === 'settings' && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
